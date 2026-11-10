@@ -1,5 +1,15 @@
 # Front app remote publisher
 
+## 2026-11-10 — Version 2.0 release
+
+- Production deploy completed via Cloud Run publisher in two transactions: assets `app-2.0.js`, `app-2.0.1.js`, `style-2.0.css` (release `57ff79c4-aa5f-4d85-8079-98b3d4e6ec3a`, execution `front-app-publisher-8mpzv`); then `zoho.php` and `index.html` (release `236bd141-4ef7-4c91-a5ea-7276539eedf5`, execution `front-app-publisher-qpds4`). Index published last. Both execution logs returned `ok:true`.
+- Pre-release read-only `manifest` execution `front-app-publisher-gxn7m` confirmed SHA-256/length parity for all five live v1.9 files against GitHub `main`, **including `zoho.php`**. No secrets or source content were logged.
+- Validation build `a0df6956-57d1-426b-8900-f1960504aaf2` passed JavaScript syntax, Node tests, PHP syntax, 8 order-helper scenarios and publisher validation tests. The new manifest publisher image was separately tested and built successfully.
+- Production web readback confirms `Version 2.0` and both new scripts; all JS/CSS assets match GitHub byte-for-byte. Public health passes, unauthenticated order endpoint returns the expected authorization failure. COQL reads verified PO and a Shipment match using a stored Front ID.
+- New OAuth scopes require user reconnection; production Blueprint button execution **has not** been tested against a real record. Existing Blueprint automation might run when the user applies a transition; never auto-submit one for testing.
+- Current image: `publisher:v5-manifest`, default persistent `ACTION=probe`; `ACTION=manifest` reads only fixed public file SHA-256 and lengths, without changing the server.
+
+
 Application: https://minmaxdeals.com/front-app/index.html
 Google Cloud project: `minmaxdeals-crm-email` (67003629024).
 Cloud Run Job: `front-app-publisher`, region `us-east1`.
@@ -58,7 +68,7 @@ install_front_token was blocked and never executed. Do not retry without that
 specific consent. FRONT_API_TOKEN was removed from job secret mounts. The
 dedicated identity still has its approved secret-level IAM grant.
 
-Current publisher image: publisher:v4, supports payload chunks PAYLOAD_B64_0
+Previous publisher image: publisher:v4, supports payload chunks PAYLOAD_B64_0
 through PAYLOAD_B64_7 (concatenated in order). Use --update-env-vars overrides;
 the connector does not support --flags-file. Default job action remains probe.
 
@@ -101,6 +111,7 @@ response. Do not claim the live UI is verified without opening it in Front.
 ## Actions
 
 Default `ACTION=probe`: connect and stat index.html and zoho.php, no writes.
+`ACTION=manifest`: read-only SHA-256 and file size check for v1.9 baseline files, no source/secret output or writes.
 `ACTION=write_probe`: create a unique temporary file, verify its contents,
 test atomic rename, and remove it. Does not edit application files.
 `ACTION=publish`: requires PAYLOAD_B64, a base64-encoded gzip JSON object:
