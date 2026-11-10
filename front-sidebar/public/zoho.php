@@ -211,7 +211,7 @@ function frontBlueprintUiMode(array $transition, ?array $settings): array {
         $kind=(string)($during['type']??'');
         if ($kind==='info') {
             $message=trim((string)($during['message']??''));
-            if ($message!=='')$messages[]=mb_substr($message,0,1000,'UTF-8');
+            if ($message!=='')$messages[]=$message;
             continue;
         }
         if ($kind!=='field' || !empty($during['validation_filter'])) {
