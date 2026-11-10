@@ -180,7 +180,7 @@ try {
         $state = bin2hex(random_bytes(32));
         writePrivate(fileKey('state', $state), ['ticket'=>$ticket, 'expires'=>time()+600]);
         setcookie('minmax_zoho_state', $state, ['expires'=>time()+600, 'path'=>'/front-app/', 'secure'=>true, 'httponly'=>true, 'samesite'=>'Lax']);
-        $scope = 'ZohoCRM.modules.salesorders.READ,ZohoCRM.modules.salesorders.UPDATE,ZohoCRM.modules.purchaseorders.READ,ZohoCRM.modules.purchaseorders.UPDATE,ZohoCRM.modules.custom.UPDATE,ZohoCRM.modules.leads.READ,ZohoCRM.modules.contacts.READ,ZohoCRM.modules.accounts.READ,ZohoCRM.modules.vendors.READ,ZohoCRM.modules.custom.READ,ZohoCRM.modules.leads.UPDATE,ZohoCRM.modules.contacts.UPDATE,ZohoCRM.modules.leads.CREATE,ZohoCRM.modules.contacts.CREATE,ZohoCRM.users.READ,ZohoSearch.securesearch.READ';
+        $scope = 'ZohoCRM.coql.READ,ZohoCRM.modules.salesorders.READ,ZohoCRM.modules.salesorders.UPDATE,ZohoCRM.modules.purchaseorders.READ,ZohoCRM.modules.purchaseorders.UPDATE,ZohoCRM.modules.custom.UPDATE,ZohoCRM.modules.leads.READ,ZohoCRM.modules.contacts.READ,ZohoCRM.modules.accounts.READ,ZohoCRM.modules.vendors.READ,ZohoCRM.modules.custom.READ,ZohoCRM.modules.leads.UPDATE,ZohoCRM.modules.contacts.UPDATE,ZohoCRM.modules.leads.CREATE,ZohoCRM.modules.contacts.CREATE,ZohoCRM.users.READ,ZohoSearch.securesearch.READ';
         $query = http_build_query(['client_id'=>$config['client_id'], 'redirect_uri'=>$config['redirect_uri'], 'scope'=>$scope, 'response_type'=>'code', 'access_type'=>'offline', 'prompt'=>'consent', 'state'=>$state]);
         header('Location: https://accounts.zoho.com/oauth/v2/auth?' . $query); exit;
     }
