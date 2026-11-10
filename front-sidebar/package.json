@@ -1,0 +1,1 @@
+{"private":true,"type":"module","dependencies":{"@frontapp/plugin-sdk":"1.9.0","esbuild":"0.25.12"},"scripts":{"build":"esbuild src.js --bundle --minify --format=iife --outfile=public/app.js"}}

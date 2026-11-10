@@ -1,0 +1,7 @@
+node_modules/
+.secrets/
+.deploy-backups/
+__pycache__/
+*.pyc
+public/.zoho-private/*
+!public/.zoho-private/.htaccess

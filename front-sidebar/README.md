@@ -1,11 +1,10 @@
-# Front Sidebar — live frontend snapshot (v1.9)
+# Front Sidebar — source and live snapshot
 
-This folder contains a snapshot of **public frontend assets only**, retrieved from the live deployment at https://minmaxdeals.com/front-app/index.html on 2026-11-10.
+This folder contains the Front sidebar application source, server code and publishing instructions, plus the previously saved `live-v1.9/` snapshot. The source was copied from the local project on 2026-11-10; before publishing, verify it matches the running server and account for any later changes.
 
-- `index.html`: deployed page, footer “Version 1.9”.
-- `app-1.9.4.js`: deployed bundled/minified JavaScript.
-- `style-1.9.css` and `style-1.8.css`: deployed stylesheets.
+- `src.js` and adjacent modules: editable sidebar source and tests.
+- `public/`: current bundled frontend and PHP backend, including access-control files.
+- `publisher/README.md`: Google Cloud publishing workflow and operational history.
+- `live-v1.9/`: the prior public frontend snapshot retained unchanged.
 
-**INCOMPLETE BACKUP — not a deployable full application.** Server-side `zoho.php`, the private `front-sidebar` source project, and `front-sidebar/publisher/README.md` have not been exported from WPX and are not included. Do not overwrite the live site with only these files.
-
-No passwords, OAuth client secrets, access tokens, or SFTP credentials are intentionally stored in this snapshot.
+Configuration files, credentials, sessions, local backups, and installed dependencies are deliberately excluded. Restore dependencies from the lockfile and configure secrets separately. Never commit credentials. Review the publisher instructions carefully: some entries are historical and do not authorize copying a Front API token to WPX.

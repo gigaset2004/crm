@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {currentOwnerId} from './current-owner.js';
+const users=[{id:'1',email:'andrew@example.com'},{id:'2',email:'other@example.com'}];
+assert.equal(currentOwnerId(users,{email:'ANDREW@example.com'}),'1');
+assert.equal(currentOwnerId(users,{email:'missing@example.com'}),'');
+assert.equal(currentOwnerId(users,undefined),'');
+assert.equal(currentOwnerId([...users,users[0]],{email:'andrew@example.com'}),'');
+console.log('Owner matching checks passed.');
+assert.equal(currentOwnerId([{id:'3',name:'Jane Smith'}],{name:' JANE  Smith ',email:'different@example.com'}),'3');
+assert.equal(currentOwnerId([{id:'3',name:'Jane Smith'},{id:'4',name:'Jane Smith'}],{name:'Jane Smith'}),'');
