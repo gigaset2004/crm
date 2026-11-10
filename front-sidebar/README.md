@@ -26,3 +26,13 @@ The pre-release SHA-256 manifest confirmed exact server parity for the five pree
 - Shipment Type displays in the card's upper-right corner, using the exact existing Zoho Shipment_Type picklist colors verified on this date: Inbound #67c480, Dropship #af38fa, Outbound #f27e22, Direct Shipment #168aef. Shipment status remains visible on the next line.
 - Node and PHP tests passed: Cloud Build `427ac2ce-2258-427b-a025-c0760f966a3d`. Published through existing Cloud Run publisher in two releases: assets `ce7ab596-7c76-42d5-bfa2-11564359fa75` and backend/index `83d8da0f-076b-4bf7-bcd9-9fb407bb9992`. Live page reports Version 2.0.1, health works, and unauthenticated owner writes are blocked. No actual CRM record was changed for testing.
 - Live authenticated user interaction remains to be checked inside Front; the deploy and unauthenticated checks do not constitute end-to-end Blueprint/Owner write verification.
+
+## 2026-11-10 — Version 2.0.3 hybrid Blueprint transitions
+
+- SO / PO / Shipment tabs show no counts. Current status and Shipment Type are compact badges on the same row; Shipment Type retains Zoho picklist colors.
+- All manual Blueprint transitions retain Zoho sequence and configured colors. Buttons with supported **verified simple fields** open a native Front inline Save/Cancel form; no-field transitions may be executed from Front after confirmation if metadata confirms they contain no widget or other extra input.
+- Transitions configured with a **widget, kiosk, checklist, attachment, related item, notes, tags, unsupported fields, or unverified configuration** open the matching CRM record instead. Zoho does not provide a supported documented URL to pre-click its Blueprint button, so the user completes the transition in CRM.
+- The server obtains `during_inputs` from `GET /crm/v8/settings/blueprints/transitions?ids=...` to distinguish simple fields from widgets. All inline POST transitions re-fetch and enforce the same metadata in addition to conversation linkage, field validation, availability and user confirmation. If metadata access fails, the action fails closed to the CRM route.
+- An OAuth reconnection is required once to add `ZohoCRM.settings.transitions.read` to the existing scope. Until reconnected, buttons fall back to opening the CRM record.
+- Build `af955ff1-ec34-4db3-a4ac-b25141357a26` passed Node/PHP/publisher tests. Production deployment succeeded via Cloud Run publisher with assets then PHP/index. Live index verified Version 2.0.3, JS/CSS match GitHub and anonymous Blueprint endpoint denies access.
+- **No real CRM Blueprint transition was executed during testing.** An authenticated in-Front acceptance test is still needed to confirm the new Zoho scope and metadata response in this organization.
