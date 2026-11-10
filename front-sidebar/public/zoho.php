@@ -187,7 +187,7 @@ function frontBlueprintSettings(array $session, array $transitions): array {
     if (!$ids)return ['items'=>[],'error'=>null];
     try {
         $url=$session['api_domain'].'/crm/v8/settings/blueprints/transitions?'.http_build_query(['ids'=>implode(',',array_unique($ids))]);
-        $response=requestZoho($url,null,$session['access_token']);
+        $response=requestZoho($url,null,$session['access_token'],'GET',null,['X-ZOHO-SERVICE: automation']);
         $items=[];
         foreach (($response['transitions']??[]) as $item)if(is_array($item)&&isset($item['id']))$items[(string)$item['id']]=$item;
         return ['items'=>$items,'error'=>null];
