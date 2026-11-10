@@ -15,12 +15,15 @@ test('Tabs have short singular labels without counters', () => {
   assert.match(ui,/escapeHtml\(label\) \+ '<\/button>'/);
   assert.doesNotMatch(ui,/escapeHtml\(label \+ count\)/);
 });
-test('Blueprint opens Zoho record through Front instead of executing a transition', () => {
+test('Blueprint uses inline forms for safe fields and CRM links for widgets', () => {
+  assert.match(ui,/data-blueprint-inline/);
   assert.match(ui,/data-blueprint-link/);
-  assert.match(ui,/crm\.zoho\.com\/crm\/minmaxdeals\/tab\//);
+  assert.match(ui,/transition\.mode === 'inline'/);
+  assert.match(ui,/data-blueprint-submit/);
+  assert.match(ui,/blueprint_transition/);
   assert.match(ui,/__minmaxOpenCrmUrl\(link\.href\)/);
-  assert.doesNotMatch(ui,/blueprint_transition/);
-  assert.doesNotMatch(ui,/data-blueprint-submit/);
+  assert.match(ui,/crm\.zoho\.com\/crm\/minmaxdeals\/tab\//);
+  assert.match(ui,/data-blueprint-cancel/);
 });
 test('Both source and bundle expose the existing Front openUrl operation', () => {
   assert.match(bridge,/return next\.openUrl\(url\)/);
