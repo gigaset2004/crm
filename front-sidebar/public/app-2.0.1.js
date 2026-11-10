@@ -109,7 +109,7 @@
     '</article>';
   }
   function render() {
-    if (selected !== 'information' && !total(selected) && !errors[selected]) selected = 'information';
+    if (!loading && selected !== 'information' && !total(selected) && !errors[selected]) selected = 'information';
     renderNavigation();
     informationPane.hidden = selected !== 'information';
     ordersPane.hidden = selected === 'information';
