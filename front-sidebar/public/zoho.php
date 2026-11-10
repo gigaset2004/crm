@@ -175,13 +175,61 @@ function frontSupportedBlueprintField(array $field): bool {
         && in_array((string)($field['data_type']??''),['picklist','text','textarea','multiline','email','phone','website','integer','double','currency','percent','date','datetime','boolean','checkbox'],true);
 }
 
+
+/* Zoho transition settings expose native widgets/checklists that the record-level
+ * Blueprint response alone cannot distinguish from simple transitions. */
+function frontBlueprintSettings(array $session, array $transitions): array {
+    $ids=[];
+    foreach ($transitions as $transition) {
+        $id=(string)($transition['id']??'');
+        if (preg_match('/^[0-9]{10,25}$/D',$id))$ids[]=$id;
+    }
+    if (!$ids)return ['items'=>[],'error'=>null];
+    try {
+        $url=$session['api_domain'].'/crm/v8/settings/blueprints/transitions?'.http_build_query(['ids'=>implode(',',array_unique($ids))]);
+        $response=requestZoho($url,null,$session['access_token']);
+        $items=[];
+        foreach (($response['transitions']??[]) as $item)if(is_array($item)&&isset($item['id']))$items[(string)$item['id']]=$item;
+        return ['items'=>$items,'error'=>null];
+    } catch (Throwable $error) {
+        return ['items'=>[],'error'=>$error->getMessage()==='OAUTH_SCOPE_MISMATCH'?'reconnect':'unavailable'];
+    }
+}
+function frontBlueprintUiMode(array $transition, ?array $settings): array {
+    if ($settings===null || !array_key_exists('during_inputs',$settings) ||
+        ($settings['during_inputs']!==null && !is_array($settings['during_inputs']))) {
+        return ['mode'=>'crm','reason'=>'Blueprint setup needs verification in Zoho CRM.'];
+    }
+    $fields=frontBlueprintFields($transition);
+    if (array_filter($fields,fn($field)=>!frontSupportedBlueprintField($field))) {
+        return ['mode'=>'crm','reason'=>'This transition has unsupported Zoho fields.'];
+    }
+    $fieldNames=array_fill_keys(array_column($fields,'api_name'),true);
+    $messages=[];
+    foreach (($settings['during_inputs']??[]) as $during) {
+        if (!is_array($during))return ['mode'=>'crm','reason'=>'Unsupported Blueprint input.'];
+        $kind=(string)($during['type']??'');
+        if ($kind==='info') {
+            $message=trim((string)($during['message']??''));
+            if ($message!=='')$messages[]=mb_substr($message,0,1000,'UTF-8');
+            continue;
+        }
+        if ($kind!=='field' || !empty($during['validation_filter'])) {
+            return ['mode'=>'crm','reason'=>'This transition uses a Zoho widget, checklist or other CRM-only input.'];
+        }
+        $field=(string)($during['field']['api_name']??'');
+        if (!isset($fieldNames[$field])) return ['mode'=>'crm','reason'=>'One of the Blueprint fields is not available in Front.'];
+    }
+    return ['mode'=>'inline','reason'=>'','messages'=>$messages];
+}
+
 try {
     if ($action === 'start') {
         $ticket = cleanTicket((string)($_GET['ticket'] ?? ''));
         $state = bin2hex(random_bytes(32));
         writePrivate(fileKey('state', $state), ['ticket'=>$ticket, 'expires'=>time()+600]);
         setcookie('minmax_zoho_state', $state, ['expires'=>time()+600, 'path'=>'/front-app/', 'secure'=>true, 'httponly'=>true, 'samesite'=>'Lax']);
-        $scope = 'ZohoCRM.coql.READ,ZohoCRM.modules.salesorders.READ,ZohoCRM.modules.salesorders.UPDATE,ZohoCRM.modules.purchaseorders.READ,ZohoCRM.modules.purchaseorders.UPDATE,ZohoCRM.modules.custom.UPDATE,ZohoCRM.modules.leads.READ,ZohoCRM.modules.contacts.READ,ZohoCRM.modules.accounts.READ,ZohoCRM.modules.vendors.READ,ZohoCRM.modules.custom.READ,ZohoCRM.modules.leads.UPDATE,ZohoCRM.modules.contacts.UPDATE,ZohoCRM.modules.leads.CREATE,ZohoCRM.modules.contacts.CREATE,ZohoCRM.users.READ,ZohoSearch.securesearch.READ';
+        $scope = 'ZohoCRM.settings.transitions.read,ZohoCRM.coql.READ,ZohoCRM.modules.salesorders.READ,ZohoCRM.modules.salesorders.UPDATE,ZohoCRM.modules.purchaseorders.READ,ZohoCRM.modules.purchaseorders.UPDATE,ZohoCRM.modules.custom.UPDATE,ZohoCRM.modules.leads.READ,ZohoCRM.modules.contacts.READ,ZohoCRM.modules.accounts.READ,ZohoCRM.modules.vendors.READ,ZohoCRM.modules.custom.READ,ZohoCRM.modules.leads.UPDATE,ZohoCRM.modules.contacts.UPDATE,ZohoCRM.modules.leads.CREATE,ZohoCRM.modules.contacts.CREATE,ZohoCRM.users.READ,ZohoSearch.securesearch.READ';
         $query = http_build_query(['client_id'=>$config['client_id'], 'redirect_uri'=>$config['redirect_uri'], 'scope'=>$scope, 'response_type'=>'code', 'access_type'=>'offline', 'prompt'=>'consent', 'state'=>$state]);
         header('Location: https://accounts.zoho.com/oauth/v2/auth?' . $query); exit;
     }
@@ -290,11 +338,13 @@ try {
         }
         $bp=requestZoho($path.'/actions/blueprint',null,$session['access_token']);
         $transitions=$bp['blueprint']['transitions']??[];
+        $settings=frontBlueprintSettings($session,$transitions);
         if ($action==='record_blueprint') {
             $list=[];
             foreach ($transitions as $transition) {
                 if (!is_array($transition)||($transition['type']??'')!=='manual') continue;
                 $fields=frontBlueprintFields($transition);
+                $mode=frontBlueprintUiMode($transition,$settings['items'][(string)($transition['id']??'')]??null);
                 $list[]=[
                     'id'=>(string)($transition['id']??''),
                     'name'=>(string)($transition['name']??''),
@@ -306,11 +356,14 @@ try {
                     'criteria_message'=>(string)($transition['criteria_message']??''),
                     'fields'=>$fields,
                     'supported'=>!array_filter($fields,fn($field)=>!frontSupportedBlueprintField($field)),
+                    'mode'=>$mode['mode'],
+                    'mode_reason'=>$mode['reason'],
+                    'messages'=>$mode['messages']??[],
                     'values'=>array_intersect_key($transition['data']??[],array_fill_keys(array_column($fields,'api_name'),true))
                 ];
             }
             usort($list,fn($a,$b)=>$a['sequence']<=>$b['sequence']);
-            respond(['module'=>$module,'id'=>$id,'status'=>(string)($bp['blueprint']['process_info']['field_value']??''),'transitions'=>$list]);
+            respond(['module'=>$module,'id'=>$id,'status'=>(string)($bp['blueprint']['process_info']['field_value']??''),'needs_reconnect'=>$settings['error']==='reconnect','transitions'=>$list]);
         }
         if (($_SERVER['REQUEST_METHOD']??'')!=='POST') respond(['error'=>'POST required.'],405);
         $input=json_decode((string)file_get_contents('php://input'),true);
@@ -323,6 +376,8 @@ try {
             if ((string)($transition['id']??'')===$transitionId) {$selected=$transition;break;}
         }
         if (!is_array($selected) || ($selected['type']??'')!=='manual' || ($selected['criteria_matched']??false)!==true || ($selected['state']??'open')!=='open') respond(['error'=>'Transition is no longer available. Refresh the record.'],409);
+        $mode=frontBlueprintUiMode($selected,$settings['items'][$transitionId]??null);
+        if ($mode['mode']!=='inline') respond(['error'=>'This transition must be completed in Zoho CRM. Reconnect Zoho if additional permissions are required.'],422);
         $fields=frontBlueprintFields($selected);
         $allowed=[];
         foreach ($fields as $field) {
