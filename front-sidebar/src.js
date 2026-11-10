@@ -260,5 +260,5 @@ async function onContext(next,force=false){
 }
 $('refresh').onclick=async()=>{lookupCache.clear();await checkConnection();if(context)await onContext(context,true);else if(participants.length)await lookupAll();};
 checkConnection().then(()=>{if(context)onContext(context,true);else renderEmpty();});
-Front.contextUpdates.subscribe(next=>{window.__minmaxFrontContext={type:next?.type||'',conversation_id:next?.conversation?.id||''};window.dispatchEvent(new Event('minmax-front-context'));onContext(next);});
+Front.contextUpdates.subscribe(next=>{window.__minmaxFrontContext={type:next?.type||'',conversation_id:next?.conversation?.id||''};window.__minmaxOpenCrmUrl=url=>{const parsed=new URL(url);if(parsed.origin!=='https://crm.zoho.com'||!parsed.pathname.startsWith('/crm/minmaxdeals/tab/'))throw new Error('Unsupported CRM URL');return next.openUrl(url);};window.dispatchEvent(new Event('minmax-front-context'));onContext(next);});
 if(window.top===window.self)renderManual();

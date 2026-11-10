@@ -39,4 +39,17 @@ $transitions=[
 usort($transitions,fn($a,$b)=>$a['sequence']<=>$b['sequence']);
 check($transitions[0]['name']==='Confirmed','CRM transition sequence sorted');
 check($transitions[0]['color_code']==='#5cb3fd','CRM color preserved');
-echo "Order helper tests: 12 passed\n";
+$plain=['fields'=>[]];
+$typed=['fields'=>[['api_name'=>'Leading_time','data_type'=>'picklist','_type'=>'fields']]];
+$widget=['id'=>'3','during_inputs'=>[['type'=>'widget']]];
+$ordinary=['id'=>'3','during_inputs'=>[['type'=>'field','field'=>['api_name'=>'Leading_time']]]];
+$info=['id'=>'4','during_inputs'=>[['type'=>'info','message'=>'Please confirm the shipment.']]];
+check(frontBlueprintUiMode($plain,['during_inputs'=>[]])['mode']==='inline','simple empty-field transition');
+check(frontBlueprintUiMode($typed,$ordinary)['mode']==='inline','ordinary field transition');
+check(frontBlueprintUiMode($typed,$widget)['mode']==='crm','widget must use CRM');
+check(frontBlueprintUiMode($plain,['during_inputs'=>[['type'=>'checklist']]])['mode']==='crm','checklist must use CRM');
+check(frontBlueprintUiMode($plain,null)['mode']==='crm','missing settings fail closed');
+check(frontBlueprintUiMode($typed,['during_inputs'=>[['type'=>'field','field'=>['api_name'=>'Other_Field']]]])['mode']==='crm','unmapped input fail closed');
+check(frontBlueprintUiMode($plain,$info)['messages'][0]==='Please confirm the shipment.','info message is displayed');
+check(frontBlueprintUiMode($typed,['during_inputs'=>[['type'=>'field','field'=>['api_name'=>'Leading_time'],'validation_filter'=>['criteria'=>[]]]]])['mode']==='crm','complex validation routed to Zoho');
+echo "Order helper tests: 20 passed\n";

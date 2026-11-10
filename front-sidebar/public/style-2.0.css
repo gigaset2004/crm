@@ -41,3 +41,19 @@
 .crm-owner-row .owner-editor{width:100%}
 .crm-owner-row .owner-editor select{max-width:100%;white-space:normal}
 .crm-owner-row .owner-editor .edit-error{display:block}
+
+/* v2.0.2: Blueprint links open native Zoho CRM, compact status/type layout. */
+.crm-order-card-title{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;column-gap:6px;row-gap:4px}
+.crm-order-card-title>a{flex:1 1 115px;min-width:0;overflow-wrap:anywhere;line-height:1.45}
+.crm-order-badges{display:inline-flex;flex:0 0 auto;max-width:100%;gap:4px;align-items:center;justify-content:flex-end;margin-left:auto;white-space:nowrap}
+.crm-order-badges .badge{font-size:8px;font-weight:500;line-height:1.35;padding:2px 5px;border-radius:4px;letter-spacing:0;text-transform:none;white-space:nowrap}
+.crm-order-badges .crm-shipment-type{font-size:8px;line-height:1.35;padding:2px 5px}
+.crm-order-actions a.crm-transition-button{display:inline-flex;align-items:center;justify-content:center;border:1px solid #c7d4e8;background:#edf3fd;color:#2055a3;border-radius:6px;text-decoration:none;cursor:pointer;min-height:26px;padding:5px 8px;box-sizing:border-box}
+.crm-order-actions a.crm-transition-button:hover{filter:brightness(.95);text-decoration:none}
+.crm-open-warning{width:100%;font-size:10px;color:#ae2929;line-height:1.4}
+
+/* v2.0.3: Inline simple Blueprint fields, CRM-only links for widgets. */
+.crm-blueprint:not([hidden]){margin-top:8px}
+.crm-blueprint-note{font-size:10px;color:#657180;line-height:1.5;margin:7px 0}
+.crm-order-actions button.crm-transition-button{display:inline-flex;align-items:center;justify-content:center;line-height:1.35;white-space:normal}
+.crm-blueprint .crm-transition.create-form select,.crm-blueprint .crm-transition.create-form input,.crm-blueprint .crm-transition.create-form textarea{width:100%;box-sizing:border-box}
