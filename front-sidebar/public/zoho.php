@@ -228,10 +228,30 @@ try {
                 } catch (Throwable $e) { $output['errors'][$key]=$e->getMessage()==='OAUTH_SCOPE_MISMATCH'?'reconnect':'unavailable'; }
             }
             try {
-                // The Shipment field is multiline. Search first, then verify exact ID match.
-                $criteria='(Front_Conversation_ID:contains:'.$conversation.')';
-                $search=requestZoho($session['api_domain'].'/crm/v8/Shipments/search?'.http_build_query(['criteria'=>$criteria,'per_page'=>100]),null,$session['access_token']);
-                foreach (($search['data']??[]) as $row) if (is_array($row) && frontRecordMatches($row,$conversation)) $output['shipments'][]=frontOrderSummary('Shipments',$row);
+                // Front_Conversation_ID is a textarea: standard Search 'contains' is rejected by Zoho.
+                // COQL is attempted first; linked POs provide a second discovery path.
+                $found=[];
+                try {
+                    $query="select id, Name, Shipment_Status, Shipment_Type, Created_Time, Owner, Front_Conversation_ID from Shipments where Front_Conversation_ID like '%".$conversation."%' limit 0, 100";
+                    $search=requestZoho($session['api_domain'].'/crm/v8/coql',null,$session['access_token'],'POST',['select_query'=>$query]);
+                    foreach (($search['data']??[]) as $row) if(is_array($row) && frontRecordMatches($row,$conversation))$found[(string)$row['id']]=$row;
+                } catch (Throwable $ignored) {}
+                foreach (array_slice($output['purchase_orders'],0,50) as $po) {
+                    $poId=(string)$po['id'];
+                    if(!preg_match('/^[0-9]{10,25}$/D',$poId))continue;
+                    try {
+                        $query="select id, Shipment, Purchase_Order from Shipment_PO_Links where Purchase_Order = '".$poId."' limit 0, 100";
+                        $links=requestZoho($session['api_domain'].'/crm/v8/coql',null,$session['access_token'],'POST',['select_query'=>$query]);
+                        foreach (($links['data']??[]) as $link) {
+                            $shipmentId=(string)($link['Shipment']['id']??'');
+                            if(!preg_match('/^[0-9]{10,25}$/D',$shipmentId)||isset($found[$shipmentId]))continue;
+                            $detail=requestZoho($session['api_domain'].'/crm/v8/Shipments/'.$shipmentId,null,$session['access_token']);
+                            $record=$detail['data'][0]??[];
+                            if(is_array($record)&&frontRecordMatches($record,$conversation))$found[$shipmentId]=$record;
+                        }
+                    } catch (Throwable $ignored) {}
+                }
+                foreach ($found as $row)$output['shipments'][]=frontOrderSummary('Shipments',$row);
             } catch (Throwable $e) { $output['errors']['shipments']=$e->getMessage()==='OAUTH_SCOPE_MISMATCH'?'reconnect':'unavailable'; }
             respond($output);
         }
