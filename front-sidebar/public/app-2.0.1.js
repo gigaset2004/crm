@@ -96,15 +96,21 @@
     const current = window.__minmaxFrontContext || {};
     const nextId = current.type === 'singleConversation' ? String(current.conversation_id || '') : '';
     if (!force && nextId === conversation) return;
+    const previousConversation = conversation;
     conversation = /^cnv_[a-z0-9]{5,40}$/i.test(nextId) ? nextId : '';
     const generation = ++loadId;
-    selected = 'information'; records = {};errors = {};
+    if (conversation !== previousConversation) selected = 'information';
+    records = {};errors = {};
     if (!conversation) {loading = false;render();return;}
     loading = true;render();
     try {
       const result = await api('conversation_records');
       if (generation !== loadId) return;
       records = result; errors = result.errors || {};
+      if (Object.values(errors).includes('reconnect')) {
+        const connect = $('connect');
+        if (connect) {connect.hidden = false; connect.textContent = 'Reconnect Zoho';}
+      }
     } catch (error) {
       if (generation !== loadId) return;
       errors = {sales_orders:'unavailable',purchase_orders:'unavailable',shipments:'unavailable'};
