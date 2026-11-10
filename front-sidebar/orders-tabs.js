@@ -102,6 +102,7 @@
       (item.quantity !== null && item.quantity !== undefined ? line('Qty',item.quantity) : '') +
       ownerRow(item) +
       '<div class="crm-order-actions create-actions" aria-label="Blueprint transitions"><span class="muted">Loading transitions…</span></div>' +
+      '<div class="crm-blueprint" hidden></div>' +
     '</article>';
   }
   function render() {
@@ -157,6 +158,41 @@
       if (generation === loadId) {loading = false;render();}
     }
   }
+  // Only server-verified field transitions execute here; custom widgets stay in Zoho.
+  const supportedTypes = new Set(['picklist','text','textarea','multiline','email','phone','website','integer','double','currency','percent','date','datetime','boolean','checkbox']);
+  function fieldControl(field, value) {
+    const label = escapeHtml(field.label || field.api_name), name = escapeHtml(field.api_name);
+    const required = field.mandatory ? ' required' : '';
+    const current = value === null || value === undefined ? '' : String(value);
+    if (field.data_type === 'picklist') {
+      const options = (field.options || []).map(opt => '<option value="' + escapeHtml(opt.value) + '"' + (String(opt.value) === current ? ' selected' : '') + '>' + escapeHtml(opt.label) + '</option>').join('');
+      return '<label>' + label + '<select name="' + name + '"' + required + '><option value="">Select…</option>' + options + '</select></label>';
+    }
+    if (field.data_type === 'boolean' || field.data_type === 'checkbox')
+      return '<label class="crm-checkbox"><input type="checkbox" name="' + name + '"' + (current === 'true' || current === '1' ? ' checked' : '') + '> ' + label + '</label>';
+    if (field.data_type === 'textarea' || field.data_type === 'multiline')
+      return '<label>' + label + '<textarea name="' + name + '" maxlength="2000"' + required + '>' + escapeHtml(current) + '</textarea></label>';
+    let type = 'text';
+    if (field.data_type === 'date') type = 'date';
+    else if (field.data_type === 'datetime') type = 'datetime-local';
+    else if (field.data_type === 'email') type = 'email';
+    else if (field.data_type === 'integer' || field.data_type === 'double' || field.data_type === 'currency' || field.data_type === 'percent') type = 'number';
+    const step = type === 'number' ? ' step="' + (field.data_type === 'integer' ? '1' : 'any') + '"' : '';
+    const inputValue = type === 'datetime-local' ? current.slice(0,16) : current;
+    return '<label>' + label + '<input type="' + type + '" name="' + name + '" value="' + escapeHtml(inputValue) + '"' + step + required + ' maxlength="2000"></label>';
+  }
+  function inlineBlueprintForm(transition) {
+    if (transition.mode !== 'inline' || !transition.supported || (transition.fields || []).some(f => f.kind !== 'fields' || !supportedTypes.has(f.data_type)))
+      return '<div class="empty error">This transition must be completed in Zoho CRM.</div>';
+    const fields = (transition.fields || []).map(f => fieldControl(f, Object.prototype.hasOwnProperty.call(transition.values || {}, f.api_name) ? transition.values[f.api_name] : f.content)).join('');
+    const notes = (transition.messages || []).map(v => '<p class="crm-blueprint-note">' + escapeHtml(v) + '</p>').join('');
+    return '<form class="crm-transition create-form" data-blueprint-submit data-transition-id="' + escapeHtml(transition.id) +
+      '" data-transition-name="' + escapeHtml(transition.name) + '">' +
+      '<strong>' + escapeHtml(transition.name) + '</strong>' + notes + fields +
+      (notes || fields ? '' : '<p class="crm-blueprint-note">No additional fields are required.</p>') +
+      '<div class="create-submit"><button type="submit">Save</button><button type="button" data-blueprint-cancel>Cancel</button></div>' +
+      '<span class="edit-error" role="alert"></span></form>';
+  }
   function blueprintKey(item) { return item.module + ':' + item.id; }
   async function loadBlueprintButtons(card) {
     const item = findOrder(card); if (!item) return;
@@ -166,7 +202,13 @@
     try {
       if (!blueprintCache.has(key)) {
         const pending = api('record_blueprint',{module:item.module,id:item.id})
-          .then(data => (data.transitions || []).filter(t => t.available).sort((a,b) => (a.sequence ?? 9999) - (b.sequence ?? 9999)))
+          .then(data => {
+            if (data.needs_reconnect) {
+              const connect = $('connect');
+              if (connect) { connect.hidden = false; connect.textContent = 'Reconnect Zoho'; }
+            }
+            return (data.transitions || []).filter(t => t.available).sort((a,b) => (a.sequence ?? 9999) - (b.sequence ?? 9999));
+          })
           .catch(error => {blueprintCache.delete(key); throw error;});
         blueprintCache.set(key,pending);
       }
@@ -176,9 +218,14 @@
         const color = safeColor(transition.color);
         const foreground = safeColor(transition.text_color) || readableColor(color);
         const style = color ? ' style="background:' + color + ';border-color:' + color + ';color:' + foreground + '"' : '';
+        const canInline = transition.mode === 'inline' && transition.supported;
+        if (canInline) {
+          return '<button type="button" class="crm-transition-button" data-blueprint-inline="' + escapeHtml(transition.id) +
+            '" title="Complete ' + escapeHtml(transition.name) + ' in Front"' + style + '>' + escapeHtml(transition.name) + '</button>';
+        }
         const recordUrl = 'https://crm.zoho.com/crm/minmaxdeals/tab/' + encodeURIComponent(item.crm_tab) + '/' + encodeURIComponent(item.id);
         return '<a class="crm-transition-button" data-blueprint-link data-blueprint-name="' + escapeHtml(transition.name) +
-          '" title="Open this record in Zoho CRM to run ' + escapeHtml(transition.name) + '" href="' + escapeHtml(recordUrl) +
+          '" title="' + escapeHtml(transition.mode_reason || 'This transition requires Zoho CRM') + '" href="' + escapeHtml(recordUrl) +
           '" target="_blank" rel="noopener noreferrer"' + style + '>' + escapeHtml(transition.name) + '</a>';
       }).join('') : '<span class="muted">No available transitions</span>';
     } catch (error) {
@@ -190,15 +237,36 @@
     selected = button.dataset.crmTab;render();
   });
   ordersPane.addEventListener('click', async event => {
+    const cancel = event.target.closest('[data-blueprint-cancel]');
+    if (cancel) {
+      const panel = cancel.closest('.crm-blueprint');
+      if (panel) {panel.hidden = true;panel.innerHTML = '';}
+      return;
+    }
+    const inline = event.target.closest('[data-blueprint-inline]');
+    if (inline) {
+      const card = inline.closest('[data-order-id]'), item = findOrder(card);
+      if (!card || !item) return;
+      const panel = card.querySelector('.crm-blueprint');
+      if (!panel.hidden && panel.dataset.transitionId === inline.dataset.blueprintInline) {
+        panel.hidden = true;panel.innerHTML = '';return;
+      }
+      const transitions = await blueprintCache.get(blueprintKey(item)) || [];
+      if (!card.isConnected) return;
+      const transition = transitions.find(t => String(t.id) === inline.dataset.blueprintInline);
+      panel.dataset.transitionId = inline.dataset.blueprintInline;
+      panel.innerHTML = transition ? inlineBlueprintForm(transition) : '<div class="empty error">Transition unavailable. Refresh the panel.</div>';
+      panel.hidden = false;
+      panel.querySelector('input:not([type="hidden"]),select,textarea')?.focus();
+      return;
+    }
     const link = event.target.closest('a[data-blueprint-link]');
     if (!link) return;
-    // Front's official openUrl action opens CRM outside the sidebar iframe.
-    // The Zoho record page displays its own native Blueprint buttons/widgets.
+    // Native Zoho widgets and complex transitions must run in CRM.
     if (typeof window.__minmaxOpenCrmUrl === 'function') {
       event.preventDefault();
-      try {
-        await window.__minmaxOpenCrmUrl(link.href);
-      } catch (error) {
+      try { await window.__minmaxOpenCrmUrl(link.href); }
+      catch {
         const notice = link.closest('.crm-order-actions');
         if (notice) {
           const message = document.createElement('span');
@@ -208,7 +276,6 @@
         }
       }
     }
-    // Without Front's SDK bridge, the normal target=_blank link remains usable.
   });
   ordersPane.addEventListener('change',async event => {
     const select = event.target.closest('.crm-order-owner');if (!select) return;
@@ -235,6 +302,32 @@
       select.value = originalId;
       error.textContent = problem.message;
       select.disabled = false;
+    }
+  });
+  ordersPane.addEventListener('submit', async event => {
+    const form = event.target.closest('[data-blueprint-submit]');
+    if (!form) return;
+    event.preventDefault();
+    const card = form.closest('[data-order-id]');
+    if (!card) return;
+    const transitionName = form.dataset.transitionName;
+    if (!window.confirm('Apply Zoho Blueprint transition "' + transitionName + '"? CRM automation may run.')) return;
+    const values = {};
+    for (const element of form.querySelectorAll('[name]'))
+      values[element.name] = element.type === 'checkbox' ? element.checked : element.value;
+    const save = form.querySelector('button[type="submit"]'), message = form.querySelector('.edit-error');
+    const atConversation = conversation;
+    save.disabled = true;
+    message.textContent = '';
+    try {
+      await api('blueprint_transition', {module:card.dataset.orderModule,id:card.dataset.orderId},
+        {transition_id:form.dataset.transitionId,data:values});
+      if (conversation !== atConversation) return;
+      await loadOrders(true);
+    } catch (error) {
+      if (conversation !== atConversation) return;
+      message.textContent = error.message;
+      save.disabled = false;
     }
   });
   $('refresh')?.addEventListener('click', () => {void loadOrders(true);});
