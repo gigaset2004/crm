@@ -9,7 +9,17 @@
     ['purchase_orders','PO','Purchase Orders'],
     ['shipments','Shipments','Shipments']
   ];
-  const recordTypes = new Set(['Sales_Orders','Purchase_Orders','Shipments']);
+  // Picklist colors read from Zoho Shipments metadata, not guessed theme colors.
+  const shipmentTypeColors = {
+    'Inbound':'#67c480', 'Dropship':'#af38fa', 'Outbound':'#f27e22', 'Direct Shipment':'#168aef'
+  };
+  const safeColor = value => /^#[0-9a-f]{6}$/i.test(String(value || '')) ? value : '';
+  const readableColor = color => {
+    const raw = safeColor(color); if (!raw) return '#293955';
+    const parts = [1,3,5].map(i => parseInt(raw.slice(i,i+2),16)/255);
+    const luminance = parts.map(c => c <= .04045 ? c/12.92 : Math.pow((c+.055)/1.055,2.4));
+    return luminance[0]*.2126 + luminance[1]*.7152 + luminance[2]*.0722 > .45 ? '#20242c' : '#ffffff';
+  };
   const supportedTypes = new Set(['picklist','text','textarea','multiline','email','phone','website','integer','double','currency','percent','date','datetime','boolean','checkbox']);
   const info = $('sender'), content = $('content'), main = content?.parentElement;
   if (!info || !content || !main) return;
@@ -27,6 +37,8 @@
   ordersPane.setAttribute('aria-live','polite');
   informationPane.after(ordersPane);
   let conversation = '', selected = 'information', loading = false, records = {}, errors = {}, loadId = 0;
+  let users = [], usersReady = false;
+  const blueprintCache = new Map();
 
   const getTicket = () => {
     try { return localStorage.getItem('minmax-zoho-session') || sessionStorage.getItem('minmax-zoho-session') || ''; }
@@ -62,18 +74,37 @@
   function line(label,value) {
     return '<div class="field-row"><span class="field-label">' + escapeHtml(label) + '</span><span>' + escapeHtml(value ?? '—') + '</span></div>';
   }
+  function findOrder(card) {
+    const group = Object.values(records).find(value => Array.isArray(value) && value.some(row => row.id === card.dataset.orderId && row.module === card.dataset.orderModule));
+    return group?.find(row => row.id === card.dataset.orderId && row.module === card.dataset.orderModule);
+  }
+  function ownerRow(item) {
+    const current = users.find(user => String(user.id) === String(item.owner_id));
+    const shown = current?.name || item.owner || '—';
+    const valid = users.length > 0 && item.owner_id;
+    if (!valid) return line('Owner',shown);
+    const options = users.map(user => '<option value="' + escapeHtml(user.id) + '"' + (String(user.id) === String(item.owner_id) ? ' selected' : '') + '>' + escapeHtml(user.name) + '</option>').join('');
+    const hasCurrent = users.some(user => String(user.id) === String(item.owner_id));
+    const fallback = hasCurrent ? '' : '<option selected value="' + escapeHtml(item.owner_id) + '">' + escapeHtml(shown) + '</option>';
+    return '<div class="field-row crm-owner-row"><span class="field-label">Owner</span><div class="editable-field owner-editor"><select class="owner-select crm-order-owner" aria-label="Record owner" data-owner-id="' + escapeHtml(item.owner_id) + '">' + fallback + options + '</select><span class="edit-error" role="alert"></span></div></div>';
+  }
   function recordCard(item) {
     const link = 'https://crm.zoho.com/crm/minmaxdeals/tab/' + encodeURIComponent(item.crm_tab) + '/' + encodeURIComponent(item.id);
+    const isShipment = item.module === 'Shipments';
+    const color = shipmentTypeColors[item.type];
+    const typeTag = isShipment && item.type ? '<span class="badge crm-shipment-type" style="' +
+      (safeColor(color) ? 'background:' + color + ';color:' + readableColor(color) : '') + '">' + escapeHtml(item.type) + '</span>' : '';
+    const statusTag = '<span class="badge badge-status">' + escapeHtml(item.status || '—') + '</span>';
     return '<article class="card crm-order-card" data-order-id="' + escapeHtml(item.id) + '" data-order-module="' + escapeHtml(item.module) + '">' +
       '<div class="crm-order-card-title"><a target="_blank" rel="noopener noreferrer" href="' + escapeHtml(link) + '">' + escapeHtml(item.name || item.id) + '</a>' +
-      '<span class="badge badge-status">' + escapeHtml(item.status || '—') + '</span></div>' +
+      (isShipment ? typeTag : statusTag) + '</div>' +
+      (isShipment ? '<div class="crm-shipment-status">' + statusTag + '</div>' : '') +
       line('Created',item.created ? item.created.slice(0,10) : '—') +
       (item.party ? line(item.module === 'Sales_Orders' ? 'Customer' : 'Supplier',item.party) : '') +
-      (item.type ? line('Type',item.type) : '') +
       (item.total !== null && item.total !== undefined ? line('Total',formatMoney(item.total)) : '') +
       (item.quantity !== null && item.quantity !== undefined ? line('Qty',item.quantity) : '') +
-      (item.owner ? line('Owner',item.owner) : '') +
-      '<div class="crm-order-actions"><button type="button" data-blueprint>Blueprint actions</button></div>' +
+      ownerRow(item) +
+      '<div class="crm-order-actions create-actions" aria-label="Blueprint transitions"><span class="muted">Loading transitions…</span></div>' +
       '<div class="crm-blueprint" hidden></div>' +
     '</article>';
   }
@@ -91,6 +122,7 @@
     }
     const rows = records[selected] || [];
     ordersPane.innerHTML = rows.length ? rows.map(recordCard).join('') : '<div class="empty">No linked records.</div>';
+    if (rows.length) for (const card of ordersPane.querySelectorAll('.crm-order-card')) void loadBlueprintButtons(card);
   }
   async function loadOrders(force = false) {
     const current = window.__minmaxFrontContext || {};
@@ -101,12 +133,21 @@
     const generation = ++loadId;
     if (conversation !== previousConversation) selected = 'information';
     records = {};errors = {};
+    blueprintCache.clear();
     if (!conversation) {loading = false;render();return;}
     loading = true;render();
     try {
       const result = await api('conversation_records');
       if (generation !== loadId) return;
       records = result; errors = result.errors || {};
+      if (!usersReady) {
+        try {
+          const roster = await api('users');
+          if (generation !== loadId) return;
+          users = (roster.users || []).filter(user => user.id && user.name);
+          usersReady = true;
+        } catch { users = []; }
+      }
       if (Object.values(errors).includes('reconnect')) {
         const connect = $('connect');
         if (connect) {connect.hidden = false; connect.textContent = 'Reconnect Zoho';}
@@ -142,32 +183,83 @@
   }
   function transitionPanel(transition) {
     const allowed = transition.available && transition.supported && (transition.fields || []).every(f => f.kind === 'fields' && supportedTypes.has(f.data_type));
-    if (!transition.available) return '';
-    if (!allowed) return '<div class="crm-transition"><strong>' + escapeHtml(transition.name) + '</strong><p>Additional Zoho fields or widgets required. Open this record in CRM.</p></div>';
+    if (!allowed) return '<section class="crm-transition create-form"><strong>' + escapeHtml(transition.name) + '</strong><p>This transition requires additional Zoho fields. Open the record in CRM.</p><div class="create-submit"><button type="button" data-blueprint-cancel>Cancel</button></div></section>';
     const inputs = (transition.fields || []).map(f => fieldControl(f, Object.prototype.hasOwnProperty.call(transition.values || {}, f.api_name) ? transition.values[f.api_name] : f.content)).join('');
-    const danger = /cancel|delete|reject|void/i.test(transition.name);
-    return '<form class="crm-transition" data-blueprint-submit data-transition-id="' + escapeHtml(transition.id) + '" data-transition-name="' + escapeHtml(transition.name) + '">' +
-      '<strong>' + escapeHtml(transition.name) + '</strong>' + inputs +
-      '<div class="crm-transition-controls"><button type="submit"' + (danger ? ' class="crm-danger"' : '') + '>Apply ' + escapeHtml(transition.name) + '</button></div>' +
+    return '<form class="crm-transition create-form" data-blueprint-submit data-transition-id="' + escapeHtml(transition.id) + '" data-transition-name="' + escapeHtml(transition.name) + '">' +
+      '<strong>' + escapeHtml(transition.name) + '</strong>' + (inputs || '<p>Confirm this status change in Zoho CRM.</p>') +
+      '<div class="create-submit"><button type="submit">Save</button><button type="button" data-blueprint-cancel>Cancel</button></div>' +
       '<span class="edit-error" role="alert"></span></form>';
+  }
+  function blueprintKey(item) { return item.module + ':' + item.id; }
+  async function loadBlueprintButtons(card) {
+    const item = findOrder(card); if (!item) return;
+    const key = blueprintKey(item);
+    const targetConversation = conversation;
+    const footer = card.querySelector('.crm-order-actions');
+    try {
+      if (!blueprintCache.has(key)) {
+        const pending = api('record_blueprint',{module:item.module,id:item.id})
+          .then(data => (data.transitions || []).filter(t => t.available).sort((a,b) => (a.sequence ?? 9999) - (b.sequence ?? 9999)))
+          .catch(error => {blueprintCache.delete(key); throw error;});
+        blueprintCache.set(key,pending);
+      }
+      const transitions = await blueprintCache.get(key);
+      if (conversation !== targetConversation || !card.isConnected) return;
+      footer.innerHTML = transitions.length ? transitions.map(transition => {
+        const color = safeColor(transition.color);
+        const foreground = safeColor(transition.text_color) || readableColor(color);
+        const style = color ? ' style="background:' + color + ';border-color:' + color + ';color:' + foreground + '"' : '';
+        return '<button type="button" class="crm-transition-button" data-blueprint="' + escapeHtml(transition.id) + '"' + style + '>' + escapeHtml(transition.name) + '</button>';
+      }).join('') : '<span class="muted">No available transitions</span>';
+    } catch (error) {
+      if (conversation === targetConversation && card.isConnected) footer.innerHTML = '<span class="edit-error">Could not load transitions. Refresh the panel.</span>';
+    }
   }
   navigation.addEventListener('click',event => {
     const button = event.target.closest('[data-crm-tab]');if (!button) return;
     selected = button.dataset.crmTab;render();
   });
   ordersPane.addEventListener('click', async event => {
+    const cancel = event.target.closest('[data-blueprint-cancel]');
+    if (cancel) {const panel = cancel.closest('.crm-blueprint');panel.hidden = true;panel.innerHTML = '';return;}
     const button = event.target.closest('[data-blueprint]');if (!button) return;
     const card = button.closest('[data-order-id]');
     const panel = card.querySelector('.crm-blueprint');
-    if (!panel.hidden) {panel.hidden = true;return;}
-    panel.hidden = false;panel.innerHTML = '<div class="empty">Loading transitions…</div>';
-    const atConversation = conversation;
+    if (!panel.hidden && panel.dataset.transitionId === button.dataset.blueprint) {panel.hidden = true;panel.innerHTML = '';return;}
+    panel.dataset.transitionId = button.dataset.blueprint;
+    panel.hidden = false;
+    const transitions = await blueprintCache.get(blueprintKey(findOrder(card))) || [];
+    if (!card.isConnected) return;
+    const transition = transitions.find(t => String(t.id) === button.dataset.blueprint);
+    panel.innerHTML = transition ? transitionPanel(transition) : '<div class="empty error">Transition no longer available. Refresh the panel.</div>';
+    panel.querySelector('input:not([type="hidden"]),select,textarea')?.focus();
+  });
+  ordersPane.addEventListener('change',async event => {
+    const select = event.target.closest('.crm-order-owner');if (!select) return;
+    const card = select.closest('[data-order-id]'), item = findOrder(card);
+    if (!item) return;
+    const originalId = String(item.owner_id || '');
+    const nextId = select.value;
+    if (originalId === nextId) return;
+    select.disabled = true;
+    const error = select.parentElement.querySelector('.edit-error');
+    error.textContent = '';
+    const currentConversation = conversation;
     try {
-      const response = await api('record_blueprint',{module:card.dataset.orderModule,id:card.dataset.orderId});
-      if (conversation !== atConversation) return;
-      const options = (response.transitions || []).map(transitionPanel).join('');
-      panel.innerHTML = options || '<div class="empty">No available manual Blueprint transitions.</div>';
-    } catch (error) {if (conversation === atConversation) panel.innerHTML = '<div class="empty error">' + escapeHtml(error.message) + '</div>';}
+      const response = await api('record_owner_update',{module:item.module,id:item.id},{
+        owner_id:nextId, expected_owner_id:originalId
+      });
+      if (conversation !== currentConversation) return;
+      Object.assign(item,response.record);
+      // Existing user list gives the same First Last display as Information.
+      const matched = users.find(user => String(user.id) === String(item.owner_id));
+      if (matched) item.owner = matched.name;
+      render();
+    } catch (problem) {
+      select.value = originalId;
+      error.textContent = problem.message;
+      select.disabled = false;
+    }
   });
   ordersPane.addEventListener('submit',async event => {
     const form = event.target.closest('[data-blueprint-submit]');if(!form)return;
