@@ -95,6 +95,26 @@ def publish(sftp, files):
         sftp.rmdir(lock)
 
 
+def manifest(sftp):
+    # Read-only integrity check. Never prints source, private files or credentials.
+    names = ('index.html', 'zoho.php', 'app-1.9.4.js', 'style-1.9.css', 'style-1.8.css')
+    result = {}
+    for name in names:
+        hasher = hashlib.sha256()
+        size = 0
+        with sftp.open('/' + name, 'rb') as stream:
+            while True:
+                chunk = stream.read(65536)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > MAX_SIZE:
+                    raise ValueError('manifest_size')
+                hasher.update(chunk)
+        result[name] = {'sha256': hasher.hexdigest(), 'size': size}
+    return {'ok': True, 'action': 'manifest', 'files': result, 'files_changed': False}
+
+
 def write_probe(sftp):
     path = '/.publisher-test-' + str(uuid.uuid4())
     renamed = path + '-renamed'
@@ -119,7 +139,7 @@ def write_probe(sftp):
 def main():
     import paramiko
     action = os.environ.get('ACTION', 'probe')
-    if action not in ('probe', 'write_probe', 'publish', 'install_front_token', 'verify_front'):
+    if action not in ('probe', 'write_probe', 'publish', 'manifest', 'install_front_token', 'verify_front'):
         raise ValueError('action')
     payload = os.environ.get('PAYLOAD_B64', '') or ''.join(os.environ.get('PAYLOAD_B64_' + str(i), '') for i in range(8))
     files = validate_payload(payload) if action == 'publish' else []
@@ -138,6 +158,9 @@ def main():
             sftp.get_channel().settimeout(30)
             sftp.stat('/index.html')
             sftp.stat('/zoho.php')
+            if action == 'manifest':
+                print(json.dumps(manifest(sftp)), flush=True)
+                return
             if action == 'install_front_token':
                 token = os.environ['FRONT_API_TOKEN'].strip()
                 if not token or '\n' in token or '\r' in token:
