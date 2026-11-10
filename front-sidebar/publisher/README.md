@@ -1,5 +1,16 @@
 # Front app remote publisher
 
+
+## 2026-11-10 — Version 2.0.3 hybrid Blueprint transitions
+
+- SO / PO / Shipment tabs show no counts. Current status and Shipment Type are compact badges on the same row; Shipment Type retains Zoho picklist colors.
+- All manual Blueprint transitions retain Zoho sequence and configured colors. Buttons with supported **verified simple fields** open a native Front inline Save/Cancel form; no-field transitions may be executed from Front after confirmation if metadata confirms they contain no widget or other extra input.
+- Transitions configured with a **widget, kiosk, checklist, attachment, related item, notes, tags, unsupported fields, or unverified configuration** open the matching CRM record instead. Zoho does not provide a supported documented URL to pre-click its Blueprint button, so the user completes the transition in CRM.
+- The server obtains `during_inputs` from `GET /crm/v8/settings/blueprints/transitions?ids=...` to distinguish simple fields from widgets. All inline POST transitions re-fetch and enforce the same metadata in addition to conversation linkage, field validation, availability and user confirmation. If metadata access fails, the action fails closed to the CRM route.
+- An OAuth reconnection is required once to add `ZohoCRM.settings.transitions.read` to the existing scope. Until reconnected, buttons fall back to opening the CRM record.
+- Build `af955ff1-ec34-4db3-a4ac-b25141357a26` passed Node/PHP/publisher tests. Production deployment succeeded via Cloud Run publisher with assets then PHP/index. Live index verified Version 2.0.3, JS/CSS match GitHub and anonymous Blueprint endpoint denies access.
+- **No real CRM Blueprint transition was executed during testing.** An authenticated in-Front acceptance test is still needed to confirm the new Zoho scope and metadata response in this organization.
+
 ## 2026-11-10 — Version 2.0 release
 
 - Production deploy completed via Cloud Run publisher in two transactions: assets `app-2.0.js`, `app-2.0.1.js`, `style-2.0.css` (release `57ff79c4-aa5f-4d85-8079-98b3d4e6ec3a`, execution `front-app-publisher-8mpzv`); then `zoho.php` and `index.html` (release `236bd141-4ef7-4c91-a5ea-7276539eedf5`, execution `front-app-publisher-qpds4`). Index published last. Both execution logs returned `ok:true`.
