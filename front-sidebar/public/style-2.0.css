@@ -1,0 +1,23 @@
+@import url('style-1.9.css');
+.crm-order-tabs{display:flex;flex-wrap:wrap;gap:4px;padding:10px 0 9px;border-bottom:1px solid #e2e6ed;margin-bottom:8px}
+.crm-order-tabs button{border:1px solid #d8dee8;background:#f8f9fb;border-radius:7px;padding:7px 9px;font:inherit;font-size:11px;color:#677284;cursor:pointer}
+.crm-order-tabs button.active{background:#e9f0ff;border-color:#adc5f7;color:#1d4c98;font-weight:700}
+.crm-order-card{margin:10px 0}
+.crm-order-card-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.crm-order-card-title a{font-weight:700;font-size:12px;overflow-wrap:anywhere}
+.crm-order-card .field-row{padding:4px 0}
+.crm-order-card .field-row>span:last-child{overflow-wrap:anywhere;text-align:right;max-width:70%}
+.crm-order-actions{margin-top:11px;display:flex;gap:6px}
+.crm-order-actions button,.crm-transition button{border:1px solid #c7d4e8;background:#edf3fd;border-radius:6px;padding:7px 9px;color:#2055a3;cursor:pointer;font:inherit;font-size:11px}
+.crm-blueprint{margin-top:9px}
+.crm-transition{border:1px solid #dce2eb;border-radius:7px;padding:10px;margin:8px 0;background:#fbfcff}
+.crm-transition strong{display:block;margin-bottom:7px}
+.crm-transition label{display:block;color:#646f7f;font-size:11px;margin:9px 0}
+.crm-transition input:not([type=checkbox]),.crm-transition textarea,.crm-transition select{display:block;width:100%;min-width:0;padding:7px 8px;margin-top:4px;border:1px solid #ccd5e2;border-radius:6px;background:#fff;color:#242b36;font:inherit;font-size:12px}
+.crm-transition textarea{min-height:68px;resize:vertical}
+.crm-transition .crm-checkbox{display:flex;align-items:center;gap:7px}
+.crm-transition-controls{margin:10px 0}
+.crm-transition .crm-danger{background:#fff1f1;border-color:#efcaca;color:#ae2929}
+.crm-transition button[disabled]{opacity:.6;cursor:wait}
+.crm-transition .edit-error{display:block;margin:5px 0;font-size:11px;overflow-wrap:anywhere}
+#crm-orders-pane[hidden],#crm-information-pane[hidden],.crm-blueprint[hidden]{display:none!important}
