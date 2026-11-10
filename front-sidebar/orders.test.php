@@ -24,4 +24,19 @@ check($fields[0]['mandatory']===true,'required field');
 check(count($fields[0]['options'])===1 && $fields[0]['options'][0]['value']==='2 weeks','picklist filtering');
 check(frontSupportedBlueprintField($fields[0]),'picklist supported');
 check(!frontSupportedBlueprintField($fields[1]),'widget blocked');
-echo "Order helper tests: 8 passed\n";
+$po=frontOrderSummary('Purchase_Orders', [
+  'id'=>'4888374000131890043',
+  'Subject'=>'Test purchase',
+  'Owner'=>['id'=>'4888374000000337001','name'=>'Stetsenko'],
+  'Front_Conversation_ID'=>'cnv_test1234',
+]);
+check($po['owner_id']==='4888374000000337001','owner id retained');
+check($po['owner']==='Stetsenko','owner display fallback retained');
+$transitions=[
+  ['sequence'=>2,'name'=>'Canceled','color_code'=>'#eb4d4d','text_color_code'=>'#FFFFFF'],
+  ['sequence'=>1,'name'=>'Confirmed','color_code'=>'#5cb3fd','text_color_code'=>'#000000'],
+];
+usort($transitions,fn($a,$b)=>$a['sequence']<=>$b['sequence']);
+check($transitions[0]['name']==='Confirmed','CRM transition sequence sorted');
+check($transitions[0]['color_code']==='#5cb3fd','CRM color preserved');
+echo "Order helper tests: 12 passed\n";

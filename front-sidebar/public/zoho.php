@@ -143,6 +143,7 @@ function frontOrderSummary(string $module, array $row): array {
         'quantity'=>$row['Total_Ordered_Qty']??null,
         'party'=>is_array($company)?(string)($company['name']??''):'',
         'owner'=>is_array($owner)?(string)($owner['name']??''):'',
+        'owner_id'=>is_array($owner)?(string)($owner['id']??''):'',
         'crm_tab'=>$module==='Sales_Orders'?'SalesOrders':($module==='Purchase_Orders'?'PurchaseOrders':'CustomModule11')
     ];
 }
@@ -215,7 +216,7 @@ try {
     }
     freshSession($session,$sessionPath,$config);
 
-    if (in_array($action,['conversation_records','record_blueprint','blueprint_transition'],true)) {
+    if (in_array($action,['conversation_records','record_blueprint','blueprint_transition','record_owner_update'],true)) {
         $conversation=frontConversationId((string)($_GET['conversation_id']??''));
         if ($action==='conversation_records') {
             if (($_SERVER['REQUEST_METHOD']??'GET')!=='GET') respond(['error'=>'GET required.'],405);
@@ -262,6 +263,31 @@ try {
         $detail=requestZoho($path,null,$session['access_token']);
         $record=$detail['data'][0]??null;
         if (!is_array($record) || !frontRecordMatches($record,$conversation)) respond(['error'=>'CRM record is not linked to this conversation.'],403);
+        if ($action==='record_owner_update') {
+            if (($_SERVER['REQUEST_METHOD']??'')!=='POST') respond(['error'=>'POST required.'],405);
+            $input=json_decode((string)file_get_contents('php://input'),true);
+            if (!is_array($input)) respond(['error'=>'Invalid owner selection.'],400);
+            $ownerId=(string)($input['owner_id']??'');
+            $expected=(string)($input['expected_owner_id']??'');
+            if (!preg_match('/^[0-9]{10,25}$/D',$ownerId) || ($expected!==''&&!preg_match('/^[0-9]{10,25}$/D',$expected))) respond(['error'=>'Select a valid CRM owner.'],400);
+            $currentId=(string)($record['Owner']['id']??'');
+            if ($currentId!==$expected) respond(['error'=>'The owner changed in Zoho. Refresh this record and try again.'],409);
+            $active=requestZoho($session['api_domain'].'/crm/v8/users?'.http_build_query(['type'=>'ActiveUsers','per_page'=>200]),null,$session['access_token']);
+            $owner=null;
+            foreach (($active['users']??[]) as $candidate) {
+                if (($candidate['status']??'')==='active' && (string)($candidate['id']??'')===$ownerId) {$owner=$candidate;break;}
+            }
+            if (!$owner) respond(['error'=>'Select an active Zoho CRM owner.'],400);
+            if ($ownerId!==$currentId) {
+                $updated=requestZoho($path,null,$session['access_token'],'PUT',['data'=>[['Owner'=>['id'=>$ownerId]]]]);
+                if (($updated['data'][0]['status']??'')!=='success') respond(['error'=>'Zoho did not save the owner.'],502);
+            }
+            $readback=requestZoho($path,null,$session['access_token']);
+            if ((string)($readback['data'][0]['Owner']['id']??'')!==$ownerId) respond(['error'=>'Could not verify the new owner. Refresh the panel.'],409);
+            $result=frontOrderSummary($module,$readback['data'][0]);
+            $result['owner']=(string)($owner['full_name']??$owner['name']??$result['owner']);
+            respond(['ok'=>true,'record'=>$result]);
+        }
         $bp=requestZoho($path.'/actions/blueprint',null,$session['access_token']);
         $transitions=$bp['blueprint']['transitions']??[];
         if ($action==='record_blueprint') {
@@ -272,6 +298,9 @@ try {
                 $list[]=[
                     'id'=>(string)($transition['id']??''),
                     'name'=>(string)($transition['name']??''),
+                    'sequence'=>(int)($transition['sequence']??9999),
+                    'color'=>(string)($transition['color_code']??''),
+                    'text_color'=>(string)($transition['text_color_code']??''),
                     'next_status'=>(string)($transition['next_field_value']??''),
                     'available'=>($transition['criteria_matched']??false)===true && ($transition['state']??'open')==='open',
                     'criteria_message'=>(string)($transition['criteria_message']??''),
@@ -280,6 +309,7 @@ try {
                     'values'=>array_intersect_key($transition['data']??[],array_fill_keys(array_column($fields,'api_name'),true))
                 ];
             }
+            usort($list,fn($a,$b)=>$a['sequence']<=>$b['sequence']);
             respond(['module'=>$module,'id'=>$id,'status'=>(string)($bp['blueprint']['process_info']['field_value']??''),'transitions'=>$list]);
         }
         if (($_SERVER['REQUEST_METHOD']??'')!=='POST') respond(['error'=>'POST required.'],405);

@@ -21,3 +21,23 @@
 .crm-transition button[disabled]{opacity:.6;cursor:wait}
 .crm-transition .edit-error{display:block;margin:5px 0;font-size:11px;overflow-wrap:anywhere}
 #crm-orders-pane[hidden],#crm-information-pane[hidden],.crm-blueprint[hidden]{display:none!important}
+
+/* 2.0.1: CRM-sequenced Blueprint buttons, matching the new Lead/Contact actions. */
+.crm-order-card-title{align-items:flex-start}
+.crm-order-card-title a{flex:1;min-width:0}
+.crm-shipment-type{white-space:nowrap;flex-shrink:0;font-size:10px;line-height:1.5}
+.crm-shipment-status{margin:-3px 0 8px;display:flex;justify-content:flex-end}
+.crm-order-actions{display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid #edf0f4;padding-top:9px;margin-top:11px;align-items:center}
+.crm-order-actions .crm-transition-button{font:inherit;font-size:10px;font-weight:600;line-height:1.35;padding:5px 8px;border-radius:6px;min-height:26px;white-space:normal}
+.crm-order-actions .crm-transition-button:hover{filter:brightness(.95)}
+.crm-order-actions .crm-transition-button:focus-visible{outline:2px solid #293955;outline-offset:2px}
+.crm-blueprint{margin-top:0}
+.crm-blueprint .crm-transition.create-form{background:transparent;border:0;border-top:1px solid #edf0f4;border-radius:0;padding:9px 0 2px}
+.crm-blueprint .crm-transition.create-form>strong{font-size:11px;color:#293955}
+.crm-blueprint .crm-transition.create-form>p{font-size:11px;color:#6a7586;margin:5px 0 7px}
+.crm-blueprint .crm-transition .create-submit{display:flex;gap:5px;margin-top:9px}
+.crm-blueprint .crm-transition .create-submit button{padding:4px 7px;font-size:10px;border:1px solid #dce1e9;background:#fff;color:#293955}
+.crm-blueprint .crm-transition .create-submit button[type=submit]{background:#293955;border-color:#293955;color:#fff}
+.crm-owner-row .owner-editor{width:100%}
+.crm-owner-row .owner-editor select{max-width:100%;white-space:normal}
+.crm-owner-row .owner-editor .edit-error{display:block}
