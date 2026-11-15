@@ -1,0 +1,24 @@
+AI ORDER BUILDER v1.33 - RECONCILIATION STACK FIX
+
+Replace only the two existing Client Scripts:
+
+Zoho CRM > Sales Orders > Standard Create Page >
+  1. Button / Fill with AI / onClick
+     Script name: Fill with AI in Record
+     Paste ALL contents of Fill_with_AI_BUTTON_v1.33.js
+
+  2. Page / onLoad
+     Script name: AI Order Fill Products
+     Paste ALL contents of Sales_Orders_CREATE_onLoad_v1.33.js
+
+Do not change: Sales Order Subject, existing Create with AI button,
+AI Order Builder widget (keep widget ZIP v1.30).
+
+What changed: old recursive-prone callback/object-map reconciliation was
+replaced with small, sequential comparisons over plain arrays. Product ID,
+PO-linked line deletion protection, item edits, adds/removals, Supplier and
+Offer_Product_Name are preserved. The reworked append uses the expected
+index and writes the complete new row in one operation.
+
+If a live Zoho error still occurs, report full "v1.33 | <stage>" text.
+These tests use a mock Zoho SDK; actual Zoho CRM behavior is not verified.
