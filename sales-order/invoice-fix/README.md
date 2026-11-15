@@ -14,6 +14,8 @@ Source: current live Zoho CRM `automation.SalesOrder` (function ID `488837400012
 
 Other code is retained. Do not reset Email_Dispatch_Locks until the Front sent-mail history is independently checked.
 
-## Example affected record
+## Safety
 
-SO `4888374000132396005`: Grand Total 41 USD, deposit 20% = 8.20 USD. Existing Accounting `4888374000132254478` references QBO invoice `64776` for 41 USD. Locks for `:invoice` and `:deposit` have `Send_Status=Claimed`. Do **not** resend or change QBO amounts blindly.
+The affected test Sales Order contains an Accounting request for the full amount while the order requires a smaller deposit. Verify the linked QBO invoice before attempting the deposit send.
+
+Previously attempted invoice sends have Dispatch Locks in `Claimed` status. Check Front sent-mail history before resetting or reusing those locks; they are intentionally not changed by this patch.
