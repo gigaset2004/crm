@@ -1,21 +1,23 @@
-# Sales Order — invoice sending repair (PENDING MANUAL INSTALL)
+# Sales Order — invoice sending repair
 
-Source: current live Zoho CRM `automation.SalesOrder` (function ID `4888374000129079057`).
+## Current production version
 
-## Status
+**Live in Zoho CRM as of November 15, 2026.** The exact published Deluge source has been backed up to [SalesOrder_LIVE.deluge](SalesOrder_LIVE.deluge).
 
-**NOT deployed to Zoho CRM.** Connected Zoho function uploader rejects the complete source (HTTP 400 due to request size). Use the Zoho CRM Function editor to review and install the full `SalesOrder_invoice_multipart_fix.deluge` only after making a backup of the current function.
+- Function: `automation.SalesOrder(String salesOrderId)`
+- Zoho CRM function ID: `4888374000129079057`
+- Source of truth: published Zoho CRM function, not this repository.
+- Entire function saved, including the existing Sales Order / Accounting / QBO / Front logic.
 
-## Minimal changes
+## Deployed fix
 
-- Add `content-type:"multipart/form-data"` to all three Front `invokeurl` calls that carry an `Invoice.pdf` file attachment.
-- Protect switching between deposit/full invoice modes if an existing QBO-linked Accounting request is for a different amount.
-- Block sending the deposit PDF if the existing Accounting payment request differs from `Deposit_required`.
+Front multipart CC recipient handling is corrected in all three invoice email paths (deposit, regular, and balance). Each CC address is supplied as a separately indexed `cc[n]` field rather than a list value under `cc[]`.
 
-Other code is retained. Do not reset Email_Dispatch_Locks until the Front sent-mail history is independently checked.
+**Verified:** A deposit invoice was accepted by Front after the update; the related Sales Order and Accounting records changed to `Deposit invoice sent`, and the dispatch lock became `Accepted`. The regular and balance invoice paths were updated but were **not independently live-tested** in this repair session.
 
-## Safety
+## Historical files — do not deploy as current
 
-The affected test Sales Order contains an Accounting request for the full amount while the order requires a smaller deposit. Verify the linked QBO invoice before attempting the deposit send.
+- `SalesOrder_before_fix.deluge`: source backup from before the CC correction.
+- `SalesOrder_invoice_multipart_fix.deluge`: separate earlier **draft**, containing additional uninstalled changes (multipart Content-Type and Accounting/QBO amount consistency checks). Its contents do **not** represent the currently deployed function. Review and test those extra changes separately before any future deployment.
 
-Previously attempted invoice sends have Dispatch Locks in `Claimed` status. Check Front sent-mail history before resetting or reusing those locks; they are intentionally not changed by this patch.
+For the latest known live working code in this folder, use **`SalesOrder_LIVE.deluge`**.
