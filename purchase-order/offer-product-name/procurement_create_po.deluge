@@ -1,0 +1,513 @@
+string standalone.Procurement_Create_PO(string supplierCodeId, string linesJson)
+{
+result = Map();
+result.put("status","error");
+result.put("message","Request not processed.");
+info "[Procurement PO] START " + supplierCodeId;
+// Internal routes reuse this existing OAuth-enabled endpoint without creating a new PO.
+if(linesJson != null && linesJson.startsWith("__PROCUREMENT_SPLIT_SO_LINE__:"))
+{
+	splitJson = linesJson.subString("__PROCUREMENT_SPLIT_SO_LINE__:".length(),linesJson.length());
+	splitPayload = Map();
+	try 
+	{
+		splitPayload = splitJson.toMap();
+	}
+	catch (splitParseError)
+	{
+		result.put("message","Invalid SO line split payload.");
+		return result.toString();
+	}
+	return standalone.Procurement_Split_SO_Line(ifnull(splitPayload.get("soId"),"").toString(),ifnull(splitPayload.get("lineId"),"").toString(),ifnull(splitPayload.get("firstQty"),"").toString(),ifnull(splitPayload.get("firstSupplierId"),"").toString(),ifnull(splitPayload.get("secondSupplierId"),"").toString(),ifnull(splitPayload.get("expectedQty"),"").toString());
+}
+if(linesJson == "__PROCUREMENT_LIST_EXISTING_PO__")
+{
+	return standalone.Procurement_Get_Existing_POs(supplierCodeId);
+}
+if(linesJson != null && linesJson.startsWith("__PROCUREMENT_ADD_EXISTING_PO__:"))
+{
+	actionJson = linesJson.subString("__PROCUREMENT_ADD_EXISTING_PO__:".length(),linesJson.length());
+	actionPayload = Map();
+	try 
+	{
+		actionPayload = actionJson.toMap();
+	}
+	catch (actionParseError)
+	{
+		result.put("message","Invalid existing PO action payload.");
+		return result.toString();
+	}
+	return standalone.Procurement_Add_To_Existing_PO(ifnull(actionPayload.get("poId"),"").toString(),supplierCodeId,ifnull(actionPayload.get("linesJson"),"").toString());
+}
+if(supplierCodeId == null || !supplierCodeId.trim().matches("^[0-9]{15,20}$"))
+{
+	result.put("message","Invalid supplier code ID.");
+	return result.toString();
+}
+if(linesJson == null || linesJson.trim() == "")
+{
+	result.put("message","No items selected.");
+	return result.toString();
+}
+requested = List();
+try 
+{
+	requested = linesJson.toJSONList();
+}
+catch (parseError)
+{
+	info "[Procurement PO] JSON error " + parseError;
+	result.put("message","Invalid lines JSON.");
+	return result.toString();
+}
+if(requested.size() < 1 || requested.size() > 60)
+{
+	result.put("message","Select between 1 and 60 lines.");
+	return result.toString();
+}
+supplierCode = zoho.crm.getRecordById("Supplier_Codes",supplierCodeId.toLong());
+if(supplierCode == null || supplierCode.get("id") == null)
+{
+	result.put("message","Supplier Code record not found.");
+	return result.toString();
+}
+supplierCodeName = ifnull(supplierCode.get("Name"),"").toString();
+vendorLookup = supplierCode.get("Vendor");
+if(vendorLookup == null || vendorLookup.get("id") == null)
+{
+	result.put("message","Supplier Code has no linked Vendor.");
+	return result.toString();
+}
+vendorId = vendorLookup.get("id").toString();
+vendor = zoho.crm.getRecordById("Vendors",vendorId.toLong());
+if(vendor == null || vendor.get("id") == null)
+{
+	result.put("message","Vendor not found.");
+	return result.toString();
+}
+if(ifnull(vendor.get("Status"),"").toString() != "Active")
+{
+	result.put("message","Vendor must be Active.");
+	return result.toString();
+}
+orderCache = Map();
+selectedIds = List();
+linesPerOrder = Map();
+combined = Map();
+combinedKeys = List();
+totalQuantity = 0;
+brands = List();
+brandKeys = List();
+for each  item in requested
+{
+	orderId = ifnull(item.get("soId"),"").toString();
+	lineId = ifnull(item.get("lineId"),"").toString();
+	costString = ifnull(item.get("cost"),"").toString().trim();
+	if(!orderId.matches("^[0-9]{15,20}$") || !lineId.matches("^[0-9]{15,20}$"))
+	{
+		result.put("message","Invalid Sales Order line ID.");
+		return result.toString();
+	}
+	if(selectedIds.contains(lineId))
+	{
+		result.put("message","Repeated SO line " + lineId);
+		return result.toString();
+	}
+	selectedIds.add(lineId);
+	if(!costString.matches("^[0-9]{1,10}([.][0-9]{1,2})?$"))
+	{
+		result.put("message","Invalid cost (use positive number, max 2 decimals) for line " + lineId);
+		return result.toString();
+	}
+	cost = costString.toDecimal();
+	if(cost <= 0)
+	{
+		result.put("message","Cost must exceed zero.");
+		return result.toString();
+	}
+	so = orderCache.get(orderId);
+	if(so == null)
+	{
+		so = zoho.crm.v8.getRecordById("Sales_Orders",orderId.toLong());
+		if(so != null && so.get("id") != null && so.get("Ordered_Items") == null)
+		{
+			soResponse = invokeurl
+			[
+				url :"https://www.zohoapis.com/crm/v8/Sales_Orders/" + orderId
+				type :GET
+				connection:"zoho_crm_connection"
+			];
+			if(soResponse != null && soResponse.get("data") != null && soResponse.get("data").size() > 0)
+			{
+				so = soResponse.get("data").get(0);
+			}
+		}
+		if(so == null || so.get("id") == null)
+		{
+			result.put("message","Sales Order not found: " + orderId);
+			return result.toString();
+		}
+		orderCache.put(orderId,so);
+	}
+	accounting = ifnull(so.get("Accounting_status"),"").toString();
+	if(accounting != "Deposit paid" && accounting != "Paid")
+	{
+		acknowledged = ifnull(item.get("paymentAcknowledged"),false).toString();
+		if(acknowledged != "true")
+		{
+			result.put("message","Unpaid Sales Order requires explicit confirmation in Procurement: " + ifnull(so.get("Subject"),orderId));
+			return result.toString();
+		}
+		info "[Procurement PO] PAYMENT WARNING ACKNOWLEDGED SO=" + ifnull(so.get("Subject"),orderId) + " status=" + accounting;
+	}
+	sourceLine = null;
+	soLines = so.get("Ordered_Items");
+	if(soLines == null)
+	{
+		result.put("message","Sales Order missing Ordered_Items.");
+		return result.toString();
+	}
+	for each  soLine in soLines
+	{
+		if(ifnull(soLine.get("id"),"").toString() == lineId)
+		{
+			sourceLine = soLine;
+		}
+	}
+	if(sourceLine == null)
+	{
+		result.put("message","Sales Order line not found: " + lineId);
+		return result.toString();
+	}
+	if(sourceLine.get("Purchase_Order") != null)
+	{
+		result.put("message","Line already linked to a PO: " + lineId);
+		return result.toString();
+	}
+	lineSupplier = sourceLine.get("Supplier");
+	if(lineSupplier == null || ifnull(lineSupplier.get("id"),"").toString() != supplierCodeId)
+	{
+		result.put("message","Supplier mismatch on line " + lineId);
+		return result.toString();
+	}
+	product = sourceLine.get("Product_Name");
+	if(product == null || product.get("id") == null)
+	{
+		result.put("message","Missing Product on line " + lineId);
+		return result.toString();
+	}
+	productId = product.get("id").toString();
+	offerProductName = ifnull(sourceLine.get("Offer_Product_Name"),"").toString().trim();
+	if(offerProductName == "")
+	{
+		offerProductName = ifnull(product.get("name"),"").toString().trim();
+	}
+	if(offerProductName.length() > 255)
+	{
+		offerProductName = offerProductName.subString(0,255);
+	}
+	brandName = ifnull(sourceLine.get("Brand"),"").toString().trim();
+	if(brandName != "" && !brandKeys.contains(brandName.toLowerCase()))
+	{
+		brandKeys.add(brandName.toLowerCase());
+		brands.add(brandName);
+	}
+	sourceQty = ifnull(sourceLine.get("Quantity"),0).toDecimal();
+	if(sourceQty <= 0 || sourceQty != sourceQty.toLong().toDecimal())
+	{
+		result.put("message","Sales Order Quantity must be positive whole units for line " + lineId);
+		return result.toString();
+	}
+	purchaseQtyText = ifnull(item.get("qty"),"").toString().trim();
+	qty = sourceQty;
+	if(purchaseQtyText != "")
+	{
+		if(!purchaseQtyText.matches("^[0-9]{1,9}$"))
+		{
+			result.put("message","Invalid PO quantity for line " + lineId);
+			return result.toString();
+		}
+		qty = purchaseQtyText.toLong().toDecimal();
+		if(qty <= 0)
+		{
+			result.put("message","PO quantity must be positive for line " + lineId);
+			return result.toString();
+		}
+	}
+	totalQuantity = totalQuantity + qty;
+	key = productId + "#" + cost.toString();
+	agg = combined.get(key);
+	if(agg == null)
+	{
+		agg = Map();
+		productRef = Map();
+		productRef.put("id",productId);
+		agg.put("Product_Name",productRef);
+		agg.put("Offer_Product_Name",offerProductName);
+		agg.put("Quantity",qty);
+		agg.put("Cost",cost);
+		combined.put(key,agg);
+		combinedKeys.add(key);
+	}
+	else
+	{
+		newQty = agg.get("Quantity").toDecimal() + qty;
+		if(ifnull(agg.get("Offer_Product_Name"),"").toString() != offerProductName)
+		{
+			agg.put("Offer_Product_Name",ifnull(product.get("name"),"").toString().trim());
+		}
+		agg.put("Quantity",newQty);
+		combined.put(key,agg);
+	}
+	changes = linesPerOrder.get(orderId);
+	if(changes == null)
+	{
+		changes = List();
+	}
+	linkRow = Map();
+	linkRow.put("id",lineId);
+	changes.add(linkRow);
+	linesPerOrder.put(orderId,changes);
+}
+poLines = List();
+for each  groupKey in combinedKeys
+{
+	poLines.add(combined.get(groupKey));
+}
+// Subject: PO-YYMMDD-SUPPLIERCODE-Brand, or PO-YYMMDD-SUPPLIERCODE-Mix for multiple brands.
+brandLabel = "Mix";
+if(brands.size() == 1)
+{
+	brandLabel = brands.get(0).toString();
+}
+brandLabel = brandLabel.replaceAll("[^A-Za-z0-9 ]","").replaceAll(" +"," ").trim();
+if(brandLabel == "")
+{
+	brandLabel = "Mix";
+}
+if(brandLabel.length() > 55)
+{
+	brandLabel = brandLabel.subString(0,55).trim();
+}
+if(!supplierCodeName.matches("^[A-Z0-9]{3}$"))
+{
+	result.put("message","Supplier Code must be exactly 3 uppercase letters or digits.");
+	return result.toString();
+}
+datePart = zoho.currenttime.toString("yyMMdd");
+baseSubject = "PO-" + datePart + "-" + supplierCodeName + "-" + brandLabel;
+poSubject = baseSubject;
+nameAvailable = false;
+alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+attempts = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30};
+for each  attempt in attempts
+{
+	lookupMap = Map();
+	lookupMap.put("select_query","select id from Purchase_Orders where Subject = '" + poSubject + "' limit 1");
+	lookupDetailed = invokeurl
+	[
+		url :"https://www.zohoapis.com/crm/v8/coql"
+		type :POST
+		parameters:lookupMap.toString()
+		detailed:true
+		connection:"zoho_crm_connection"
+		content-type:"application/json"
+	];
+	if(lookupDetailed == null)
+	{
+		result.put("message","PO Subject uniqueness check returned no HTTP status.");
+		return result.toString();
+	}
+	lookupStatus = ifnull(lookupDetailed.get("responseCode"),0).toLong();
+	if(lookupStatus == 204)
+	{
+		// Zoho CRM returns HTTP 204 when COQL does not find any matching PO.
+		nameAvailable = true;
+		break;
+	}
+	if(lookupStatus != 200)
+	{
+		info "[Procurement PO] Subject COQL HTTP error: " + lookupDetailed;
+		result.put("message","Unable to check PO Subject uniqueness. HTTP " + lookupStatus);
+		return result.toString();
+	}
+	lookupBody = ifnull(lookupDetailed.get("responseText"),"").toString();
+	if(lookupBody == "")
+	{
+		result.put("message","PO Subject lookup returned HTTP 200 with no response body.");
+		return result.toString();
+	}
+	lookupResponse = lookupBody.toMap();
+	if(lookupResponse.get("data") == null)
+	{
+		info "[Procurement PO] Unexpected Subject COQL response: " + lookupResponse;
+		result.put("message","Unexpected response checking PO Subject.");
+		return result.toString();
+	}
+	if(lookupResponse.get("data").isEmpty())
+	{
+		nameAvailable = true;
+		break;
+	}
+	r1 = randomNumber(0,26);
+	r2 = randomNumber(0,26);
+	r3 = randomNumber(0,26);
+	randomLetters = alphabet.subString(r1,r1 + 1) + alphabet.subString(r2,r2 + 1) + alphabet.subString(r3,r3 + 1);
+	poSubject = baseSubject + "-" + randomLetters;
+}
+if(!nameAvailable)
+{
+	result.put("message","Could not generate a unique PO Subject in 30 attempts.");
+	return result.toString();
+}
+poMap = Map();
+poMap.put("Subject",poSubject);
+vendorRef = Map();
+vendorRef.put("id",vendorId);
+poMap.put("Vendor_Name",vendorRef);
+poMap.put("Purchase_Items",poLines);
+poMap.put("Status","Created");
+info "[Procurement PO] CREATE " + poSubject + " lines=" + poLines.size();
+created = Map();
+try 
+{
+	created = zoho.crm.v8.createRecord("Purchase_Orders",poMap);
+}
+catch (poCreateException)
+{
+	info "[Procurement PO] CREATE EXCEPTION: " + poCreateException;
+	result.put("message","Zoho CRM could not create the PO: " + poCreateException);
+	return result.toString();
+}
+poId = "";
+if(created != null)
+{
+	if(created.get("id") != null)
+	{
+		poId = created.get("id").toString();
+	}
+	else if(created.get("details") != null && created.get("details").get("id") != null)
+	{
+		poId = created.get("details").get("id").toString();
+	}
+}
+if(poId == "")
+{
+	info "[Procurement PO] CREATE FAILED: " + created;
+	errorCode = ifnull(created.get("code"),"UNKNOWN_ERROR").toString();
+	errorMessage = ifnull(created.get("message"),"CRM did not return a PO ID").toString();
+	errorDetails = ifnull(created.get("details"),Map()).toString();
+	errorDetailsText = "";
+	if(errorDetails != "{}")
+	{
+		errorDetailsText = " - " + errorDetails;
+	}
+	result.put("message","PO rejected by Zoho CRM: " + errorCode + " - " + errorMessage + errorDetailsText);
+	result.put("errorCode",errorCode);
+	result.put("errorDetails",errorDetails);
+	return result.toString();
+}
+failures = List();
+linked = 0;
+for each  salesOrderId in linesPerOrder.keys()
+{
+	toLink = List();
+	for each  row in linesPerOrder.get(salesOrderId)
+	{
+		patch = Map();
+		patch.put("id",row.get("id"));
+		ref = Map();
+		ref.put("id",poId);
+		patch.put("Purchase_Order",ref);
+		toLink.add(patch);
+	}
+	update = Map();
+	update.put("Ordered_Items",toLink);
+	response = zoho.crm.v8.updateRecord("Sales_Orders",salesOrderId.toLong(),update);
+	if(response != null && (ifnull(response.get("code"),"") == "SUCCESS" || response.get("id") != null))
+	{
+		verifySo = zoho.crm.v8.getRecordById("Sales_Orders",salesOrderId.toLong());
+		if(verifySo != null && verifySo.get("id") != null && verifySo.get("Ordered_Items") == null)
+		{
+			verifyRaw = invokeurl
+			[
+				url :"https://www.zohoapis.com/crm/v8/Sales_Orders/" + salesOrderId
+				type :GET
+				connection:"zoho_crm_connection"
+			];
+			if(verifyRaw != null && verifyRaw.get("data") != null && verifyRaw.get("data").size() > 0)
+			{
+				verifySo = verifyRaw.get("data").get(0);
+			}
+		}
+		verifiedRows = 0;
+		if(verifySo != null && verifySo.get("Ordered_Items") != null)
+		{
+			for each  checkRow in verifySo.get("Ordered_Items")
+			{
+				for each  patchRow in toLink
+				{
+					if(ifnull(checkRow.get("id"),"").toString() == patchRow.get("id").toString() && checkRow.get("Purchase_Order") != null && ifnull(checkRow.get("Purchase_Order").get("id"),"").toString() == poId)
+					{
+						verifiedRows = verifiedRows + 1;
+					}
+				}
+			}
+		}
+		if(verifiedRows == toLink.size())
+		{
+			linked = linked + verifiedRows;
+			info "[Procurement PO] LINKED and VERIFIED " + salesOrderId + ": " + verifiedRows;
+		}
+		else
+		{
+			failures.add(salesOrderId);
+			info "[Procurement PO] LINK UNVERIFIED SO=" + salesOrderId + ", verified=" + verifiedRows + "/" + toLink.size();
+		}
+	}
+	else
+	{
+		failures.add(salesOrderId);
+		info "[Procurement PO] LINK FAILED " + salesOrderId + ": " + response;
+	}
+}
+result.put("poId",poId);
+result.put("poSubject",poSubject);
+result.put("linkedLines",linked);
+result.put("requestedLines",requested.size());
+result.put("totalQuantity",totalQuantity);
+if(failures.size() > 0)
+{
+	result.put("status","partial");
+	result.put("failedSalesOrders",failures);
+	result.put("message","PO created, but some SO lines were not linked. DO NOT create another PO; reconcile PO " + poId);
+}
+else
+{
+	result.put("status","success");
+	result.put("message","Purchase Order created and all selected source lines linked.");
+}
+try 
+{
+	automation.PO_RecalculateAvailable(poId);
+}
+catch (availableError)
+{
+	info "[Procurement PO] Available recalculation failed: " + availableError;
+	result.put("availableWarning","PO created. Available calculation requires synchronization.");
+}
+// Refresh the PO status on all linked Sales Order lines and the SO summary.
+// SYNC: prevents supplier emails; a sync error never rolls back a valid PO.
+try 
+{
+	automation.PurchaseOrder("SYNC:" + poId);
+	info "[Procurement PO] PO status sync invoked for PO=" + poId;
+}
+catch (poStatusSyncError)
+{
+	info "[Procurement PO] WARNING: PO status sync failed for PO=" + poId + ": " + poStatusSyncError;
+	result.put("poStatusSyncWarning","PO created/updated. Sales Order PO statuses require a retry.");
+}
+info "[Procurement PO] RESULT " + result;
+return result.toString();
+}

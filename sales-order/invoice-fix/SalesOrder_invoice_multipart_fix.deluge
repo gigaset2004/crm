@@ -1,0 +1,2116 @@
+void automation.SalesOrder(String salesOrderId)
+{
+sid = salesOrderId;
+info "[SalesOrder] START. SO=" + sid;
+if(sid == null || sid.trim() == "")
+{
+	info "[SalesOrder] ERROR: Empty Sales Order ID";
+	return;
+}
+v48 = zoho.crm.getRecordById("Sales_Orders",sid.toLong());
+if(v48 == null || v48.get("id") == null)
+{
+	info "[SalesOrder] ERROR: Sales Order not found";
+	return;
+}
+xid = "";
+xown = v48.get("Owner");
+if(xown != null)
+{
+	try 
+	{
+		xu = zoho.crm.getRecordById("users",xown.get("id").toLong());
+		if(xu != null)
+		{
+			xl = xu.get("users");
+			if(xl != null && !xl.isEmpty())
+			{
+				xid = ifnull(xl.get(0).get("Front_Teammate_ID"),"").toString();
+			}
+			else
+			{
+				xid = ifnull(xu.get("Front_Teammate_ID"),"").toString();
+			}
+		}
+	}
+	catch (xe)
+	{
+		info "[Front ID] Native lookup " + xe;
+	}
+	if(xid == "")
+	{
+		try 
+		{
+			xu = invokeapi
+			[
+				service :zohocrm
+				path :"/crm/v8/users/" + xown.get("id").toString()
+				type :GET
+			];
+			xl = xu.get("users");
+			if(xl != null && !xl.isEmpty())
+			{
+				xid = ifnull(xl.get(0).get("Front_Teammate_ID"),"").toString();
+			}
+		}
+		catch (xe2)
+		{
+			info "[Front ID] API lookup " + xe2;
+		}
+	}
+}
+if(xid != "" && !xid.startsWith("tea_"))
+{
+	xid = "";
+}
+if(xid == "")
+{
+	info "[Front ID] User ID missing SO=" + sid;
+}
+vx = ifnull(v48.get("Accounting_status"),"").toString().trim();
+v0 = "sync_qbo";
+if(vx == "Send invoice")
+{
+	v0 = "request_full";
+	v5e = "SO_" + sid + "_DEPOSIT";
+	v4q = zoho.crm.searchRecords("Accounting","(Request_Key:equals:" + v5e + ")",1,10);
+	if(v4q != null && v4q.size() == 1)
+	{
+		v49 = v4q.get(0);
+		v52 = v49.get("Sales_Order");
+		v4u = ifnull(v49.get("Request_Status"),"").toString();
+		if(v52 != null && ifnull(v52.get("id"),"").toString() == sid && ifnull(v49.get("Request_Source"),"").toString() == "Sales Orders" && ifnull(v49.get("QBO_Invoice_ID"),"").toString() != "" && ifnull(v49.get("Payment_Amount"),0).toDecimal().round(2) == ifnull(v48.get("Grand_Total"),0).toDecimal().round(2) && (v4u == "To Receive" || v4u == "Invoice sent"))
+		{
+			v0 = "invoice";
+		}
+	}
+}
+else if(vx == "Paid")
+{
+	v0 = "payment_received";
+}
+else if(vx == "Send balance invoice")
+{
+	v0 = "remainder";
+}
+else if(vx == "Send deposit invoice" || vx == "Deposit paid")
+{
+	v53 = "SO_" + sid + "_DEPOSIT";
+	v3p = zoho.crm.searchRecords("Accounting","(Request_Key:equals:" + v53 + ")",1,10);
+	if(vx == "Send deposit invoice")
+	{
+		v0 = "request_deposit";
+	}
+	if(v3p != null)
+	{
+		for each  v1k in v3p
+		{
+			v4v = v1k.get("Sales_Order");
+			if(ifnull(v1k.get("Request_Key"),"").toString() == v53 && ifnull(v1k.get("Request_Source"),"").toString() == "Sales Orders" && v4v != null && ifnull(v4v.get("id"),"").toString() == sid)
+			{
+				v4w = zoho.crm.getRecordById("Accounting",v1k.get("id").toLong());
+				if(vx == "Send deposit invoice" && v4w != null && ifnull(v4w.get("QBO_Invoice_ID"),"").toString().trim() != "")
+				{
+					v0 = "deposit";
+				}
+				if(vx == "Deposit paid" && ifnull(v48.get("Status"),"").toString() == "Ordered" && ifnull(v1k.get("Request_Status"),"").toString() == "Deposit Paid" && ifnull(v1k.get("Deposit_Receipt_Sent"),false).toString().toLowerCase() != "true")
+				{
+					v0 = "deposit_received";
+				}
+			}
+		}
+	}
+}
+info "[SalesOrder] Accounting_status=" + vx + ", selected=" + v0;
+if(ifnull(v48.get("Front_Send_Guard"),"").toString().startsWith(v0 + ":SENT") || (v0 == "deposit" || v0 == "invoice") && ifnull(v48.get("Invoice_sent_on"),"").toString() != "")
+{
+	info "[DISPATCH] Already sent " + sid + " " + v0;
+	return;
+}
+if(v0 == "sync_qbo")
+{
+	info "[SO QBO] Sync start: " + sid;
+	s = zoho.crm.getRecordById("Sales_Orders",sid.toLong());
+	if(s == null || s.get("id") == null)
+	{
+		info "[SO QBO] ERROR: Sales Order missing";
+		return;
+	}
+	st = ifnull(s.get("Status"),"").toString();
+	if(st != "Requested" && st != "Ordered" && st != "Shipped")
+	{
+		return;
+	}
+	if(ifnull(s.get("Company_selection"),"").toString() == "EU Company")
+	{
+		return;
+	}
+	nb = ifnull(s.get("Grand_Total"),0).toDecimal().round(2);
+	paid = ifnull(s.get("Amount_Paid"),0).toDecimal().round(2);
+	no = ifnull(s.get("Subject"),"").toString();
+	v2c = no;
+	if(v2c.length() > 21)
+	{
+		v2c = v2c.subString(0,21);
+	}
+	key1 = "SO_" + sid + "_DEPOSIT";
+	items = zoho.crm.searchRecords("Accounting","(Request_Key:equals:" + key1 + ")",1,10);
+	accId = "";
+	cnt = 0;
+	if(items != null)
+	{
+		for each  item in items
+		{
+			link = item.get("Sales_Order");
+			if(ifnull(item.get("Request_Key"),"").toString() == key1 && ifnull(item.get("Request_Source"),"").toString() == "Sales Orders" && link != null && ifnull(link.get("id"),"").toString() == sid)
+			{
+				accId = item.get("id").toString();
+				cnt = cnt + 1;
+			}
+		}
+	}
+	if(cnt == 0)
+	{
+		return;
+	}
+	if(cnt != 1 || nb <= 0 || no == "")
+	{
+		info "[SO QBO] ERROR: Deposit request or total invalid";
+		return;
+	}
+	acc = zoho.crm.getRecordById("Accounting",accId.toLong());
+	if(acc == null || acc.get("id") == null)
+	{
+		return;
+	}
+	iid = ifnull(acc.get("QBO_Invoice_ID"),"").toString();
+	realm = ifnull(zoho.crm.getOrgVariable("QBO_REALM_ID"),"").toString();
+	if(iid == "")
+	{
+		return;
+	}
+	if(realm == "")
+	{
+		info "[SO QBO] ERROR: Missing realm";
+		return;
+	}
+	base = "https://quickbooks.api.intuit.com/v3/company/" + realm;
+	hdr = {"Accept":"application/json","Content-Type":"application/json"};
+	try 
+	{
+		got = invokeurl
+		[
+			url :base + "/invoice/" + iid
+			type :GET
+			headers:hdr
+			connection:"quickbooks_online"
+		];
+	}
+	catch (ex)
+	{
+		info "[SO QBO] ERROR read: " + ex;
+		return;
+	}
+	if(got == null || got.get("Invoice") == null)
+	{
+		info "[SO QBO] ERROR: QBO Invoice unavailable";
+		return;
+	}
+	inv = got.get("Invoice");
+	nd = ifnull(inv.get("TotalAmt"),0).toDecimal().round(2);
+	v54 = ifnull(inv.get("Balance"),0).toDecimal().round(2);
+	qpaid = (nd - v54).round(2);
+	curr = inv.get("CurrencyRef");
+	if(ifnull(inv.get("Id"),"").toString() != iid || ifnull(inv.get("DocNumber"),"").toString() != v2c || ifnull(inv.get("SyncToken"),"").toString() == "" || curr != null && ifnull(curr.get("value"),"").toString() != ifnull(s.get("Currency"),"").toString())
+	{
+		info "[SO QBO] ERROR: Invoice ID, number, currency or token mismatch";
+		return;
+	}
+	if(nb < qpaid || qpaid != paid || nd <= 0 || v54 < 0)
+	{
+		info "[SO QBO] ERROR: Amount or applied payments mismatch: CRM=" + paid + " QBO=" + qpaid;
+		return;
+	}
+	if(nb != nd)
+	{
+		lines = inv.get("Line");
+		if(lines == null || lines.size() == 0 || lines.size() > 2)
+		{
+			info "[SO QBO] ERROR: Unsupported invoice lines";
+			return;
+		}
+		if(lines.size() == 2 && ifnull(lines.get(1).get("DetailType"),"") != "SubTotalLineDetail")
+		{
+			info "[SO QBO] ERROR: Unexpected QBO invoice line";
+			return;
+		}
+		ln = lines.get(0);
+		ld = ln.get("SalesItemLineDetail");
+		if(ld == null || ifnull(ln.get("DetailType"),"").toString() != "SalesItemLineDetail" || ld.get("ItemRef") == null || ifnull(ld.get("ItemRef").get("value"),"").toString() != "1" || ifnull(ld.get("Qty"),0).toDecimal() != 1 || ifnull(ln.get("Amount"),0).toDecimal().round(2) != nd)
+		{
+			info "[SO QBO] ERROR: Invoice is not the original one-line Sales Order summary";
+			return;
+		}
+		nld = {"ItemRef":ld.get("ItemRef"),"Qty":1,"UnitPrice":nb};
+		if(ld.get("TaxCodeRef") != null)
+		{
+			nld.put("TaxCodeRef",ld.get("TaxCodeRef"));
+		}
+		nln = {"DetailType":"SalesItemLineDetail","Amount":nb,"Description":ifnull(ln.get("Description"),"Sales Order " + no),"SalesItemLineDetail":nld};
+		if(ln.get("Id") != null)
+		{
+			nln.put("Id",ln.get("Id"));
+		}
+		v5f = {"Id":iid,"SyncToken":inv.get("SyncToken"),"sparse":true,"Line":{nln}};
+		try 
+		{
+			resp = invokeurl
+			[
+				url :base + "/invoice"
+				type :POST
+				parameters:v5f.toString()
+				headers:hdr
+				connection:"quickbooks_online"
+			];
+		}
+		catch (ex2)
+		{
+			info "[SO QBO] ERROR update: " + ex2;
+			return;
+		}
+		if(resp == null || resp.get("Invoice") == null || ifnull(resp.get("Invoice").get("Id"),"").toString() != iid)
+		{
+			info "[SO QBO] ERROR update rejected: " + resp;
+			return;
+		}
+		v50 = ifnull(resp.get("Invoice").get("TotalAmt"),0).toDecimal().round(2);
+		v58 = ifnull(resp.get("Invoice").get("Balance"),0).toDecimal().round(2);
+		if(v50 != nb || (v50 - v58).round(2) != qpaid)
+		{
+			info "[SO QBO] ERROR verifying total or payments: " + resp;
+			return;
+		}
+		info "[SO QBO] UPDATED total " + nd + " -> " + v50 + "; paid " + qpaid;
+	}
+	bkey = "SO_" + sid + "_BALANCE";
+	brows = zoho.crm.searchRecords("Accounting","(Request_Key:equals:" + bkey + ")",1,10);
+	bid = "";
+	bcount = 0;
+	if(brows != null)
+	{
+		for each  b in brows
+		{
+			bl = b.get("Sales_Order");
+			if(ifnull(b.get("Request_Key"),"").toString() == bkey)
+			{
+				bcount = bcount + 1;
+				if(bl != null && ifnull(bl.get("id"),"").toString() == sid && ifnull(b.get("Request_Source"),"").toString() == "Sales Orders")
+				{
+					bid = b.get("id").toString();
+				}
+			}
+		}
+	}
+	if(bcount > 1 || bcount == 1 && bid == "")
+	{
+		info "[SO QBO] ERROR: Duplicate or invalid balance request";
+		return;
+	}
+	if(bid != "")
+	{
+		brec = zoho.crm.getRecordById("Accounting",bid.toLong());
+		remain = (ifnull(brec.get("Payment_Amount"),0).toDecimal() + nb - nd).round(2);
+		if(brec != null && brec.get("id") != null && ifnull(brec.get("Payment_Amount"),0).toDecimal().round(2) != remain)
+		{
+			r = zoho.crm.updateRecord("Accounting",bid.toLong(),{"Payment_Amount":remain},{"trigger":List()});
+			if(r == null || ifnull(r.get("id"),"").toString() != bid)
+			{
+				info "[SO QBO] ERROR updating Accounting balance: " + r;
+				return;
+			}
+			info "[SO QBO] Accounting balance updated to=" + remain;
+		}
+	}
+	info "[SO QBO] DONE " + no + "; total=" + nb;
+	return;
+}
+if(v0 == "deposit_received" || v0 == "payment_received")
+{
+	vd = v0 == "payment_received";
+	info "[SalesOrder Receipt] START SO=" + sid + " action=" + v0;
+	so = zoho.crm.getRecordById("Sales_Orders",sid.toLong());
+	if(so == null || so.get("id") == null)
+	{
+		info "[SO Dep Rec] ERROR: Sales Order not found.";
+		return;
+	}
+	if(vd && (ifnull(so.get("Status"),"").toString() != "Ordered" && ifnull(so.get("Status"),"").toString() != "Shipped" || ifnull(so.get("Accounting_status"),"").toString() != "Paid" || ifnull(so.get("Grand_Total"),0).toDecimal().round(2) <= 0 || ifnull(so.get("Grand_Total"),0).toDecimal().round(2) != ifnull(so.get("Amount_Paid"),0).toDecimal().round(2)) || !vd && (ifnull(so.get("Status"),"").toString().trim() != "Ordered" || ifnull(so.get("Accounting_status"),"").toString().trim() != "Deposit paid"))
+	{
+		info "[SO Dep Rec] SKIP: Deposit payment not confirmed in SO.";
+		return;
+	}
+	v4m = "SO_" + sid + "_DEPOSIT";
+	v3b = zoho.crm.searchRecords("Accounting","(Request_Key:equals:" + v4m + ")",1,10);
+	v1z = null;
+	v2o = 0;
+	if(v3b != null)
+	{
+		for each  v24 in v3b
+		{
+			v4x = v24.get("Sales_Order");
+			if(ifnull(v24.get("Request_Key"),"").toString() == v4m && ifnull(v24.get("Request_Source"),"").toString() == "Sales Orders" && v4x != null && ifnull(v4x.get("id"),"").toString() == sid)
+			{
+				v1z = v24;
+				v2o = v2o + 1;
+			}
+		}
+	}
+	if(v2o != 1 || v1z == null)
+	{
+		info "[SO Dep Rec] ERROR: Expected one linked Accounting deposit request, found " + v2o;
+		return;
+	}
+	v4 = ifnull(v1z.get("id"),"").toString();
+	acc = zoho.crm.getRecordById("Accounting",v4.toLong());
+	if(acc == null || acc.get("id") == null)
+	{
+		info "[SO Dep Rec] ERROR: Accounting request not found.";
+		return;
+	}
+	if(!vd && ifnull(acc.get("Request_Status"),"").toString().trim() != "Deposit Paid" || vd && ifnull(acc.get("QBO_Invoice_ID"),"").toString().trim() == "")
+	{
+		info "[SO Dep Rec] SKIP: Accounting deposit is not confirmed.";
+		return;
+	}
+	if(!vd && ifnull(acc.get("Deposit_Receipt_Sent"),false).toString().toLowerCase() == "true" || vd && ifnull(acc.get("Payment_Received_Sent"),false).toString().toLowerCase() == "true")
+	{
+		info "[SO Dep Rec] SKIP: Confirmation email already sent.";
+		return;
+	}
+	info "[SO Receipt] Preparing confirmation email.";
+	vg = "4888374000129665206";
+	vo = "4888374000000343119";
+	if(vd)
+	{
+		vg = "4888374000131503163";
+	}
+	n3 = List();
+	n4 = so.get("Contact_Name");
+	if(n4 != null && n4.get("id") != null)
+	{
+		n1 = zoho.crm.getRecordById("Contacts",n4.get("id").toLong());
+		if(n1 != null && n1.get("id") != null)
+		{
+			for each  n5 in {"Email","Secondary_Email"}
+			{
+				n0 = ifnull(n1.get(n5),"").toString().trim();
+				if(n0 != "" && n0.contains("@"))
+				{
+					n3.add(n0);
+				}
+			}
+		}
+	}
+	n6 = so.get("Account_Name");
+	if(n6 != null && n6.get("id") != null)
+	{
+		n2 = zoho.crm.getRecordById("Accounts",n6.get("id").toLong());
+		if(n2 != null && n2.get("id") != null)
+		{
+			for each  n5 in {"Company_email","Alternative_email_1","Alternative_email_2"}
+			{
+				n0 = ifnull(n2.get(n5),"").toString().trim();
+				if(n0 != "" && n0.contains("@"))
+				{
+					n3.add(n0);
+				}
+			}
+		}
+	}
+	if(n3.isEmpty())
+	{
+		info "[SO Receipt] ERROR: No available customer email addresses.";
+		return;
+	}
+	ve = n3.get(0).toString();
+	n9 = List();
+	n7 = List();
+	n7.add(ve.toLowerCase());
+	for each  n0 in n3
+	{
+		if(n0 != "" && !n7.contains(n0.toLowerCase()))
+		{
+			rcc = Map();
+			rcc.put("email",n0);
+			n9.add(rcc);
+			n7.add(n0.toLowerCase());
+		}
+	}
+	info "[SO Receipt] TO: " + ve;
+	info "[SO Receipt] CC: " + n9;
+	if(vd)
+	{
+		v4c = zoho.crm.getRecordById("Accounting",v4.toLong());
+		if(v4c == null || ifnull(v4c.get("Payment_Received_Sent"),false).toString().toLowerCase() == "true")
+		{
+			info "[Payment Received] SKIP: Already sent.";
+			return;
+		}
+		v3n = zoho.crm.updateRecord("Accounting",v4.toLong(),{"Payment_Received_Sent":true},{"trigger":List()});
+		if(v3n == null || ifnull(v3n.get("id"),"").toString() != v4)
+		{
+			info "[Payment Received] ERROR reserving send: " + v3n;
+			return;
+		}
+	}
+	info "[SO Receipt] Sending " + v0;
+	info "[SO Receipt] Template ID: " + vg;
+	f0 = Map();
+	f0.put("source","template");
+	f0.put("template_id",vg);
+	f0.put("record_id",sid);
+	f0.put("content_type","html");
+	f0.put("resolve_sender_info",true);
+	f1 = List();
+	f1.add(f0);
+	f2 = Map();
+	f2.put("generate_content",f1);
+	f3 = invokeurl
+	[
+		url :"https://www.zohoapis.com/crm/v9/settings/email_templates/actions/generate_content"
+		type :POST
+		parameters:f2.toString()
+		headers:{"Content-Type":"application/json"}
+		detailed:true
+		connection:"zoho_crm_connection"
+	];
+	if(ifnull(f3.get("responseCode"),0).toLong() != 200)
+	{
+		info "[FR] ERROR: Email template rendering HTTP " + f3.get("responseCode");
+		if(vd)
+		{
+			zoho.crm.updateRecord("Accounting",v4.toLong(),{"Payment_Received_Sent":false},{"trigger":List()});
+		}
+		return;
+	}
+	f4 = f3.get("responseText").get("generate_content");
+	if(f4 == null || f4.size() == 0)
+	{
+		info "[FR] ERROR: Email template rendered empty.";
+		if(vd)
+		{
+			zoho.crm.updateRecord("Accounting",v4.toLong(),{"Payment_Received_Sent":false},{"trigger":List()});
+		}
+		return;
+	}
+	f5 = ifnull(f4.get(0).get("subject"),"").toString();
+	f6 = ifnull(f4.get(0).get("content"),"").toString();
+	if(f5 == "" || f6 == "")
+	{
+		info "[FR] ERROR: Missing real email subject/body.";
+		if(vd)
+		{
+			zoho.crm.updateRecord("Accounting",v4.toLong(),{"Payment_Received_Sent":false},{"trigger":List()});
+		}
+		return;
+	}
+	f7 = invokeurl
+	[
+		url :"https://www.zohoapis.com/crm/v8/settings/inventory_templates/" + vo + "/actions/print_preview?record_id=" + sid + "&print_type=pdf"
+		type :GET
+		connection:"zoho_crm_connection"
+		response-format:FILE
+	];
+	if(f7 == null || !ifnull(f7.getFileType(),"").toString().contains("pdf"))
+	{
+		info "[FR] ERROR: Invoice.pdf creation failed.";
+		if(vd)
+		{
+			zoho.crm.updateRecord("Accounting",v4.toLong(),{"Payment_Received_Sent":false},{"trigger":List()});
+		}
+		return;
+	}
+	f7.setFileName("Invoice.pdf");
+	f7.setParamName("attachments[]");
+	f8 = Map();
+	f8.put("to[]",ve);
+	f8.put("subject",f5);
+	f8.put("body",f6);
+	f8.put("attachments[]",f7);
+	f9 = List();
+	for each  f10 in n9
+	{
+		f11 = ifnull(f10.get("email"),"").toString().trim();
+		if(f11 != "")
+		{
+			f9.add(f11);
+		}
+	}
+	if(f9.size() == 1)
+	{
+		f8.put("cc[]",f9.get(0));
+	}
+	else if(f9.size() > 1)
+	{
+		f8.put("cc[]",f9);
+	}
+	f12 = ifnull(so.get("Front_Conversation_ID"),"").toString().trim();
+	if(f12 != "" && !f12.startsWith("cnv_"))
+	{
+		info "[FR] ERROR: Invalid Front ID " + f12;
+		if(vd)
+		{
+			zoho.crm.updateRecord("Accounting",v4.toLong(),{"Payment_Received_Sent":false},{"trigger":List()});
+		}
+		return;
+	}
+	f13 = "https://api2.frontapp.com/channels/alt:address:accounting@minmaxdeals.com/messages";
+	if(f12 != "")
+	{
+		f13 = "https://api2.frontapp.com/conversations/" + f12 + "/messages";
+		f8.put("channel_id","alt:address:accounting@minmaxdeals.com");
+	}
+	k0 = sid + ":" + v0;
+	try 
+	{
+		k1 = zoho.crm.createRecord("Email_Dispatch_Locks",{"Name":k0,"Dispatch_Key":k0,"Send_Status":"Claimed","Sales_Order_ID":sid},{"trigger":List()});
+	}
+	catch (k2)
+	{
+		info "[DISPATCH] Lock error " + k2;
+		return;
+	}
+	if(k1 == null || k1.get("id") == null)
+	{
+		info "[DISPATCH] Duplicate " + k1;
+		return;
+	}
+	k3 = k1.get("id").toString();
+	try 
+	{
+		f14 = invokeurl
+		[
+			url :f13
+			type :POST
+			body:f8
+			content-type:"multipart/form-data"
+			detailed:true
+			connection:"frontfullintegration"
+		];
+	}
+	catch (na)
+	{
+		info "[FR] UNKNOWN send outcome; do not retry: " + na;
+		return;
+	}
+	if(ifnull(f14.get("responseCode"),0).toLong() != 202)
+	{
+		info "[FR] ERROR: Front rejected email HTTP " + f14.get("responseCode") + " " + f14.get("responseText");
+		if(vd && ifnull(f14.get("responseCode"),0).toLong() >= 400 && ifnull(f14.get("responseCode"),0).toLong() < 500)
+		{
+			zoho.crm.updateRecord("Accounting",v4.toLong(),{"Payment_Received_Sent":false},{"trigger":List()});
+		}
+		return;
+	}
+	k4 = zoho.crm.updateRecord("Email_Dispatch_Locks",k3.toLong(),{"Send_Status":"Accepted","Front_Message_UID":ifnull(f14.get("responseText").get("message_uid"),"").toString()},{"trigger":List()});
+	if(k4 == null || k4.get("id") == null)
+	{
+		info "[DISPATCH] Tracking failed " + k4;
+	}
+	g6 = zoho.crm.updateRecord("Sales_Orders",sid.toLong(),{"Front_Send_Guard":v0 + ":SENT:" + ifnull(f14.get("responseText").get("message_uid"),"").toString()},{"trigger":List()});
+	if(g6 == null || g6.get("id") == null)
+	{
+		info "[FG] SENT not saved " + g6;
+	}
+	if(f12 == "")
+	{
+		try 
+		{
+			f15 = ifnull(f14.get("responseText").get("message_uid"),"").toString();
+			if(f15 != "")
+			{
+				for each  f16 in {1,2,3,4}
+				{
+					f17 = invokeurl
+					[
+						url :"https://api2.frontapp.com/messages/alt:uid:" + f15
+						type :GET
+						detailed:true
+						connection:"frontfullintegration"
+					];
+					if(ifnull(f17.get("responseCode"),0).toLong() == 200)
+					{
+						f18 = f17.get("responseText").get("_links");
+						if(f18 != null && f18.get("related") != null)
+						{
+							f19 = ifnull(f18.get("related").get("conversation"),"").toString();
+							if(f19 != "")
+							{
+								f20 = f19.toList("/");
+								f21 = f20.get(f20.size() - 1).toString();
+								if(f21.startsWith("cnv_"))
+								{
+									f12 = f21;
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+			if(f12.startsWith("cnv_"))
+			{
+				f22 = Map();
+				f22.put("Front_Conversation_ID",f12);
+				f23 = zoho.crm.updateRecord("Sales_Orders",sid.toLong(),f22,{"trigger":List()});
+				if(f23 == null || ifnull(f23.get("id"),"").toString() != sid)
+				{
+					info "[FR] WARNING: Front email accepted but CRM ID update failed " + f23;
+				}
+			}
+			else
+			{
+				info "[FR] WARNING: Email accepted; Front Conversation ID unresolved, message_uid=" + f15;
+			}
+		}
+		catch (n8)
+		{
+			info "[FR] WARNING: Email accepted; ID lookup error " + n8;
+		}
+	}
+	vi = Map();
+	f24 = Map();
+	f24.put("code","SUCCESS");
+	f25 = List();
+	f25.add(f24);
+	vi.put("data",f25);
+	info "[FR] ACCEPTED: real invoice email in Front, SO=" + sid;
+	info "[SO Receipt] API Response: " + vi;
+	v3y = false;
+	if(vi != null && vi.get("data") != null)
+	{
+		v2v = vi.get("data");
+		if(v2v.size() > 0)
+		{
+			v4n = v2v.get(0);
+			if(v4n.get("code") == "SUCCESS")
+			{
+				v3y = true;
+				info "[SO Receipt] SUCCESS: Deposit Received email accepted.";
+			}
+			else
+			{
+				info "[SO Receipt] ERROR: " + v4n;
+			}
+		}
+	}
+	if(v3y == false)
+	{
+		info "[SO Receipt] ERROR: Confirmation email was not accepted by API.";
+		if(vd && vi != null && vi.get("data") != null)
+		{
+			v51 = zoho.crm.updateRecord("Accounting",v4.toLong(),{"Payment_Received_Sent":false},{"trigger":List()});
+			info "[Payment Received] API error; released reservation: " + v51;
+		}
+	}
+	else
+	{
+		v30 = Map();
+		if(vd)
+		{
+			v30.put("Payment_Received_Sent",true);
+		}
+		else
+		{
+			v30.put("Deposit_Receipt_Sent",true);
+		}
+		v2w = Map();
+		v2w.put("trigger",List());
+		v2j = zoho.crm.updateRecord("Accounting",v4.toLong(),v30,v2w);
+		if(v2j == null || ifnull(v2j.get("id"),"").toString() != v4)
+		{
+			info "[AccountingSales DepositPaid] WARNING: Email accepted but receipt marker could not be saved: " + v2j;
+		}
+	}
+	if(v3y && f12.startsWith("cnv_"))
+	{
+		fh1 = {"inbox_id":"inb_7jkb5","assignee_id":"tea_2wutt","status":"open"};
+		if(!vd)
+		{
+			fh1.put("inbox_id","inb_a01le");
+			if(xid != "")
+			{
+				fh1.put("assignee_id",xid);
+			}
+			else
+			{
+				fh1.put("assignee_id",null);
+				info "[Front] SO Owner Front ID missing, moved Sales unassigned SO=" + sid;
+			}
+		}
+		try 
+		{
+			fh4 = invokeurl
+			[
+				url :"https://api2.frontapp.com/conversations/" + f12
+				type :PATCH
+				parameters:fh1.toString()
+				headers:{"Content-Type":"application/json"}
+				detailed:true
+				connection:"frontfullintegration"
+			];
+			if(ifnull(fh4.get("responseCode"),0).toLong() != 204)
+			{
+				info "[Front] Handoff/assignment failed HTTP " + fh4.get("responseCode") + " " + fh4.get("responseText");
+			}
+			else
+			{
+				info "[Front] Handoff/assignment OK SO=" + sid + " assignee=" + ifnull(fh1.get("assignee_id"),"").toString();
+			}
+		}
+		catch (fhErr)
+		{
+			info "[Front] Handoff/assignment exception " + fhErr;
+		}
+	}
+	info "[SO Dep Rec] FINISH SO=" + sid;
+	if(!vd && xid != "" && f12.startsWith("cnv_"))
+	{
+		try 
+		{
+			xq = {"teammate_ids":{xid}};
+			xr = invokeurl
+			[
+				url :"https://api2.frontapp.com/conversations/" + f12 + "/followers"
+				type :POST
+				parameters:xq.toString()
+				headers:{"Content-Type":"application/json"}
+				detailed:true
+				connection:"frontfullintegration"
+			];
+			if(ifnull(xr.get("responseCode"),0).toLong() != 204)
+			{
+				info "[FO] " + xr;
+			}
+		}
+		catch (xe)
+		{
+			info "[FO] " + xe;
+		}
+	}
+	try 
+	{
+		automation.FrontSalesOrderTags(sid);
+	}
+	catch (e)
+	{
+		info e;
+	}
+	return;
+}
+if(v0 == "request_deposit" || v0 == "request_full")
+{
+	ne = v0 == "request_full";
+	info "[SO Deposit] START SO=" + sid;
+	if(sid == null || sid.trim() == "")
+	{
+		info "[SO Deposit] ERROR: Empty Sales Order ID";
+		return;
+	}
+	so = zoho.crm.getRecordById("Sales_Orders",sid.toLong());
+	if(so == null || so.get("id") == null)
+	{
+		info "[SO Deposit] ERROR: Sales Order not found";
+		return;
+	}
+	v4d = ifnull(so.get("Status"),"").toString();
+	if(v4d != "Requested")
+	{
+		info "[SO Deposit] SKIP: Order Status must be Requested. Current=" + v4d;
+		return;
+	}
+	v47 = ifnull(so.get("Company_selection"),"").toString();
+	if(v47 == "EU Company")
+	{
+		info "[SO Deposit] SKIP: The existing SalesOrder QBO sender is configured only for US QBO.";
+		return;
+	}
+	nb = ifnull(so.get("Grand_Total"),0).toDecimal().round(2);
+	v15 = ifnull(so.get("Deposit_Amount"),"").toString().replaceAll("%","").trim();
+	if(ne)
+	{
+		v15 = "100";
+	}
+	if(v15 == "" || v15 == "-None-")
+	{
+		info "[SO Deposit] ERROR: Deposit Amount percentage is missing.";
+		return;
+	}
+	v25 = v15.toDecimal();
+	if(v25 <= 0 || v25 > 100 || nb <= 0)
+	{
+		info "[SO Deposit] ERROR: Invalid order total/deposit percentage. Total=" + nb + ", Percent=" + v25;
+		return;
+	}
+	va = (nb * v25 / 100).round(2);
+	if(va <= 0 || va > nb)
+	{
+		info "[SO Deposit] ERROR: Invalid calculated deposit=" + va;
+		return;
+	}
+	v4i = ifnull(so.get("Deposit_required"),0).toDecimal().round(2);
+	if(ne == false && v4i != va)
+	{
+		v3r = Map();
+		v3r.put("Deposit_required",va);
+		v3k = Map();
+		v3k.put("trigger",List());
+		v3o = zoho.crm.updateRecord("Sales_Orders",sid.toLong(),v3r,v3k);
+		if(v3o == null || ifnull(v3o.get("id"),"").toString() != sid)
+		{
+			info "[SO Deposit] ERROR: Deposit Required cannot be saved: " + v3o;
+			return;
+		}
+		info "[SO Deposit] Deposit Required saved=" + va;
+	}
+	paid = ifnull(so.get("Amount_Paid"),0).toDecimal();
+	if(ne == false && paid >= va)
+	{
+		info "[SO Deposit] SKIP: Deposit already covered by payments. Paid=" + paid;
+		return;
+	}
+	v31 = ifnull(so.get("Subject"),"").toString().trim();
+	v3s = ifnull(so.get("Currency"),"USD").toString();
+	if(v31 == "" || v3s != "USD" && v3s != "EUR")
+	{
+		info "[SO Deposit] ERROR: Order number or currency missing/invalid";
+		return;
+	}
+	v21 = "SO_" + sid + "_DEPOSIT";
+	v5c = "(Request_Key:equals:" + v21 + ")";
+	v12 = zoho.crm.searchRecords("Accounting",v5c,1,2);
+	v4 = "";
+	if(v12 != null && v12.size() > 1)
+	{
+		info "[SO Deposit] ERROR: Multiple Accounting records with Request_Key " + v21;
+		return;
+	}
+	if(v12 != null && v12.size() == 1)
+	{
+		v4 = ifnull(v12.get(0).get("id"),"").toString();
+		info "[SO Deposit] Reusing Accounting record " + v4;
+		existingAccountingRequest = zoho.crm.getRecordById("Accounting",v4.toLong());
+		if(existingAccountingRequest == null || existingAccountingRequest.get("id") == null)
+		{
+			info "[SO Invoice] ERROR: Cannot verify linked Accounting request.";
+			return;
+		}
+		existingQboId = ifnull(existingAccountingRequest.get("QBO_Invoice_ID"),"").toString().trim();
+		existingPaymentAmount = ifnull(existingAccountingRequest.get("Payment_Amount"),0).toDecimal().round(2);
+		if(existingQboId != "" && existingPaymentAmount != va)
+		{
+			info "[SO Invoice] BLOCKED: Existing QBO invoice amount " + existingPaymentAmount + " does not match requested amount " + va + ". No changes made.";
+			return;
+		}
+		if(ne)
+		{
+			v2x = Map();
+			v2x.put("Name","Receive Full Payment - " + v31);
+			v2x.put("Request_Status","To Receive");
+			v2x.put("Payment_Amount",va);
+			v2x.put("Payment_Due_Date",ifnull(so.get("Due_Date"),"").toString());
+			v55 = Map();
+			v55.put("trigger",{"workflow"});
+			v3w = zoho.crm.updateRecord("Accounting",v4.toLong(),v2x,v55);
+			if(v3w == null || ifnull(v3w.get("id"),"").toString() != v4)
+			{
+				info "[SO Full Invoice] ERROR updating Accounting: " + v3w;
+				return;
+			}
+		}
+	}
+	else
+	{
+		v14 = Map();
+		v3z = "Receive Deposit - " + v31;
+		if(ne)
+		{
+			v3z = "Receive Full Payment - " + v31;
+		}
+		v14.put("Name",v3z);
+		v14.put("Request_Source","Sales Orders");
+		v14.put("Request_Key",v21);
+		v14.put("Request_Status","To Receive");
+		v14.put("Amount_Paid",0);
+		soLink = Map();
+		soLink.put("id",sid);
+		v14.put("Sales_Order",soLink);
+		v14.put("Payment_Amount",va);
+		v14.put("Currency",v3s);
+		if(ifnull(so.get("Due_Date"),"").toString().trim() != "")
+		{
+			v14.put("Payment_Due_Date",so.get("Due_Date"));
+		}
+		v3e = Map();
+		v37 = List();
+		v37.add("workflow");
+		v3e.put("trigger",v37);
+		v2p = zoho.crm.createRecord("Accounting",v14,v3e);
+		if(v2p == null || v2p.get("id") == null)
+		{
+			info "[SO Deposit] ERROR creating Accounting: " + v2p;
+			return;
+		}
+		v4 = v2p.get("id").toString();
+		info "[SO Deposit] Created Accounting " + v4;
+	}
+	if(v4 == "")
+	{
+		info "[SO Deposit] ERROR: Accounting ID missing";
+		return;
+	}
+	vb = zoho.crm.getRecordById("Accounting",v4.toLong());
+	if(vb == null || vb.get("id") == null)
+	{
+		info "[SO Deposit] ERROR reading Accounting record " + v4;
+		return;
+	}
+	source = ifnull(vb.get("Request_Source"),"").toString();
+	key = ifnull(vb.get("Request_Key"),"").toString();
+	v56 = vb.get("Sales_Order");
+	v3x = "";
+	if(v56 != null)
+	{
+		v3x = ifnull(v56.get("id"),"").toString();
+	}
+	if(source != "Sales Orders" || key != v21 || v3x != sid)
+	{
+		info "[SO Deposit] ERROR: Accounting request source/key/SO lookup mismatch. Source=" + source + ", Key=" + key + ", LinkedSO=" + v3x;
+		return;
+	}
+	v2a = ifnull(vb.get("Request_Status"),"").toString();
+	if(v2a == "Deposit Paid" || v2a == "Paid")
+	{
+		info "[SO Deposit] SKIP: Accounting already settled, ID=" + v4;
+		return;
+	}
+	info "[SO Deposit] DONE: Accounting request ID=" + v4 + ". QBO and email are owned by the Accounting workflow.";
+	return;
+}
+if(v0 == "remainder")
+{
+	info "[SO Balance] START SO=" + sid;
+	vl = zoho.crm.getRecordById("Sales_Orders",sid.toLong());
+	if(vl == null || vl.get("id") == null)
+	{
+		info "[SO Balance] ERROR: Sales Order not found.";
+		return;
+	}
+	v2y = ifnull(vl.get("Status"),"").toString().trim();
+	vp = ifnull(vl.get("Accounting_status"),"").toString().trim();
+	if(v2y != "Ordered")
+	{
+		info "[SO Balance] SKIP: Sales Order must be Ordered. Current=" + v2y;
+		return;
+	}
+	if(vp == "Remainder invoice sent")
+	{
+		info "[SO Balance] SKIP: Remainder invoice already sent.";
+		return;
+	}
+	if(vp != "Send balance invoice")
+	{
+		info "[SO Balance] SKIP: Deposit must be confirmed. Accounting status=" + vp;
+		return;
+	}
+	v1i = ifnull(vl.get("Grand_Total"),0).toDecimal().round(2);
+	v1u = ifnull(vl.get("Amount_Paid"),0).toDecimal().round(2);
+	vr = ifnull(vl.get("Balance_Due"),0).toDecimal().round(2);
+	if(v1i <= 0 || v1u <= 0 || vr <= 0 || v1u >= v1i || vr != (v1i - v1u).round(2))
+	{
+		info "[SO Balance] ERROR: Invalid payment amounts. Total=" + v1i + ", Paid=" + v1u + ", Balance=" + vr;
+		return;
+	}
+	v2t = ifnull(vl.get("Due_Date"),"").toString().trim();
+	if(v2t == "")
+	{
+		info "[SO Balance] ERROR: Due Date is missing. Set the Due Date before sending.";
+		return;
+	}
+	v26 = "SO_" + sid + "_DEPOSIT";
+	v2k = zoho.crm.searchRecords("Accounting","(Request_Key:equals:" + v26 + ")",1,10);
+	vz = "";
+	v16 = 0;
+	if(v2k != null)
+	{
+		for each  v17 in v2k
+		{
+			v38 = v17.get("Sales_Order");
+			if(ifnull(v17.get("Request_Key"),"").toString() == v26 && ifnull(v17.get("Request_Source"),"").toString() == "Sales Orders" && v38 != null && ifnull(v38.get("id"),"").toString() == sid)
+			{
+				v16 = v16 + 1;
+				vz = ifnull(v17.get("id"),"").toString();
+			}
+		}
+	}
+	if(v16 != 1 || vz == "")
+	{
+		info "[SO Balance] ERROR: Expected exactly one linked deposit Accounting record. Found=" + v16;
+		return;
+	}
+	vs = zoho.crm.getRecordById("Accounting",vz.toLong());
+	if(vs == null || vs.get("id") == null)
+	{
+		info "[SO Balance] ERROR: Accounting record not found.";
+		return;
+	}
+	if(ifnull(vs.get("Request_Status"),"").toString().trim() != "Deposit Paid" || ifnull(vs.get("QBO_Invoice_ID"),"").toString().trim() == "")
+	{
+		info "[SO Balance] ERROR: Deposit approval or original QBO Invoice is missing.";
+		return;
+	}
+	n3 = List();
+	n4 = vl.get("Contact_Name");
+	if(n4 != null && n4.get("id") != null)
+	{
+		n1 = zoho.crm.getRecordById("Contacts",n4.get("id").toLong());
+		if(n1 != null && n1.get("id") != null)
+		{
+			for each  n5 in {"Email","Secondary_Email"}
+			{
+				n0 = ifnull(n1.get(n5),"").toString().trim();
+				if(n0 != "" && n0.contains("@"))
+				{
+					n3.add(n0);
+				}
+			}
+		}
+	}
+	n6 = vl.get("Account_Name");
+	if(n6 != null && n6.get("id") != null)
+	{
+		n2 = zoho.crm.getRecordById("Accounts",n6.get("id").toLong());
+		if(n2 != null && n2.get("id") != null)
+		{
+			for each  n5 in {"Company_email","Alternative_email_1","Alternative_email_2"}
+			{
+				n0 = ifnull(n2.get(n5),"").toString().trim();
+				if(n0 != "" && n0.contains("@"))
+				{
+					n3.add(n0);
+				}
+			}
+		}
+	}
+	if(n3.isEmpty())
+	{
+		info "[SO Balance] ERROR: No available customer email addresses.";
+		return;
+	}
+	v32 = n3.get(0).toString();
+	v33 = List();
+	n7 = List();
+	n7.add(v32.toLowerCase());
+	for each  n0 in n3
+	{
+		if(n0 != "" && !n7.contains(n0.toLowerCase()))
+		{
+			rcc = Map();
+			rcc.put("email",n0);
+			v33.add(rcc);
+			n7.add(n0.toLowerCase());
+		}
+	}
+	info "[SO Balance] Sending. Balance=" + vr + ", Due=" + v2t;
+	f0 = Map();
+	f0.put("source","template");
+	f0.put("template_id","4888374000131031181");
+	f0.put("record_id",sid);
+	f0.put("content_type","html");
+	f0.put("resolve_sender_info",true);
+	f1 = List();
+	f1.add(f0);
+	f2 = Map();
+	f2.put("generate_content",f1);
+	f3 = invokeurl
+	[
+		url :"https://www.zohoapis.com/crm/v9/settings/email_templates/actions/generate_content"
+		type :POST
+		parameters:f2.toString()
+		headers:{"Content-Type":"application/json"}
+		detailed:true
+		connection:"zoho_crm_connection"
+	];
+	if(ifnull(f3.get("responseCode"),0).toLong() != 200)
+	{
+		info "[FB] ERROR: Email template rendering HTTP " + f3.get("responseCode");
+		return;
+	}
+	f4 = f3.get("responseText").get("generate_content");
+	if(f4 == null || f4.size() == 0)
+	{
+		info "[FB] ERROR: Email template rendered empty.";
+		return;
+	}
+	f5 = ifnull(f4.get(0).get("subject"),"").toString();
+	f6 = ifnull(f4.get(0).get("content"),"").toString();
+	if(f5 == "" || f6 == "")
+	{
+		info "[FB] ERROR: Missing real email subject/body.";
+		return;
+	}
+	f7 = invokeurl
+	[
+		url :"https://www.zohoapis.com/crm/v8/settings/inventory_templates/" + "4888374000000343119" + "/actions/print_preview?record_id=" + sid + "&print_type=pdf"
+		type :GET
+		connection:"zoho_crm_connection"
+		response-format:FILE
+	];
+	if(f7 == null || !ifnull(f7.getFileType(),"").toString().contains("pdf"))
+	{
+		info "[FB] ERROR: Invoice.pdf creation failed.";
+		return;
+	}
+	f7.setFileName("Invoice.pdf");
+	f7.setParamName("attachments[]");
+	f8 = Map();
+	f8.put("to[]",v32);
+	f8.put("subject",f5);
+	f8.put("body",f6);
+	f8.put("attachments[]",f7);
+	f9 = List();
+	for each  f10 in v33
+	{
+		f11 = ifnull(f10.get("email"),"").toString().trim();
+		if(f11 != "")
+		{
+			f9.add(f11);
+		}
+	}
+	if(f9.size() == 1)
+	{
+		f8.put("cc[]",f9.get(0));
+	}
+	else if(f9.size() > 1)
+	{
+		f8.put("cc[]",f9);
+	}
+	f12 = ifnull(vl.get("Front_Conversation_ID"),"").toString().trim();
+	if(f12 != "" && !f12.startsWith("cnv_"))
+	{
+		info "[FB] ERROR: Invalid Front ID " + f12;
+		return;
+	}
+	f13 = "https://api2.frontapp.com/channels/alt:address:sales@minmaxdeals.com/messages";
+	if(f12 != "")
+	{
+		f13 = "https://api2.frontapp.com/conversations/" + f12 + "/messages";
+		f8.put("channel_id","alt:address:sales@minmaxdeals.com");
+	}
+	k0 = sid + ":" + v0;
+	try 
+	{
+		k1 = zoho.crm.createRecord("Email_Dispatch_Locks",{"Name":k0,"Dispatch_Key":k0,"Send_Status":"Claimed","Sales_Order_ID":sid},{"trigger":List()});
+	}
+	catch (k2)
+	{
+		info "[DISPATCH] Lock error " + k2;
+		return;
+	}
+	if(k1 == null || k1.get("id") == null)
+	{
+		info "[DISPATCH] Duplicate " + k1;
+		return;
+	}
+	k3 = k1.get("id").toString();
+	try 
+	{
+		f14 = invokeurl
+		[
+			url :f13
+			type :POST
+			body:f8
+			content-type:"multipart/form-data"
+			detailed:true
+			connection:"frontfullintegration"
+		];
+	}
+	catch (na)
+	{
+		info "[FB] UNKNOWN send outcome; do not retry: " + na;
+		return;
+	}
+	if(ifnull(f14.get("responseCode"),0).toLong() != 202)
+	{
+		info "[FB] ERROR: Front rejected email HTTP " + f14.get("responseCode") + " " + f14.get("responseText");
+		return;
+	}
+	k4 = zoho.crm.updateRecord("Email_Dispatch_Locks",k3.toLong(),{"Send_Status":"Accepted","Front_Message_UID":ifnull(f14.get("responseText").get("message_uid"),"").toString()},{"trigger":List()});
+	if(k4 == null || k4.get("id") == null)
+	{
+		info "[DISPATCH] Tracking failed " + k4;
+	}
+	g6 = zoho.crm.updateRecord("Sales_Orders",sid.toLong(),{"Front_Send_Guard":v0 + ":SENT:" + ifnull(f14.get("responseText").get("message_uid"),"").toString()},{"trigger":List()});
+	if(g6 == null || g6.get("id") == null)
+	{
+		info "[FG] SENT not saved " + g6;
+	}
+	if(f12 == "")
+	{
+		try 
+		{
+			f15 = ifnull(f14.get("responseText").get("message_uid"),"").toString();
+			if(f15 != "")
+			{
+				for each  f16 in {1,2,3,4}
+				{
+					f17 = invokeurl
+					[
+						url :"https://api2.frontapp.com/messages/alt:uid:" + f15
+						type :GET
+						detailed:true
+						connection:"frontfullintegration"
+					];
+					if(ifnull(f17.get("responseCode"),0).toLong() == 200)
+					{
+						f18 = f17.get("responseText").get("_links");
+						if(f18 != null && f18.get("related") != null)
+						{
+							f19 = ifnull(f18.get("related").get("conversation"),"").toString();
+							if(f19 != "")
+							{
+								f20 = f19.toList("/");
+								f21 = f20.get(f20.size() - 1).toString();
+								if(f21.startsWith("cnv_"))
+								{
+									f12 = f21;
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+			if(f12.startsWith("cnv_"))
+			{
+				f22 = Map();
+				f22.put("Front_Conversation_ID",f12);
+				f23 = zoho.crm.updateRecord("Sales_Orders",sid.toLong(),f22,{"trigger":List()});
+				if(f23 == null || ifnull(f23.get("id"),"").toString() != sid)
+				{
+					info "[FB] WARNING: Front email accepted but CRM ID update failed " + f23;
+				}
+			}
+			else
+			{
+				info "[FB] WARNING: Email accepted; Front Conversation ID unresolved, message_uid=" + f15;
+			}
+		}
+		catch (n8)
+		{
+			info "[FB] WARNING: Email accepted; ID lookup error " + n8;
+		}
+	}
+	vn = Map();
+	f24 = Map();
+	f24.put("code","SUCCESS");
+	f25 = List();
+	f25.add(f24);
+	vn.put("data",f25);
+	info "[FB] ACCEPTED: real invoice email in Front, SO=" + sid;
+	v1w = false;
+	if(vn != null && vn.get("data") != null)
+	{
+		v1x = vn.get("data");
+		if(v1x.size() > 0 && ifnull(v1x.get(0).get("code"),"").toString() == "SUCCESS")
+		{
+			v1w = true;
+		}
+	}
+	if(v1w == false)
+	{
+		info "[SO Balance] ERROR: Email not accepted by CRM API. Response=" + vn;
+		return;
+	}
+	vu = "SO_" + sid + "_BALANCE";
+	v1g = zoho.crm.searchRecords("Accounting","(Request_Key:equals:" + vu + ")",1,10);
+	v1 = "";
+	v10 = 0;
+	if(v1g != null)
+	{
+		for each  vk in v1g
+		{
+			if(ifnull(vk.get("Request_Key"),"").toString() == vu)
+			{
+				v10 = v10 + 1;
+				v28 = vk.get("Sales_Order");
+				if(ifnull(vk.get("Request_Source"),"").toString() != "Sales Orders" || v28 == null || ifnull(v28.get("id"),"").toString() != sid)
+				{
+					info "[SO Balance] ERROR: Existing balance Accounting request has incorrect source or Sales Order link.";
+					return;
+				}
+				v1 = ifnull(vk.get("id"),"").toString();
+			}
+		}
+	}
+	if(v10 > 1)
+	{
+		info "[SO Balance] ERROR: Multiple balance Accounting records found for " + vu;
+		return;
+	}
+	if(v1 == "")
+	{
+		v2 = Map();
+		v2.put("Name","Receive Balance - " + ifnull(vl.get("Subject"),"").toString().trim());
+		v2.put("Request_Source","Sales Orders");
+		v2.put("Request_Key",vu);
+		v2.put("Request_Status","Remainder invoice sent");
+		v2.put("Payment_Amount",vr);
+		v2.put("Amount_Paid",0);
+		v2.put("Currency",ifnull(vl.get("Currency"),"USD").toString());
+		v2.put("Payment_Due_Date",v2t);
+		v2r = Map();
+		v2r.put("id",sid);
+		v2.put("Sales_Order",v2r);
+		v2b = Map();
+		v2b.put("trigger",List());
+		vf = zoho.crm.createRecord("Accounting",v2,v2b);
+		if(vf == null || vf.get("id") == null)
+		{
+			info "[SO Balance] ERROR: Email sent, but Accounting request creation failed: " + vf;
+			return;
+		}
+		v1 = vf.get("id").toString();
+		info "[SO Balance] Accounting balance request created. ID=" + v1;
+	}
+	else
+	{
+		vq = zoho.crm.getRecordById("Accounting",v1.toLong());
+		if(vq == null || vq.get("id") == null || ifnull(vq.get("Request_Status"),"").toString() != "Remainder invoice sent")
+		{
+			info "[SO Balance] ERROR: Existing balance Accounting request must be Remainder invoice sent. ID=" + v1;
+			return;
+		}
+		info "[SO Balance] Reusing Accounting balance request ID=" + v1;
+	}
+	v22 = Map();
+	v22.put("Accounting_status","Remainder invoice sent");
+	v22.put("Invoice_sent_on",zoho.currentdate.toString("yyyy-MM-dd"));
+	v1h = Map();
+	v1y = List();
+	v1y.add("workflow");
+	v1h.put("trigger",v1y);
+	vw = zoho.crm.updateRecord("Sales_Orders",sid.toLong(),v22,v1h);
+	if(vw == null || ifnull(vw.get("id"),"").toString() != sid)
+	{
+		info "[SO Balance] WARNING: Email sent, but Sales Order status/date update failed: " + vw;
+		return;
+	}
+	info "[SO Balance] SUCCESS: Email sent and Sales Order Accounting status=Remainder invoice sent.";
+	if(f12.startsWith("cnv_"))
+	{
+		try 
+		{
+			ym = {"inbox_id":"inb_7jk7l","assignee_id":"tea_2wutt","status":"open"};
+			yr = invokeurl
+			[
+				url :"https://api2.frontapp.com/conversations/" + f12
+				type :PATCH
+				parameters:ym.toString()
+				headers:{"Content-Type":"application/json"}
+				detailed:true
+				connection:"frontfullintegration"
+			];
+			if(ifnull(yr.get("responseCode"),0).toLong() != 204)
+			{
+				info "[SO] move " + yr;
+			}
+		}
+		catch (ye)
+		{
+			info "[SO] move " + ye;
+		}
+	}
+	if(xid != "" && f12.startsWith("cnv_"))
+	{
+		try 
+		{
+			xq = {"teammate_ids":{xid}};
+			xr = invokeurl
+			[
+				url :"https://api2.frontapp.com/conversations/" + f12 + "/followers"
+				type :POST
+				parameters:xq.toString()
+				headers:{"Content-Type":"application/json"}
+				detailed:true
+				connection:"frontfullintegration"
+			];
+			if(ifnull(xr.get("responseCode"),0).toLong() != 204)
+			{
+				info "[FO] " + xr;
+			}
+		}
+		catch (xe)
+		{
+			info "[FO] " + xe;
+		}
+	}
+	return;
+}
+if(v0 != "deposit" && v0 != "invoice")
+{
+	info "[SalesOrder] ERROR: Invalid action: " + v0;
+	return;
+}
+so = zoho.crm.getRecordById("Sales_Orders",sid.toLong());
+if(so == null || so.get("id") == null)
+{
+	info "[SalesOrder] ERROR: Sales Order not found";
+	return;
+}
+if(v0 == "deposit")
+{
+	v40 = "";
+	v1j = "";
+	v21 = "SO_" + sid + "_DEPOSIT";
+	v2u = zoho.crm.searchRecords("Accounting","(Request_Key:equals:" + v21 + ")",1,10);
+	if(v2u == null || v2u.isEmpty())
+	{
+		info "[SO Email] BLOCKED: No linked Accounting deposit request.";
+		return;
+	}
+	v41 = false;
+	for each  vb in v2u
+	{
+		if(ifnull(vb.get("Request_Key"),"").toString() == v21 && ifnull(vb.get("Request_Source"),"").toString() == "Sales Orders")
+		{
+			v42 = vb.get("Sales_Order");
+			if(v42 != null && ifnull(v42.get("id"),"").toString() == sid)
+			{
+				v41 = true;
+				v1j = ifnull(vb.get("id"),"").toString();
+			}
+		}
+	}
+	if(v41 == false || v1j == "")
+	{
+		info "[SO Email] BLOCKED: Accounting request has invalid Sales Order link.";
+		return;
+	}
+	v23 = zoho.crm.getRecordById("Accounting",v1j.toLong());
+	if(v23 == null || v23.get("id") == null)
+	{
+		info "[SO Email] BLOCKED: Linked Accounting record missing.";
+		return;
+	}
+	v40 = ifnull(v23.get("QBO_Invoice_ID"),"").toString().trim();
+	if(v40 == "")
+	{
+		info "[SO Email] BLOCKED: Missing QBO invoice ID in Accounting.";
+		return;
+	}
+	depositAmountExpected = ifnull(so.get("Deposit_required"),0).toDecimal().round(2);
+	accountingAmountFound = ifnull(v23.get("Payment_Amount"),0).toDecimal().round(2);
+	if(depositAmountExpected > 0 && accountingAmountFound != depositAmountExpected)
+	{
+		info "[SO Email] BLOCKED: Deposit amount is " + depositAmountExpected + ", but the existing QBO invoice request is " + accountingAmountFound + ". Reconcile Accounting/QBO before sending.";
+		return;
+	}
+}
+if(v0 == "invoice")
+{
+	if(ifnull(so.get("Status"),"").toString() != "Requested" || ifnull(so.get("Accounting_status"),"").toString() != "Send invoice" || ifnull(so.get("Grand_Total"),0).toDecimal() <= 0 || ifnull(so.get("Due_Date"),"").toString() == "")
+	{
+		info "[Invoice] SKIP: Check status, due date and balance.";
+		return;
+	}
+}
+vg = "4888374000129079521";
+vo = "4888374000000343119";
+if(v0 == "invoice")
+{
+	vg = "4888374000131031181";
+	vo = "4888374000000343119";
+}
+info "[Email] Universal deposit templates selected.";
+info "[Email] Email Template ID: " + vg;
+info "[Email] Invoice Template ID: " + vo;
+info "[History] Searching for Requested stage entry.";
+v1c = "";
+v2d = true;
+v3f = true;
+v2e = "";
+v4r = {1,2,3,4,5,6,7,8,9,10};
+for each  v5d in v4r
+{
+	if(v1c == "" && v3f == true && v2d == true)
+	{
+		v2n = "https://www.zohoapis.com/crm/v8/Sales_Orders/" + sid + "/__timeline?sort_by=audited_time&sort_order=desc&per_page=200";
+		if(v2e != "")
+		{
+			v2n = v2n + "&page_token=" + v2e;
+		}
+		else
+		{
+			v2n = v2n + "&page=1";
+		}
+		v13 = invokeurl
+		[
+			url :v2n
+			type :GET
+			connection:"zoho_crm_connection"
+		];
+		if(v13 == null || v13.get("__timeline") == null)
+		{
+			info "[History] ERROR: Cannot read Timeline: " + v13;
+			v2d = false;
+		}
+		else
+		{
+			v4j = v13.get("__timeline");
+			for each  v2f in v4j
+			{
+				if(v1c == "")
+				{
+					v4e = ifnull(v2f.get("action"),"").toString();
+					v3t = ifnull(v2f.get("audited_time"),"").toString();
+					v3g = v2f.get("automation_details");
+					if(v4e == "process_entry" && v3g != null)
+					{
+						v4y = v3g.get("rule");
+						if(v4y != null)
+						{
+							v4o = v4y.get("state");
+							if(v4o != null)
+							{
+								v59 = ifnull(v4o.get("name"),"").toString();
+								if(v59 == "Requested" && v3t != "")
+								{
+									v1c = v3t;
+								}
+							}
+						}
+					}
+					if(v1c == "" && v4e == "updated")
+					{
+						v43 = v2f.get("field_history");
+						if(v43 != null)
+						{
+							for each  v44 in v43
+							{
+								v5a = ifnull(v44.get("api_name"),"").toString();
+								if(v5a == "Status")
+								{
+									v4p = v44.get("_value");
+									if(v4p != null)
+									{
+										v5b = ifnull(v4p.get("new"),"").toString();
+										if(v5b == "Requested" && v3t != "")
+										{
+											v1c = v3t;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			v3h = v13.get("info");
+			if(v3h == null)
+			{
+				v2d = false;
+			}
+			else
+			{
+				v3f = ifnull(v3h.get("more_records"),false);
+				v2e = ifnull(v3h.get("next_page_token"),"").toString();
+				if(v3f == true && v2e == "")
+				{
+					v2d = false;
+				}
+			}
+		}
+	}
+}
+if(v1c == "")
+{
+	info "[History] ERROR: Requested stage entry not found. Email NOT sent.";
+	return;
+}
+info "[History] Requested stage started: " + v1c;
+v3u = "deposit pro forma invoice";
+if(v0 == "invoice")
+{
+	v3u = " - pro forma invoice from minmaxdeals";
+}
+v34 = false;
+v9 = true;
+v3i = true;
+v3j = "";
+v57 = {1,2,3,4,5,6,7,8,9,10};
+for each  v5g in v57
+{
+	if(v34 == false && v3i == true && v9 == true)
+	{
+		v4s = "https://www.zohoapis.com/crm/v8/Sales_Orders/" + sid + "/Emails?type=sent_from_crm";
+		if(v3j != "")
+		{
+			v4s = v4s + "&index=" + v3j.encodeUrl();
+		}
+		v2s = invokeurl
+		[
+			url :v4s
+			type :GET
+			detailed:true
+			connection:"zoho_crm_connection"
+		];
+		v11 = Map();
+		v3v = "0";
+		if(v2s != null)
+		{
+			v3v = ifnull(v2s.get("responseCode"),0).toString();
+		}
+		if(v3v == "204")
+		{
+			v11.put("Emails",List());
+			info "[History] No CRM email history (204).";
+		}
+		else if(v3v == "200")
+		{
+			v4z = ifnull(v2s.get("responseText"),"").toString();
+			if(v4z != "")
+			{
+				try 
+				{
+					v11 = v4z.toMap();
+				}
+				catch (nc)
+				{
+					info "[History] ERROR parsing emails: " + nc;
+					v9 = false;
+				}
+			}
+			else
+			{
+				v9 = false;
+			}
+		}
+		else
+		{
+			v9 = false;
+			info "[History] ERROR: Emails API status=" + v3v + " response=" + v2s;
+		}
+		if(v11 == null || v11.get("Emails") == null)
+		{
+			info "[History] ERROR: Cannot read Emails: " + v11;
+			v9 = false;
+		}
+		else
+		{
+			v45 = v11.get("Emails");
+			for each  v35 in v45
+			{
+				if(v34 == false)
+				{
+					isSent = ifnull(v35.get("sent"),false);
+					v46 = ifnull(v35.get("subject"),"").toString();
+					v4f = ifnull(v35.get("time"),"").toString();
+					v4k = v46.toLowerCase().contains(v3u);
+					v3l = false;
+					if(v4f.length() >= 19 && v1c.length() >= 19)
+					{
+						v4t = v4f.subString(0,19).replaceAll("T"," ").toDateTime("yyyy-MM-dd HH:mm:ss");
+						v4l = v1c.subString(0,19).replaceAll("T"," ").toDateTime("yyyy-MM-dd HH:mm:ss");
+						if(v4t >= v4l)
+						{
+							v3l = true;
+						}
+					}
+					if(isSent == true && v4k == true && v3l == true)
+					{
+						v34 = true;
+						info "[History] MATCH: " + v46;
+						info "[History] Sent at: " + v4f;
+						info "[History] Message ID: " + v35.get("message_id");
+					}
+				}
+			}
+			v4g = v11.get("info");
+			if(v45.isEmpty())
+			{
+				v3i = false;
+				info "[History] No previous emails found.";
+			}
+			else if(v4g == null)
+			{
+				v9 = false;
+				info "[History] ERROR: Missing pagination information.";
+			}
+			else
+			{
+				v3i = ifnull(v4g.get("more_records"),false);
+				v3j = ifnull(v4g.get("next_index"),"").toString();
+				if(v3i == true && v3j == "")
+				{
+					v9 = false;
+					info "[History] ERROR: Email cursor missing.";
+				}
+			}
+		}
+	}
+}
+if(v34 == true)
+{
+	info "[Email] SKIP: " + v0 + " invoice already sent during Requested stage.";
+	return;
+}
+if(v9 == false || v3i == true)
+{
+	info "[Email] ERROR: Email history incomplete. Automatic sending blocked.";
+	return;
+}
+n3 = List();
+n4 = so.get("Contact_Name");
+if(n4 != null && n4.get("id") != null)
+{
+	n1 = zoho.crm.getRecordById("Contacts",n4.get("id").toLong());
+	if(n1 != null && n1.get("id") != null)
+	{
+		for each  n5 in {"Email","Secondary_Email"}
+		{
+			n0 = ifnull(n1.get(n5),"").toString().trim();
+			if(n0 != "" && n0.contains("@"))
+			{
+				n3.add(n0);
+			}
+		}
+	}
+}
+n6 = so.get("Account_Name");
+if(n6 != null && n6.get("id") != null)
+{
+	n2 = zoho.crm.getRecordById("Accounts",n6.get("id").toLong());
+	if(n2 != null && n2.get("id") != null)
+	{
+		for each  n5 in {"Company_email","Alternative_email_1","Alternative_email_2"}
+		{
+			n0 = ifnull(n2.get(n5),"").toString().trim();
+			if(n0 != "" && n0.contains("@"))
+			{
+				n3.add(n0);
+			}
+		}
+	}
+}
+if(n3.isEmpty())
+{
+	info "[Email] ERROR: No available customer email addresses.";
+	return;
+}
+ve = n3.get(0).toString();
+n9 = List();
+n7 = List();
+n7.add(ve.toLowerCase());
+for each  n0 in n3
+{
+	if(n0 != "" && !n7.contains(n0.toLowerCase()))
+	{
+		rcc = Map();
+		rcc.put("email",n0);
+		n9.add(rcc);
+		n7.add(n0.toLowerCase());
+	}
+}
+info "[Email] TO: " + ve;
+info "[Email] CC: " + n9;
+info "[Email] Sending " + v0 + " invoice.";
+info "[Email] Email Template ID: " + vg;
+info "[Email] Invoice Template ID: " + vo;
+f0 = Map();
+f0.put("source","template");
+f0.put("template_id",vg);
+f0.put("record_id",sid);
+f0.put("content_type","html");
+f0.put("resolve_sender_info",true);
+f1 = List();
+f1.add(f0);
+f2 = Map();
+f2.put("generate_content",f1);
+f3 = invokeurl
+[
+	url :"https://www.zohoapis.com/crm/v9/settings/email_templates/actions/generate_content"
+	type :POST
+	parameters:f2.toString()
+	headers:{"Content-Type":"application/json"}
+	detailed:true
+	connection:"zoho_crm_connection"
+];
+if(ifnull(f3.get("responseCode"),0).toLong() != 200)
+{
+	info "[FS] ERROR: Email template rendering HTTP " + f3.get("responseCode");
+	return;
+}
+f4 = f3.get("responseText").get("generate_content");
+if(f4 == null || f4.size() == 0)
+{
+	info "[FS] ERROR: Email template rendered empty.";
+	return;
+}
+f5 = ifnull(f4.get(0).get("subject"),"").toString();
+f6 = ifnull(f4.get(0).get("content"),"").toString();
+if(f5 == "" || f6 == "")
+{
+	info "[FS] ERROR: Missing real email subject/body.";
+	return;
+}
+f7 = invokeurl
+[
+	url :"https://www.zohoapis.com/crm/v8/settings/inventory_templates/" + vo + "/actions/print_preview?record_id=" + sid + "&print_type=pdf"
+	type :GET
+	connection:"zoho_crm_connection"
+	response-format:FILE
+];
+if(f7 == null || !ifnull(f7.getFileType(),"").toString().contains("pdf"))
+{
+	info "[FS] ERROR: Invoice.pdf creation failed.";
+	return;
+}
+f7.setFileName("Invoice.pdf");
+f7.setParamName("attachments[]");
+f8 = Map();
+f8.put("to[]",ve);
+f8.put("subject",f5);
+f8.put("body",f6);
+f8.put("attachments[]",f7);
+f9 = List();
+for each  f10 in n9
+{
+	f11 = ifnull(f10.get("email"),"").toString().trim();
+	if(f11 != "")
+	{
+		f9.add(f11);
+	}
+}
+if(f9.size() == 1)
+{
+	f8.put("cc[]",f9.get(0));
+}
+else if(f9.size() > 1)
+{
+	f8.put("cc[]",f9);
+}
+f12 = ifnull(so.get("Front_Conversation_ID"),"").toString().trim();
+if(f12 != "" && !f12.startsWith("cnv_"))
+{
+	info "[FS] ERROR: Invalid Front ID " + f12;
+	return;
+}
+f13 = "https://api2.frontapp.com/channels/alt:address:sales@minmaxdeals.com/messages";
+if(f12 != "")
+{
+	f13 = "https://api2.frontapp.com/conversations/" + f12 + "/messages";
+	f8.put("channel_id","alt:address:sales@minmaxdeals.com");
+}
+k0 = sid + ":" + v0;
+try 
+{
+	k1 = zoho.crm.createRecord("Email_Dispatch_Locks",{"Name":k0,"Dispatch_Key":k0,"Send_Status":"Claimed","Sales_Order_ID":sid},{"trigger":List()});
+}
+catch (k2)
+{
+	info "[DISPATCH] Lock error " + k2;
+	return;
+}
+if(k1 == null || k1.get("id") == null)
+{
+	info "[DISPATCH] Duplicate " + k1;
+	return;
+}
+k3 = k1.get("id").toString();
+try 
+{
+	f14 = invokeurl
+	[
+		url :f13
+		type :POST
+		body:f8
+			content-type:"multipart/form-data"
+		detailed:true
+		connection:"frontfullintegration"
+	];
+}
+catch (na)
+{
+	info "[FS] UNKNOWN send outcome; do not retry: " + na;
+	return;
+}
+if(ifnull(f14.get("responseCode"),0).toLong() != 202)
+{
+	info "[FS] ERROR: Front rejected email HTTP " + f14.get("responseCode") + " " + f14.get("responseText");
+	return;
+}
+k4 = zoho.crm.updateRecord("Email_Dispatch_Locks",k3.toLong(),{"Send_Status":"Accepted","Front_Message_UID":ifnull(f14.get("responseText").get("message_uid"),"").toString()},{"trigger":List()});
+if(k4 == null || k4.get("id") == null)
+{
+	info "[DISPATCH] Tracking failed " + k4;
+}
+g6 = zoho.crm.updateRecord("Sales_Orders",sid.toLong(),{"Front_Send_Guard":v0 + ":SENT:" + ifnull(f14.get("responseText").get("message_uid"),"").toString()},{"trigger":List()});
+if(g6 == null || g6.get("id") == null)
+{
+	info "[FG] SENT not saved " + g6;
+}
+if(f12 == "")
+{
+	try 
+	{
+		f15 = ifnull(f14.get("responseText").get("message_uid"),"").toString();
+		if(f15 != "")
+		{
+			for each  f16 in {1,2,3,4}
+			{
+				f17 = invokeurl
+				[
+					url :"https://api2.frontapp.com/messages/alt:uid:" + f15
+					type :GET
+					detailed:true
+					connection:"frontfullintegration"
+				];
+				if(ifnull(f17.get("responseCode"),0).toLong() == 200)
+				{
+					f18 = f17.get("responseText").get("_links");
+					if(f18 != null && f18.get("related") != null)
+					{
+						f19 = ifnull(f18.get("related").get("conversation"),"").toString();
+						if(f19 != "")
+						{
+							f20 = f19.toList("/");
+							f21 = f20.get(f20.size() - 1).toString();
+							if(f21.startsWith("cnv_"))
+							{
+								f12 = f21;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+		if(f12.startsWith("cnv_"))
+		{
+			f22 = Map();
+			f22.put("Front_Conversation_ID",f12);
+			f23 = zoho.crm.updateRecord("Sales_Orders",sid.toLong(),f22,{"trigger":List()});
+			if(f23 == null || ifnull(f23.get("id"),"").toString() != sid)
+			{
+				info "[FS] WARNING: Front email accepted but CRM ID update failed " + f23;
+			}
+		}
+		else
+		{
+			info "[FS] WARNING: Email accepted; Front Conversation ID unresolved, message_uid=" + f15;
+		}
+	}
+	catch (n8)
+	{
+		info "[FS] WARNING: Email accepted; ID lookup error " + n8;
+	}
+}
+vi = Map();
+f24 = Map();
+f24.put("code","SUCCESS");
+f25 = List();
+f25.add(f24);
+vi.put("data",f25);
+info "[FS] ACCEPTED: real invoice email in Front, SO=" + sid;
+info "[Email] API Response: " + vi;
+if(vi != null && vi.get("data") != null)
+{
+	v2v = vi.get("data");
+	if(v2v.size() > 0)
+	{
+		result = v2v.get(0);
+		if(result.get("code") == "SUCCESS")
+		{
+			info "[Email] SUCCESS: " + v0 + " email sent.";
+			v36 = Map();
+			v36.put("Invoice_sent_on",zoho.currentdate.toString("yyyy-MM-dd"));
+			if(v0 == "invoice")
+			{
+				v36.put("Accounting_status","Invoice sent");
+			}
+			else if(v0 == "deposit")
+			{
+				v36.put("Accounting_status","Deposit invoice sent");
+			}
+			v3m = Map();
+			v3m.put("trigger",{"workflow"});
+			v29 = zoho.crm.updateRecord("Sales_Orders",sid.toLong(),v36,v3m);
+			if(v29 != null && ifnull(v29.get("id"),"").toString() == sid)
+			{
+				info "[Invoice Sent On] SUCCESS: " + zoho.currentdate.toString("yyyy-MM-dd");
+				if(f12.startsWith("cnv_"))
+				{
+					try 
+					{
+						ym = {"inbox_id":"inb_7jk7l","assignee_id":"tea_2wutt","status":"open"};
+						yr = invokeurl
+						[
+							url :"https://api2.frontapp.com/conversations/" + f12
+							type :PATCH
+							parameters:ym.toString()
+							headers:{"Content-Type":"application/json"}
+							detailed:true
+							connection:"frontfullintegration"
+						];
+						if(ifnull(yr.get("responseCode"),0).toLong() != 204)
+						{
+							info "[SO] move " + yr;
+						}
+					}
+					catch (ye)
+					{
+						info "[SO] move " + ye;
+					}
+				}
+				if(xid != "" && f12.startsWith("cnv_"))
+				{
+					try 
+					{
+						xq = {"teammate_ids":{xid}};
+						xr = invokeurl
+						[
+							url :"https://api2.frontapp.com/conversations/" + f12 + "/followers"
+							type :POST
+							parameters:xq.toString()
+							headers:{"Content-Type":"application/json"}
+							detailed:true
+							connection:"frontfullintegration"
+						];
+						if(ifnull(xr.get("responseCode"),0).toLong() != 204)
+						{
+							info "[FO] " + xr;
+						}
+					}
+					catch (xe)
+					{
+						info "[FO] " + xe;
+					}
+				}
+			}
+			else
+			{
+				info "[Invoice Sent On] ERROR: Could not update date: " + v29;
+			}
+		}
+		else
+		{
+			info "[Email] ERROR: " + result;
+		}
+	}
+}
+else
+{
+	info "[Email] ERROR: Unexpected API response.";
+}
+}
