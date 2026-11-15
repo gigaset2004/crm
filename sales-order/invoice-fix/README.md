@@ -1,23 +1,23 @@
-# Sales Order — invoice sending repair
+# Historical SalesOrder invoice repair files
 
-## Current production version
+**Current production version:** [SalesOrder v3.0.0](../SalesOrder/README.md), dated 2026-11-15.
 
-**Live in Zoho CRM as of November 15, 2026.** The exact published Deluge source has been backed up to [SalesOrder_LIVE.deluge](SalesOrder_LIVE.deluge).
+## File status
 
-- Function: `automation.SalesOrder(String salesOrderId)`
-- Zoho CRM function ID: `4888374000129079057`
-- Source of truth: published Zoho CRM function, not this repository.
-- Entire function saved, including the existing Sales Order / Accounting / QBO / Front logic.
+| File | Meaning |
+| --- | --- |
+| [SalesOrder_LIVE.deluge](SalesOrder_LIVE.deluge) | Legacy path, synchronized with published **v3.0.0** for compatibility |
+| [SalesOrder_before_fix.deluge](SalesOrder_before_fix.deluge) | Older pre-repair reference backup |
+| [SalesOrder_invoice_multipart_fix.deluge](SalesOrder_invoice_multipart_fix.deluge) | Earlier **uninstalled draft** containing additional changes; do not treat as production |
 
-## Deployed fix
+The canonical current file is **[../SalesOrder/CURRENT.deluge](../SalesOrder/CURRENT.deluge)**. Frozen version snapshots and history are in [../SalesOrder](../SalesOrder/README.md).
 
-Front multipart CC recipient handling is corrected in all three invoice email paths (deposit, regular, and balance). Each CC address is supplied as a separately indexed `cc[n]` field rather than a list value under `cc[]`.
+## Deployed fix, 2026-11-15
 
-**Verified:** A deposit invoice was accepted by Front after the update; the related Sales Order and Accounting records changed to `Deposit invoice sent`, and the dispatch lock became `Accepted`. The regular and balance invoice paths were updated but were **not independently live-tested** in this repair session.
+The published function corrects how Front multipart sends represent multiple CC addresses. It uses separate indexed fields `cc[n]` rather than passing an entire list as one `cc[]` value. The fix covers deposit, regular and balance invoice routes.
 
-## Historical files — do not deploy as current
+A live deposit invoice was confirmed accepted by Front, with CRM statuses and dispatch lock updated accordingly. Other routes were modified but not separately live-tested.
 
-- `SalesOrder_before_fix.deluge`: source backup from before the CC correction.
-- `SalesOrder_invoice_multipart_fix.deluge`: separate earlier **draft**, containing additional uninstalled changes (multipart Content-Type and Accounting/QBO amount consistency checks). Its contents do **not** represent the currently deployed function. Review and test those extra changes separately before any future deployment.
+## Caution
 
-For the latest known live working code in this folder, use **`SalesOrder_LIVE.deluge`**.
+The separate `SalesOrder_invoice_multipart_fix.deluge` draft also proposes an explicit multipart content-type and Accounting/QBO amount consistency checks; those extra changes **are not installed** in the published function. Review and test them separately if needed. Never reset claimed email dispatch locks without independently checking sent-mail history in Front.
