@@ -1,6 +1,8 @@
 void automation.SalesOrder(String salesOrderId)
 {
+// SalesOrder v3.0.0 | 2026-11-15 | production
 sid = salesOrderId;
+info "[SalesOrder] VERSION 3.0.0";
 info "[SalesOrder] START. SO=" + sid;
 if(sid == null || sid.trim() == "")
 {
