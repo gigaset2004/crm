@@ -50,32 +50,39 @@
         qty:findColumn(normalized,["order","orderqty","orderquantity","orderedqty","orderedquantity","quantityordered","qtyordered","qty","quantity","unitsordered"]),
         price:findColumn(normalized,["price","unitprice","netprice","wholesaleprice","cost","unitcost","purchaseprice","customerprice"])
       };
-      if(cols.upc>=0 && cols.name>=0 && cols.qty>=0 && cols.price>=0){headers=cols;index=i;break;}
+      // Support incomplete supplier templates too: keep rows and flag absent columns.
+      if((cols.upc>=0||cols.name>=0)&&(cols.qty>=0||cols.price>=0||(cols.upc>=0&&cols.name>=0))){headers=cols;index=i;break;}
     }
     if(!headers)return null; // Unstructured sheet: original AI import remains available.
-    var items=[],warnings=[],countScientific=0,ignored=0,failed=0,qtyTotal=0,amountTotal=0;
+    var items=[],warnings=[],countScientific=0,ignored=0,failed=0,qtyTotal=0,amountTotal=0,candidates=0;
     var brand=guessBrand(grid,index),rowNumbers=grid.__rowNumbers||[];
     for(var n=index+1;n<grid.length;n++){
-      var cells=grid[n]||[],cellQuantity=numeric(cells[headers.qty]);
-      if(cellQuantity==null||cellQuantity===0){ignored++;continue;}
+      var cells=grid[n]||[],sourceName=flat(cells[headers.name]),rawUPC=text(cells[headers.upc]),rawQty=text(cells[headers.qty]),rawPrice=text(cells[headers.price]);
       var rowNo=rowNumbers[n]||n+1;
-      if(cellQuantity<0){warnings.push("Excel row "+rowNo+": negative ordered quantity ignored.");failed++;continue;}
-      var sourceName=flat(cells[headers.name]),barcode=upc(cells[headers.upc]);
-      if(!sourceName&&!barcode.original){ignored++;continue;} // Grand-total rows are never products.
-      var unitPrice=numeric(cells[headers.price]);
-      if(!Number.isFinite(unitPrice)){warnings.push("Excel row "+rowNo+": price missing; review before saving.");}
+      // Only blank rows and explicit totals/notes are skipped. A product with an
+      // empty quantity/price must remain in the review table, never disappear.
+      if(!sourceName&&!rawUPC&&!rawQty&&!rawPrice){ignored++;continue;}
+      if(/^(grand\s*total|sub\s*total|total|tax|vat|shipping|freight|discount|notes?|balance\s*due|amount\s*due)\b/i.test(sourceName)&&!rawUPC){ignored++;continue;}
+      candidates++;
+      var cellQuantity=numeric(cells[headers.qty]),unitPrice=numeric(cells[headers.price]);
+      var barcode=upc(cells[headers.upc]),rowIssues=[];
+      if(cellQuantity==null||cellQuantity<=0)rowIssues.push('quantity missing or invalid');
+      if(unitPrice==null||unitPrice<=0)rowIssues.push('unit price missing or invalid');
+      if(!sourceName&&!barcode.original)rowIssues.push('product name / UPC missing');
+      if(barcode.error)rowIssues.push(barcode.error);
+      if(!sourceName&&barcode.original)rowIssues.push('name missing; match by UPC');
       if(barcode.converted)countScientific++;
-      if(barcode.error){warnings.push("Excel row "+rowNo+": "+barcode.error+". Product requires review.");failed++;}
-      if(!sourceName){warnings.push("Excel row "+rowNo+": item name missing. Will match by UPC only.");}
+      if(rowIssues.length){failed++;warnings.push('Excel row '+rowNo+': '+rowIssues.join('; ')+'.');}
       items.push({
         identifier:barcode.value,requestedName:sourceName,offerName:sourceName,requestedBrand:brand,
-        quantity:cellQuantity,price:unitPrice,product:null,match:"pending",
-        sourceFile:fileName,sourceRow:rowNo,sourceUPC:barcode.original,importWarning:barcode.error
+        quantity:cellQuantity,price:unitPrice,product:null,match:'pending',sourceType:'import',
+        sourceFile:fileName,sourceRow:rowNo,sourceUPC:barcode.original,importWarning:rowIssues.join('; ')
       });
-      qtyTotal+=cellQuantity;amountTotal+=(unitPrice||0)*cellQuantity;
+      if(cellQuantity>0)qtyTotal+=cellQuantity;
+      if(cellQuantity>0&&unitPrice>0)amountTotal+=unitPrice*cellQuantity;
     }
     return{items:items,audit:{file:fileName,headerRow:rowNumbers[index]||index+1,sourceRows:grid.length-index-1,
-      imported:items.length,quantity:qtyTotal,amount:Math.round(amountTotal*100)/100,
+      productRows:candidates,imported:items.length,quantity:qtyTotal,amount:Math.round(amountTotal*100)/100,
       scientificConverted:countScientific,ignored:ignored,problemRows:failed,warnings:warnings.slice(0,75),brand:brand}};
   }
   function normalizeRawGrid(grid){

@@ -81,7 +81,8 @@
       inst.select.value = value;
       sync(inst.select);
       close(true);
-      if (changed) inst.select.dispatchEvent(new Event('change', { bubbles: true }));
+      // Re-selecting the same brand with Enter must retry its catalog search.
+      if (changed || inst.select.id === 'manualBrand') inst.select.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     function populate() {

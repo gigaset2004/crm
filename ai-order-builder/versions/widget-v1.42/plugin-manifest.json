@@ -1,0 +1,15 @@
+{
+  "locale": ["en"],
+  "service": "CRM",
+  "storage": false,
+  "whiteListedDomains": ["https://live.zwidgets.com", "https://ai-order-builder-ai-67003629024.us-east1.run.app"],
+  "modules": {
+    "widgets": [
+      {
+        "location": "crm.salesorders.listview",
+        "url": "/widget.html",
+        "name": "AI Order Builder"
+      }
+    ]
+  }
+}

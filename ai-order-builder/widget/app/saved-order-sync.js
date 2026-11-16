@@ -1,4 +1,4 @@
-/* AI Order Builder 1.38: safe API-backed editing of saved Requested Sales Orders.
+/* AI Order Builder 1.40: safe API-backed editing of saved Requested Sales Orders.
  * This module is not used on new / unsaved SO forms.
  * Zoho CRM API v8 subforms: update with row.id, add without id, delete with _delete:null.
  */
@@ -34,6 +34,15 @@
     if (data.message) parts.push(str(data.message));
     if (error.status) parts.push('HTTP '+error.status);
     return (parts.join(' / ') || 'unexpected SDK response').slice(0,250);
+  }
+  // v1.40: REST v8 may have insufficient widget OAuth scope for non-admin users,
+  // even when the same user is allowed to edit this SO through the embedded SDK.
+  // Never retry after a generic transport failure: the first write might succeed.
+  function missingV8Scope(error) {
+    var source=error && (error.data || error.response && error.response.data) || error || {};
+    var code=str(source.code || error && error.code);
+    var message=str(source.message || error && error.message);
+    return /OAUTH_SCOPE_MISMATCH|INVALID_OAUTH_SCOPE/i.test(code+' '+message) || /invalid oauth scope/i.test(message);
   }
   function readParentRecord(response, soId) {
     var payload=payloadOf(response);
@@ -128,7 +137,7 @@
       }catch(e){errors.push('SDK COQL: '+errorText(e));}
     }else errors.push('SDK COQL: method unavailable');
     // Never expose an empty table until zero rows have been verified by COQL.
-    throw new Error('v1.38 | Cannot verify existing SO products. '+errors.join(' ; ').slice(0,700));
+    throw new Error('v1.40 | Cannot verify existing SO products. '+errors.join(' ; ').slice(0,700));
   }
   function buildPlan(current, requested) {
     if (!Array.isArray(current) || !Array.isArray(requested)) throw new Error('Invalid SO product list.');
@@ -221,9 +230,18 @@
     if(zrc && typeof zrc.put==='function'){
       // Update only changed subform rows. CRM v8 appends new rows and does not
       // touch unspecified rows. _delete:null removes exactly one row by ID.
-      result=await zrc.put('/crm/v8/Sales_Orders/'+str(soId),{
-        data:[{id:str(soId),Ordered_Items:plan.changes}],trigger:[]
-      });
+      try{
+        result=await zrc.put('/crm/v8/Sales_Orders/'+str(soId),{
+          data:[{id:str(soId),Ordered_Items:plan.changes}],trigger:[]
+        });
+      }catch(error){
+        if(!missingV8Scope(error))throw error;
+        // The v8 request was explicitly rejected before updating any data.
+        result=await zoho.CRM.API.updateRecord({Entity:'Sales_Orders',APIData:{id:str(soId),Ordered_Items:plan.changes},Trigger:[]});
+      }
+      if(missingV8Scope(result)){
+        result=await zoho.CRM.API.updateRecord({Entity:'Sales_Orders',APIData:{id:str(soId),Ordered_Items:plan.changes},Trigger:[]});
+      }
     }else{
       result=await zoho.CRM.API.updateRecord({Entity:'Sales_Orders',APIData:{id:str(soId),Ordered_Items:plan.changes},Trigger:[]});
     }

@@ -128,12 +128,24 @@
     .official-name-line .product-name{min-width:0;flex:1;overflow-wrap:anywhere}
     .product-name-edit-btn{display:inline-flex;align-items:center;justify-content:center;flex:none;border:1px solid #c9d8ef;background:#f6f9ff;color:#1769e0;border-radius:5px;min-width:24px;height:24px;padding:2px;line-height:1}
     .product-name-edit-btn:hover{background:#e4f0ff;border-color:#8bb8ff}
+    /* v1.40: place a CRM-name-to-offer copy action immediately below the pencil. */
+    .product-name-actions{display:inline-flex;flex:none;flex-direction:column;gap:5px;align-items:center}
+    .product-name-copy-btn{display:inline-flex;align-items:center;justify-content:center;flex:none;border:1px solid #c9d8ef;background:#f6f9ff;color:#1769e0;border-radius:5px;width:24px;height:24px;padding:3px;line-height:1}
+    .product-name-copy-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+    .product-name-copy-btn:hover{background:#e4f0ff;border-color:#8bb8ff}
     .price-editor{display:flex;align-items:center;gap:3px;white-space:nowrap}
     .price-editor input[data-k="price"]{min-width:0;width:100%;flex:1;padding:7px 4px;text-align:right}
     .price-icon-btn{width:25px;height:26px;min-width:25px;flex:none;border:1px solid #d5dfea;background:#fff;color:#416386;border-radius:5px;padding:3px;display:inline-flex;align-items:center;justify-content:center}
     .price-icon-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
     .price-icon-btn:hover:not(:disabled){color:#1769e0;background:#edf4ff;border-color:#8bb8ff}
     .price-icon-btn:disabled{opacity:.35;cursor:not-allowed}
+
+    /* v1.41: no silent defaults; incomplete source rows require visible review. */
+    .items-table tr.line-validation-error>td{background:#fff6f6}
+    .items-table input.line-invalid,.items-table select.line-invalid{border:2px solid #d93636!important;background:#fff0f0!important;box-shadow:0 0 0 1px #ffd3d3}
+    .items-table .row-issues{display:block;margin-top:5px;color:#bf2424;font-size:11px;line-height:1.35;font-weight:650;white-space:normal}
+    .items-table .product-missing{outline:2px solid #d93636;outline-offset:3px;border-radius:3px}
+    .validation-hint{color:#b42318;font-weight:650}
     .name-edit-hint{font-size:12px;color:#667085;margin-top:6px}
     /* 1.36: record-context confirmation and safe recovery for saved SO. */
     .saved-so-banner{border:1px solid #b3cbea;background:#edf4ff;border-radius:8px;padding:11px 14px;margin:0 0 13px;font-size:13px;display:flex;align-items:center;gap:11px;flex-wrap:wrap}
@@ -193,7 +205,7 @@
       </colgroup><thead><tr><th>#</th><th>Status</th><th>Brand</th><th>UPC</th><th>Official CRM product</th><th>Name from supplier offer</th><th>Supplier code</th><th>Qty</th><th>Unit price</th><th></th></tr></thead>
       <tbody id="rows"><tr><td colspan="10" class="muted">No products yet. Search manually or import with AI.</td></tr></tbody></table></div>
       <div class="summary"><span class="hint" id="matchSummary">Match every line to a CRM product.</span><div class="totals"><span class="quantity-total" id="totalQuantity">Total Quantity: 0</span><span class="total" id="orderTotal">Request total: $0.00</span></div></div>
-      <p class="processed-summary" id="processedSummary"></p><p class="message" id="matchMessage" role="status"></p>
+      <p class="hint">Product, quantity and unit price are required for every row. Missing values are shown in red; saving is blocked until corrected.</p><p class="processed-summary" id="processedSummary"></p><p class="message" id="matchMessage" role="status"></p>
       <div class="manager-footer"><span class="hint">Edit the products of this SO, then click Fill Sales Order. Added and removed rows, prices, Offer Product Name and Supplier are synchronized with the open form.</span><button id="createBtn" class="btn primary" disabled>Fill Sales Order</button></div>
     </section>
     
@@ -203,7 +215,7 @@
       </div>
     </div>
     <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
-  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.39</strong></footer>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.42</strong></footer>
   <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Check the details, then create the product in CRM.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
   <div class="overlay" id="editBrandOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editBrandTitle"><div class="dialog-card"><h2 id="editBrandTitle">Change product brand</h2><p id="editBrandDescription">Choose the correct brand linked to this product.</p><div class="brand-picker"><select id="editBrandSelect" aria-label="Select CRM brand"><option value="">Choose a CRM brand</option></select><button id="editBrandNew" class="btn" type="button">+ New brand</button></div><p id="editBrandMessage" class="message" role="status"></p><div class="quick-actions"><button id="editBrandCancel" class="btn" type="button">Cancel</button><button id="editBrandSave" class="btn primary" type="button">Save brand</button></div></div></div>
   <div class="overlay" id="editProductNameOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editProductNameTitle"><div class="dialog-card"><h2 id="editProductNameTitle">Edit official CRM product name</h2><p id="editProductNameDescription">Changes the linked Products record for all CRM users. Does not change the supplier offer name in this order.</p><label class="manual-field">Official Product Name<input id="editProductNameInput" autocomplete="off" maxlength="255" placeholder="Official product name"></label><p class="name-edit-hint">The UPC and Product ID remain unchanged. The supplier offer name is saved separately.</p><p class="message" id="editProductNameMessage" role="status"></p><div class="quick-actions"><button id="editProductNameCancel" class="btn" type="button">Cancel</button><button id="editProductNameSave" class="btn primary" type="button">Save to CRM Products</button></div></div></div>
@@ -285,7 +297,7 @@
         }
         var prod={id:String(r.Product_Name.id),Product_Name:clean(r.Product_Name.name),UPC:clean(r.UPC),Brand_text:clean(r.Brand),Unit_Price:num(r.List_Price)};
         var it={identifier:clean(r.UPC),requestedName:clean(r.Product_Name.name),requestedBrand:clean(r.Brand),offerName:clean(r.Offer_Product_Name)||clean(r.Product_Name.name),
-          quantity:num(r.Quantity)||1,price:num(r.List_Price),product:prod,match:"matched",candidates:[prod],researchDone:true,enrichmentDone:true,writeState:"done",
+          quantity:enteredNumber(r.Quantity),price:enteredNumber(r.List_Price),product:prod,match:"matched",candidates:[prod],researchDone:true,enrichmentDone:true,writeState:"done",
           supplierId:supplier?String(supplier.id):"",supplierFallbackName:supplier?clean(supplier.name):"",bridgeIndex:Number(r.__ai_source_index),bridgeRecordId:clean(r.__ai_record_id||r.id),
           purchaseOrderId:r.Purchase_Order&&r.Purchase_Order.id?String(r.Purchase_Order.id):""};
         current.push(it);
@@ -299,7 +311,37 @@
       if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("so_rows_loaded",{count:current.length,stage:"sync_1.30"});
     }
     function productBrand(p){return clean(p&&p.Brand&&p.Brand.name)||clean(p&&p.Brand_text)||"";}
-    function priceFor(it){return it.price==null?num(it.product&&it.product.Unit_Price):num(it.price);}
+    // Import values are authoritative. Never silently substitute the CRM catalog
+    // price for a missing unit price in a supplier order.
+    function enteredNumber(value){
+      if(value==null||clean(value)==="")return null;
+      var n=typeof value==="number"?value:num(value);
+      return Number.isFinite(n)?n:null;
+    }
+    function priceFor(it){
+      if(it.price!=null)return enteredNumber(it.price);
+      if(it.sourceType==="import"||it.sourceFile)return null;
+      return enteredNumber(it.product&&it.product.Unit_Price);
+    }
+    function lineIssues(it,index){
+      var errs=[];
+      if(!it.product||!it.product.id||!clean(it.product.Product_Name))errs.push("CRM product missing");
+      if(!clean(offerNameFor(it)))errs.push("Offer name missing");
+      if(enteredNumber(it.quantity)==null||enteredNumber(it.quantity)<=0)errs.push("Quantity required");
+      var price=priceFor(it);
+      if(price==null||price<=0)errs.push("Unit price required");
+      if(it.sourceUPC&&!it.identifier&&(!it.product||!it.product.id))errs.push("UPC requires review");
+      for(var n=0;n<index;n++){
+        var other=items[n];
+        if(it.product&&other.product&&it.product.id&&String(it.product.id)===String(other.product.id)){
+          errs.push("Duplicate product (line "+(n+1)+")");break;
+        }
+        if(it.identifier&&other.identifier&&clean(it.identifier)===clean(other.identifier)){
+          errs.push("Duplicate UPC (line "+(n+1)+")");break;
+        }
+      }
+      return errs;
+    }
     function parseLines(text){
       var out=[], lines=String(text||"").split(/\r?\n/).map(clean).filter(Boolean);
       lines.forEach(function(line){
@@ -310,12 +352,12 @@
         var name=line.replace(id,"").replace(new RegExp("(?:qty|quantity|кол(?:ичество)?)\\s*[:x-]?\\s*\\d+(?:[.,]\\d+)?","ig"),"").replace(new RegExp("\\d+(?:[.,]\\d+)?\\s*"+unit,"ig"),"").replace(/(?:\$|€|usd\s*)\s*\d+(?:[.,]\d{1,4})?/ig,"").replace(/\s{2,}/g," ").trim();
         if(cols.length>=3){name=clean(cols.find(function(c){return c!==id&&!/^\d+(?:[.,]\d+)?$/.test(c)&&!/(?:pcs?|units?|usd|eur|\$|€)/i.test(c);})||name);qty=qty||cols.find(function(c){return /^\d+(?:\.\d+)?$/.test(clean(c));});price=price||cols.find(function(c){return /(?:\$|€|usd|eur)/i.test(c);});}
         name=name.replace(/^[-–—:\s]+|[-–—:\s]+$/g,"");
-        if(id||name||qty){out.push({identifier:id,requestedName:name,quantity:qty?num(qty):null,price:price==null?null:num(price),product:null,match:"pending"});}
+        if(id||name||qty){out.push({identifier:id,requestedName:name,quantity:enteredNumber(qty),price:enteredNumber(price),product:null,match:"pending"});}
       });
       return out;
     }
     function parseCsv(text,delimiter){var lines=String(text).replace(/^\uFEFF/,"").split(/\r?\n/).filter(function(x){return x.trim();});return lines.map(function(line){var a=[],cur="",q=false;for(var i=0;i<line.length;i++){var c=line[i];if(c==='"'&&line[i+1]==='"'&&q){cur+='"';i++;}else if(c==='"'){q=!q;}else if(c===delimiter&&!q){a.push(cur);cur="";}else cur+=c;}a.push(cur);return a;});}
-    function fromGrid(grid){if(!grid.length)return[];var hdr=grid[0].map(function(x){return norm(x);}), ix=function(keys){return hdr.findIndex(function(h){return keys.some(function(k){return h===k||h.includes(k);});});};var pi=ix(["productname","product","item","description"]),ui=ix(["upc","barcode"]),si=ix(["sku","itemnumber"]),qi=ix(["qty","quantity","units"]),pri=ix(["unitprice","price","cost"]);return grid.slice(1).map(function(r){var name=pi>=0?clean(r[pi]):"",id=ui>=0?clean(r[ui]):"";if(!id&&si>=0)id=clean(r[si]);if(!name&&!id)return null;return{identifier:id,requestedName:name,quantity:num(qi>=0?r[qi]:1)||1,price:num(pri>=0?r[pri]:0),offerName:name,product:null,match:"pending"};}).filter(Boolean);}
+    function fromGrid(grid){if(!grid.length)return[];var hdr=grid[0].map(function(x){return norm(x);}), ix=function(keys){return hdr.findIndex(function(h){return keys.some(function(k){return h===k||h.includes(k);});});};var pi=ix(["productname","product","item","description"]),ui=ix(["upc","barcode"]),si=ix(["sku","itemnumber"]),qi=ix(["qty","quantity","units"]),pri=ix(["unitprice","price","cost"]);return grid.slice(1).map(function(r){var name=pi>=0?clean(r[pi]):"",id=ui>=0?clean(r[ui]):"";if(!id&&si>=0)id=clean(r[si]);if(!name&&!id)return null;return{identifier:id,requestedName:name,quantity:enteredNumber(qi>=0?r[qi]:null),price:enteredNumber(pri>=0?r[pri]:null),offerName:name,product:null,match:"pending"};}).filter(Boolean);}
     function xlsxGrid(buf){
       if(!window.DecompressionStream)throw new Error("This browser cannot read .xlsx directly. Save the workbook as CSV and upload that file.");
       var u=new Uint8Array(buf),dv=new DataView(buf),eocd=-1;for(var i=u.length-22;i>=Math.max(0,u.length-65558);i--){if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;}}if(eocd<0)throw new Error("Invalid Excel workbook.");
@@ -347,7 +389,7 @@
     }
     function readImage(file){return new Promise(function(resolve,reject){var r=new FileReader();r.onerror=function(){reject(new Error("Could not read image "+file.name));};r.onload=function(){var value=String(r.result||""),comma=value.indexOf(",");resolve({mime_type:file.type,data:comma>=0?value.slice(comma+1):""});};r.readAsDataURL(file);});}
     function connectAI(){if(!AI_SERVICE_URL)return Promise.resolve("");if(aiSession&&Date.now()<aiSessionExpires-30000)return Promise.resolve(aiSession);if(aiConnectionPromise)return aiConnectionPromise;aiConnectionPromise=new Promise(function(resolve,reject){var popup=window.open(AI_SERVICE_URL+"/auth/start","zohoAiOrderBuilderAuth","width=600,height=720,resizable=yes,scrollbars=yes");if(!popup){reject(new Error("Allow the Zoho sign-in window to open, then try again."));return;}var timeout=setTimeout(function(){finish(new Error("Zoho sign-in timed out. Please try again."));},180000),closed=setInterval(function(){if(popup.closed)finish(new Error("Zoho sign-in window was closed. Click Extract and match to connect and try again."));},750);function finish(error,token){clearTimeout(timeout);clearInterval(closed);window.removeEventListener("message",onMessage);if(error)reject(error);else resolve(token);}function onMessage(e){if(e.origin!==AI_SERVICE_URL||e.source!==popup||!e.data||e.data.type!=="AI_ORDER_BUILDER_AUTH"||typeof e.data.token!=="string")return;aiSession=e.data.token;aiSessionExpires=Date.now()+14*60*1000;$("aiStatus").textContent="AI is connected.";finish(null,aiSession);}window.addEventListener("message",onMessage);});return aiConnectionPromise.then(function(token){aiConnectionPromise=null;return token;},function(error){aiConnectionPromise=null;throw error;});}
-    function aiExtract(text,images,token){if(!text&&!images.length)return Promise.reject(new Error("Paste order text or choose a file first."));return fetch(AI_SERVICE_URL+"/v1/extract",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({text:text,images:images})}).then(function(r){if(r.status===401){aiSession="";aiSessionExpires=0;}return r.json().then(function(data){if(!r.ok)throw new Error(readableError(data.error||data.message||"AI extraction failed."));return data;});}).then(function(data){if(!Array.isArray(data.items))throw new Error("AI returned no order lines.");return requestContext(data.items.map(function(x){return{identifier:clean(x.identifier),requestedName:clean(x.product_name),quantity:x.quantity==null?null:num(x.quantity),price:x.unit_price==null?null:num(x.unit_price),offerName:clean(x.product_name),product:null,match:"pending"};}),text);});}
+    function aiExtract(text,images,token){if(!text&&!images.length)return Promise.reject(new Error("Paste order text or choose a file first."));return fetch(AI_SERVICE_URL+"/v1/extract",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({text:text,images:images})}).then(function(r){if(r.status===401){aiSession="";aiSessionExpires=0;}return r.json().then(function(data){if(!r.ok)throw new Error(readableError(data.error||data.message||"AI extraction failed."));return data;});}).then(function(data){if(!Array.isArray(data.items))throw new Error("AI returned no order lines.");return requestContext(data.items.map(function(x){return{identifier:clean(x.identifier),requestedName:clean(x.product_name),quantity:enteredNumber(x.quantity),price:enteredNumber(x.unit_price),offerName:clean(x.product_name),product:null,match:"pending"};}),text);});}
     function productList(r){return r&&r.data? r.data : Array.isArray(r)?r:[];}
     function researchProducts(products){return fetch(AI_SERVICE_URL+"/v1/research",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+aiSession},body:JSON.stringify({products:products})}).then(function(r){return r.json().then(function(data){if(!r.ok){if(r.status===401){aiSession="";aiSessionExpires=0;}var e=new Error(readableError(data.error||data.message||"Product lookup failed. Resume processing to try again."));e.retryAfter=data.retry_after||0;throw e;}return data.items;});});}
     async function createProduct(fact){
@@ -431,6 +473,18 @@
       }catch(error){msg("editProductNameMessage",readableError(error));saveDraft();}
       finally{lineProductNameBusy=false;$("editProductNameSave").disabled=false;$("editProductNameCancel").disabled=false;}
     }
+    function copyLineProductName(index){
+      var it=items[index];
+      if(!it||!it.product||!it.product.id){msg("matchMessage","Select a CRM Product before copying its name.");return;}
+      var official=clean(it.product.Product_Name);
+      if(!official||official.length>255){msg("matchMessage","The official CRM Product Name cannot be copied (empty or over 255 characters).");return;}
+      // This only changes this order line's supplier offer title, never the Products catalog.
+      it.offerName=official;
+      var input=rows.querySelector('input[data-i="'+index+'"][data-k="offerName"]');
+      if(input)input.value=official;
+      summary();saveDraft();
+      msg("matchMessage","CRM Product Name copied to Offer Product Name on line "+(index+1)+". Save the Sales Order to keep this change.");
+    }
     function copyLinePrice(index){
       var item=items[index],el=rows.querySelector('input[data-i="'+index+'"][data-k="price"]');
       if(!item||!el||clean(el.value)===""){msg("matchMessage","Enter a unit price on line "+(index+1)+" before copying.");return;}
@@ -493,28 +547,30 @@
         var tr=document.createElement("tr"),opts='<option value="">Choose a CRM product</option>'+(it.candidates||[]).map(function(p){return'<option value="'+esc(p.id)+'" '+(it.product&&String(it.product.id)===String(p.id)?"selected":"")+'>'+esc(p.Product_Name||"Unnamed product")+" · "+esc(p.UPC||p.id)+"</option>";}).join("");
         var title=it.product&&it.product.Product_Name||it.requestedName||"Select a CRM product";
         var searchControl=it.product?"":'<input data-i="'+i+'" data-k="productSearch" value="" placeholder="Search existing CRM products" aria-label="Search CRM products" style="margin-top:7px"><div class="row-actions"><button class="btn" data-retry="'+i+'">Search again</button>'+(it.match==="ambiguous"||it.match==="uncertain"?'':'<button class="btn" data-quick="'+i+'">Create product</button>')+'</div>';
-        var productTitle=it.product?recordLink("Products",it.product.id,title):esc(title),productTitleHtml='<div class="official-name-line"><span class="product-name">'+productTitle+'</span>'+(it.product&&it.product.id?'<button class="product-name-edit-btn" type="button" data-edit-product-name="'+i+'" aria-label="Edit official CRM Product name on line '+(i+1)+'" title="Edit official CRM product name (updates Products)">&#9998;</button>':'')+'</div>',brand=it.product&&it.product.Brand,selectedBrand=chooseBrandRecord(it.selectedBrandId),brandName=selectedBrand&&selectedBrand.name||productBrand(it.product)||clean(it.requestedBrand)||publicBrandName(it),brandLine=brand&&brand.id&&!selectedBrand?recordLink("Brands",brand.id,brandName||"Open brand"):selectedBrand?recordLink("Brands",selectedBrand.id,brandName):esc(brandName||"—");
+        var productTitle=it.product?recordLink("Products",it.product.id,title):esc(title),productTitleHtml='<div class="official-name-line"><span class="product-name">'+productTitle+'</span>'+(it.product&&it.product.id?'<span class="product-name-actions"><button class="product-name-edit-btn" type="button" data-edit-product-name="'+i+'" aria-label="Edit official CRM Product name on line '+(i+1)+'" title="Edit official CRM product name (updates Products)">&#9998;</button><button class="product-name-copy-btn" type="button" data-copy-product-name="'+i+'" aria-label="Copy CRM Product Name to Offer Product Name on line '+(i+1)+'" title="Copy CRM Product Name to Offer Product Name"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button></span>':'')+'</div>',brand=it.product&&it.product.Brand,selectedBrand=chooseBrandRecord(it.selectedBrandId),brandName=selectedBrand&&selectedBrand.name||productBrand(it.product)||clean(it.requestedBrand)||publicBrandName(it),brandLine=brand&&brand.id&&!selectedBrand?recordLink("Brands",brand.id,brandName||"Open brand"):selectedBrand?recordLink("Brands",selectedBrand.id,brandName):esc(brandName||"—");
         var fact=it.research&&it.research.verified?it.research:{},hs=clean(it.product&&it.product.HS_Code)||clean(fact.hs_code),coo=clean(it.product&&it.product.Country_of_origin)||clean(fact.country_of_origin);
         var status=it.product?(it.createdInCrm?"New":"Match"):it.match==="uncertain"?"Check":it.match==="ambiguous"||it.match==="web_choice"?"Choose":it.researchDone?"Not found":"Pending";
         // Preserve v1.21 web-result variant chooser, including verified source links and create-manually fallback.
         if(it.match==="web_choice"&&it.publicCandidates&&it.publicCandidates.length){searchControl='<div class="public-choices"><p class="hint">'+esc(it.note||"Choose the product line and size.")+'</p>'+it.publicCandidates.map(function(f,n){var url=f.official_url||f.evidence&&f.evidence.product_name&&f.evidence.product_name.url||"";var link=/^https:\/\//i.test(url)?'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Official/source page</a>':'';return '<div class="public-choice"><span>'+esc(f.product_name)+'<small>'+esc(f.brand||"")+(f.upc?' · UPC: '+esc(f.upc):' · UPC needs confirmation')+'</small>'+link+'</span><button class="btn" data-public-line="'+i+'" data-public-choice="'+n+'">Use this product</button></div>';}).join("")+'<div class="row-actions"><button class="btn" data-retry="'+i+'">Search again</button><button class="btn" data-quick="'+i+'">Create product manually</button></div></div>';}
         var statusClass=it.product?(it.createdInCrm?"new":"match"):"pending";
+        var currentIssues=lineIssues(it,i);
         var code=supplierCodeFor(it.supplierId),supplierTitle=managerSuppliers.find(function(s){return String(s.id)===String(it.supplierId);});
         var supplierHint=supplierTitle?"Supplier: "+(supplierTitle.vendor||code):"Choose a supplier code";
-        tr.innerHTML='<td class="row-number">'+(i+1)+'</td><td><span class="row-status '+statusClass+'" title="'+esc(window.OrderPipeline.describeLine(it))+'">'+esc(status)+'</span></td><td class="brand-cell"><div class="brand-inline">'+brandLine+'<button class="brand-edit-btn" type="button" data-edit-brand="'+i+'" aria-label="Edit CRM brand on line '+(i+1)+'" title="Choose or correct CRM brand">✎</button></div></td><td class="upc-cell">'+esc(it.product&&it.product.UPC||it.identifier||"—")+'</td>'+
+        tr.innerHTML='<td class="row-number">'+(i+1)+'</td><td><span class="row-status '+statusClass+'" title="'+esc(window.OrderPipeline.describeLine(it))+'">'+esc(status)+'</span><small class="row-issues">'+esc(currentIssues.join(" · "))+'</small></td><td class="brand-cell"><div class="brand-inline">'+brandLine+'<button class="brand-edit-btn" type="button" data-edit-brand="'+i+'" aria-label="Edit CRM brand on line '+(i+1)+'" title="Choose or correct CRM brand">✎</button></div></td><td class="upc-cell">'+esc(it.product&&it.product.UPC||it.identifier||"—")+'</td>'+
           '<td><div class="product-cell">'+productTitleHtml+'<small>HS: '+esc(hs||"—")+' &nbsp; · COO: '+esc(coo||"—")+'</small>'+(it.candidates&&it.candidates.length>1&&!it.product?'<select data-i="'+i+'" data-k="product">'+opts+'</select>':'')+searchControl+'</div></td>'+
           '<td><input class="offer-input" data-i="'+i+'" data-k="offerName" aria-label="Product name from supplier offer" maxlength="255" placeholder="Supplier title (or official name)" value="'+esc(offerNameFor(it))+'"></td>'+
           '<td><div class="supplier-inline"><select data-i="'+i+'" data-k="supplierCode" aria-label="Supplier abbreviation" title="'+esc(supplierHint)+'">'+supplierOptions(it.supplierId)+'</select></div></td>'+
           '<td><input data-i="'+i+'" data-k="quantity" aria-label="Quantity" type="number" inputmode="decimal" min="0.01" step="any" value="'+esc(it.quantity==null?"":it.quantity)+'"></td>'+
-          '<td><div class="price-editor"><input data-i="'+i+'" data-k="price" aria-label="Unit price" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(it.price==null&&!(it.product&&it.product.Unit_Price!=null)?"":priceFor(it).toFixed(2))+'"><button type="button" class="price-icon-btn" data-copy-price="'+i+'" aria-label="Copy price from line '+(i+1)+'" title="Copy this price"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button><button type="button" class="price-icon-btn" data-paste-price="'+i+'" aria-label="Paste copied price into line '+(i+1)+'" title="Paste copied price" '+(priceClipboard===null?'disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="13" height="17" rx="2"></rect><rect x="9" y="2" width="7" height="5" rx="1"></rect><path d="M9 12h7M9 16h5"></path></svg></button></div></td>'+
+          '<td><div class="price-editor"><input data-i="'+i+'" data-k="price" aria-label="Unit price" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(priceFor(it)==null?"":priceFor(it).toFixed(2))+'"><button type="button" class="price-icon-btn" data-copy-price="'+i+'" aria-label="Copy price from line '+(i+1)+'" title="Copy this price"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button><button type="button" class="price-icon-btn" data-paste-price="'+i+'" aria-label="Paste copied price into line '+(i+1)+'" title="Paste copied price" '+(priceClipboard===null?'disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="13" height="17" rx="2"></rect><rect x="9" y="2" width="7" height="5" rx="1"></rect><path d="M9 12h7M9 16h5"></path></svg></button></div></td>'+
           '<td><button class="delete-line" data-remove="'+i+'" aria-label="Remove line" title="'+(it.purchaseOrderId?'Linked to PO; cannot remove':'Remove product from SO')+'" '+(it.purchaseOrderId?'disabled':'')+'>&times;</button></td>';
         rows.appendChild(tr);
       });
-      rows.querySelectorAll('input[data-k="quantity"],input[data-k="price"],input[data-k="offerName"]').forEach(function(el){el.addEventListener("input",function(){var item=items[Number(el.dataset.i)];if(!item)return;item[el.dataset.k]=(el.dataset.k==="offerName")?el.value:(clean(el.value)===""?null:num(el.value));summary();});});
-      rows.querySelectorAll('input[data-k="price"]').forEach(function(el){el.addEventListener("blur",function(){if(clean(el.value)!=="")el.value=num(el.value).toFixed(2);});});
+      rows.querySelectorAll('input[data-k="quantity"],input[data-k="price"],input[data-k="offerName"]').forEach(function(el){el.addEventListener("input",function(){var item=items[Number(el.dataset.i)];if(!item)return;item[el.dataset.k]=(el.dataset.k==="offerName")?el.value:enteredNumber(el.value);summary();});});
+      rows.querySelectorAll('input[data-k="price"]').forEach(function(el){el.addEventListener("blur",function(){if(enteredNumber(el.value)!=null)el.value=enteredNumber(el.value).toFixed(2);});});
       rows.querySelectorAll('select[data-k="supplierCode"]').forEach(function(el){el.addEventListener("change",function(){setLineSupplier(Number(el.dataset.i),el.value,el);});if(window.ProcurementSearchSelect)window.ProcurementSearchSelect.enhance(el,{label:"Supplier abbreviation",variant:"supplier"});});
       rows.querySelectorAll('button[data-edit-brand]').forEach(function(el){el.addEventListener("click",function(){openLineBrand(Number(el.dataset.editBrand));});});
       rows.querySelectorAll('button[data-edit-product-name]').forEach(function(el){el.addEventListener("click",function(){openLineProductName(Number(el.dataset.editProductName));});});
+      rows.querySelectorAll('button[data-copy-product-name]').forEach(function(el){el.addEventListener("click",function(){copyLineProductName(Number(el.dataset.copyProductName));});});
       rows.querySelectorAll('button[data-copy-price]').forEach(function(el){el.addEventListener("click",function(){copyLinePrice(Number(el.dataset.copyPrice));});});
       rows.querySelectorAll('button[data-paste-price]').forEach(function(el){el.addEventListener("click",function(){pasteLinePrice(Number(el.dataset.pastePrice));});});
       rows.querySelectorAll('button[data-quick]').forEach(function(el){el.addEventListener("click",function(){openQuickProduct(Number(el.dataset.quick));});});
@@ -530,7 +586,33 @@
     }
     function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
     function recordLink(entity,id,label){var uiModule=entity==="Brands"?"CustomModule17":"Products";return '<a href="https://crm.zoho.com/crm/minmaxdeals/tab/'+uiModule+'/'+encodeURIComponent(String(id))+'" target="_blank" rel="noopener noreferrer" style="color:#1769e0;text-decoration:underline">'+esc(label)+'</a>';}
-    function summary(){var progress=window.OrderPipeline.report(items);$("processedSummary").textContent="Ready: "+progress.ready+" of "+progress.lines+" · Matched lines: "+progress.found+" · New products: "+progress.created+" · Needs review: "+(progress.lines-progress.ready);var total=items.reduce(function(s,it){return s+num(it.quantity)*priceFor(it);},0),ready=items.length>0&&items.every(function(i){return i.match==="matched"&&i.product&&num(i.quantity)>0&&priceFor(i)>=0;});$("totalQuantity").textContent="Total Quantity: "+items.reduce(function(sum,it){return sum+num(it.quantity);},0).toLocaleString("en-US",{maximumFractionDigits:4});$("orderTotal").textContent="Request total: $"+total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});$("matchSummary").textContent=ready?"":"For unresolved lines, search again, create a product or select an existing CRM record.";$("createBtn").disabled=!(crmReady&&ready)||enrichingSelection||!!(savedSOId&&(!savedSOReady||savedSOSaving));saveDraft();}
+    function summary(){
+      var progress=window.OrderPipeline.report(items),invalid=0,complete=0,total=0,totalQty=0;
+      for(var i=0;i<items.length;i++){
+        var it=items[i],issues=lineIssues(it,i),qty=enteredNumber(it.quantity),price=priceFor(it);
+        if(issues.length)invalid++;else complete++;
+        if(qty!=null&&qty>0){totalQty+=qty;if(price!=null&&price>0)total+=qty*price;}
+        var inputQty=rows.querySelector('input[data-k="quantity"][data-i="'+i+'"]');
+        var inputPrice=rows.querySelector('input[data-k="price"][data-i="'+i+'"]');
+        var inputOffer=rows.querySelector('input[data-k="offerName"][data-i="'+i+'"]');
+        var tr=inputQty?inputQty.closest("tr"):null;
+        if(tr){tr.classList.toggle("line-validation-error",issues.length>0);tr.title=issues.join("; ");
+          var note=tr.querySelector(".row-issues");if(note)note.textContent=issues.join(" · ");
+          var prod=tr.querySelector(".official-name-line");if(prod)prod.classList.toggle("product-missing",!it.product||!it.product.id||!clean(it.product.Product_Name));
+        }
+        if(inputQty){var badQty=qty==null||qty<=0;inputQty.classList.toggle("line-invalid",badQty);inputQty.setAttribute("aria-invalid",String(badQty));}
+        if(inputPrice){var badPrice=price==null||price<=0;inputPrice.classList.toggle("line-invalid",badPrice);inputPrice.setAttribute("aria-invalid",String(badPrice));}
+        if(inputOffer){var badOffer=!clean(offerNameFor(it));inputOffer.classList.toggle("line-invalid",badOffer);inputOffer.setAttribute("aria-invalid",String(badOffer));}
+      }
+      var ready=items.length>0&&invalid===0;
+      $("processedSummary").textContent="Complete: "+complete+" of "+items.length+" · Matched lines: "+progress.found+" · New products: "+progress.created+" · Requires correction: "+invalid;
+      $("totalQuantity").textContent="Total Quantity: "+totalQty.toLocaleString("en-US",{maximumFractionDigits:4});
+      $("orderTotal").textContent="Request total: $"+total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+      $("matchSummary").textContent=ready?"All lines validated.":invalid+" line(s) need correction. Red fields must be filled; duplicated lines require review.";
+      $("matchSummary").classList.toggle("validation-hint",invalid>0);
+      $("createBtn").disabled=!(crmReady&&ready)||enrichingSelection||!!(savedSOId&&(!savedSOReady||savedSOSaving));
+      saveDraft();
+    }
     function showResult(error){
       $("reviewPanel").hidden=false;$("processBox").hidden=false;
       var report=window.OrderPipeline.report(items),text=readableError(error),title;
@@ -579,8 +661,8 @@
           if(importAudits.length){
             var scanned=importAudits.reduce(function(a,b){return{lines:a.lines+b.imported,qty:a.qty+b.quantity,amount:a.amount+b.amount,converted:a.converted+b.scientificConverted,problems:a.problems+b.problemRows};},{lines:0,qty:0,amount:0,converted:0,problems:0});
             var formattedAmount=scanned.amount.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-            var summaryText="Spreadsheet read directly: "+scanned.lines+" ordered products · "+scanned.qty.toLocaleString("en-US")+" units · $"+formattedAmount+". Scientific UPCs expanded: "+scanned.converted+".";
-            if(scanned.problems)summaryText+=" "+scanned.problems+" UPC(s) require review.";
+            var summaryText="Spreadsheet read directly: "+scanned.lines+" source product rows retained · "+scanned.qty.toLocaleString("en-US")+" units · $"+formattedAmount+". Scientific UPCs expanded: "+scanned.converted+".";
+            if(scanned.problems)summaryText+=" "+scanned.problems+" row(s) have missing or invalid values, highlighted red.";
             msg("sourceMessage",summaryText);
             $("thinkingText").textContent=summaryText+" Checking CRM matches…";
             if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("spreadsheet_parsed",{count:scanned.lines,status:"direct",stage:"excel_columns"});
@@ -598,14 +680,19 @@
         }).then(function(parsed){
           if(parsed.length>100)throw new Error("Upload no more than 100 product lines at a time.");
           return initPipeline().then(function(){
-            var incoming=parsed.map(function(it){if(!it.offerName)it.offerName=clean(it.requestedName);return it;});
+            var incoming=parsed.map(function(it){it.sourceType="import";if(!it.offerName)it.offerName=clean(it.requestedName);return it;});
             // Import MORE products without removing the ones already entered in this SO.
             var existing=items.slice(),seen={};
             existing.forEach(function(it){if(it.product&&it.product.id)seen["p:"+it.product.id]=true;if(it.identifier)seen["u:"+clean(it.identifier)]=true;});
-            var added=0,skipped=0;
-            incoming.forEach(function(it){var key=it.identifier?"u:"+clean(it.identifier):"n:"+norm(it.requestedName);if(seen[key]){skipped++;return;}if(existing.length>=100)throw new Error("Maximum 100 SO product lines. Remove some products before importing more.");seen[key]=true;existing.push(it);added++;});
+            var added=0,duplicates=0;
+            incoming.forEach(function(it){
+              var key=it.identifier?"u:"+clean(it.identifier):"n:"+norm(it.requestedName);
+              if(seen[key])duplicates++; // Keep the row visible; do not silently discard supplier lines.
+              if(existing.length>=100)throw new Error("Maximum 100 SO product lines. Remove some products before importing more.");
+              seen[key]=true;existing.push(it);added++;
+            });
             items=existing;
-            msg("sourceMessage",(clean($( "sourceMessage" ).textContent)||"Spreadsheet read.")+" Added "+added+" new item(s); "+skipped+" duplicates skipped.");
+            msg("sourceMessage",(clean($( "sourceMessage" ).textContent)||"File read.")+" Added "+added+" of "+incoming.length+" extracted row(s)."+(duplicates?" "+duplicates+" duplicate(s) kept for review — remove/merge before Fill Sales Order.":""));
             pipeline.nextAttemptAt=0;return pipeline.run(items);
           });
         });
@@ -690,25 +777,31 @@
         msg("matchMessage","Could not confirm the changes. Check the Sales Order before trying again: "+friendlySavedSOError(err));
       } finally {savedSOSaving=false;summary();}
     }
-    function createOrder(){if($("createBtn").disabled)return;if(!savedSOId && (!nativeFormBridge||!window.$Client||typeof window.$Client.close!=="function")){msg("matchMessage","The AI button must be connected to the native form handoff. No empty Sales Order form was opened. Contact your CRM administrator.");return;}if(items.some(function(it){return it.supplierId&&!supplierCodeFor(it.supplierId)&&!clean(it.supplierFallbackName);})){msg("matchMessage","Cannot transfer supplier: a selected Supplier Code was not resolved in CRM. Reload supplier codes and try again.");return;}var data={ai_order_builder:"1.9",ai_order_builder_mode:bridgeMode||"append",Status:"Requested",Ordered_Items:items.map(function(it){var product=it.product, row={Product_Name:{id:String(product.id),name:clean(product.Product_Name)},Quantity:num(it.quantity),List_Price:priceFor(it)};var upc=clean(product.UPC||it.identifier),brand=productBrand(product)||clean(it.requestedBrand),offer=offerNameFor(it).slice(0,255);if(upc)row.UPC=upc;if(brand)row.Brand=brand;if(offer)row.Offer_Product_Name=offer;if(it.supplierId)row.Supplier={id:String(it.supplierId),name:supplierCodeFor(it.supplierId)||clean(it.supplierFallbackName)};if(product.HS_Code)row.HS_Code=clean(product.HS_Code);if(product.Country_of_origin)row.Country_of_origin=clean(product.Country_of_origin);if(Number.isInteger(it.bridgeIndex)&&it.bridgeIndex>=0)row.__ai_source_index=it.bridgeIndex;if(it.bridgeRecordId)row.__ai_record_id=it.bridgeRecordId;return row;})};if(data.Ordered_Items.some(function(row){return !row.Product_Name.name;})){msg("matchMessage","A product name is missing. Match the product again before continuing.");return;}if(data.Ordered_Items.some(function(row){return !clean(row.Offer_Product_Name);})){msg("matchMessage","Fill halted: every SO line needs a name from the supplier offer.");return;}try{if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("fill_payload",{stage:"widget_to_client_script",count:data.Ordered_Items.length,message:"v1.30 sync payload includes the original source indexes, Offer_Product_Name and Supplier Code lookups."});}catch(ignore){}$("createBtn").disabled=true;if(savedSOId){saveSavedSO(data);return;}saveDraft();Promise.resolve(window.$Client.close(data)).catch(function(e){msg("matchMessage",e.message||"Could not transfer the products to Zoho.");summary();});}
+    function createOrder(){if($("createBtn").disabled)return;var invalid=items.filter(function(it,i){return lineIssues(it,i).length>0;});if(invalid.length){msg("matchMessage",invalid.length+" line(s) are incomplete. Complete all red fields before saving.");summary();return;}if(!savedSOId && (!nativeFormBridge||!window.$Client||typeof window.$Client.close!=="function")){msg("matchMessage","The AI button must be connected to the native form handoff. No empty Sales Order form was opened. Contact your CRM administrator.");return;}if(items.some(function(it){return it.supplierId&&!supplierCodeFor(it.supplierId)&&!clean(it.supplierFallbackName);})){msg("matchMessage","Cannot transfer supplier: a selected Supplier Code was not resolved in CRM. Reload supplier codes and try again.");return;}var data={ai_order_builder:"1.9",ai_order_builder_mode:bridgeMode||"append",Status:"Requested",Ordered_Items:items.map(function(it){var product=it.product, row={Product_Name:{id:String(product.id),name:clean(product.Product_Name)},Quantity:num(it.quantity),List_Price:priceFor(it)};var upc=clean(product.UPC||it.identifier),brand=productBrand(product)||clean(it.requestedBrand),offer=offerNameFor(it).slice(0,255);if(upc)row.UPC=upc;if(brand)row.Brand=brand;if(offer)row.Offer_Product_Name=offer;if(it.supplierId)row.Supplier={id:String(it.supplierId),name:supplierCodeFor(it.supplierId)||clean(it.supplierFallbackName)};if(product.HS_Code)row.HS_Code=clean(product.HS_Code);if(product.Country_of_origin)row.Country_of_origin=clean(product.Country_of_origin);if(Number.isInteger(it.bridgeIndex)&&it.bridgeIndex>=0)row.__ai_source_index=it.bridgeIndex;if(it.bridgeRecordId)row.__ai_record_id=it.bridgeRecordId;return row;})};if(data.Ordered_Items.some(function(row){return !row.Product_Name.name;})){msg("matchMessage","A product name is missing. Match the product again before continuing.");return;}if(data.Ordered_Items.some(function(row){return !clean(row.Offer_Product_Name);})){msg("matchMessage","Fill halted: every SO line needs a name from the supplier offer.");return;}try{if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("fill_payload",{stage:"widget_to_client_script",count:data.Ordered_Items.length,message:"v1.30 sync payload includes the original source indexes, Offer_Product_Name and Supplier Code lookups."});}catch(ignore){}$("createBtn").disabled=true;if(savedSOId){saveSavedSO(data);return;}saveDraft();Promise.resolve(window.$Client.close(data)).catch(function(e){msg("matchMessage",e.message||"Could not transfer the products to Zoho.");summary();});}
     function fillLookup(inputId,selectId,module,labelField,emptyLabel){var timer=null;$(inputId).addEventListener("input",function(){clearTimeout(timer);var query=clean($(inputId).value);if(query.length<2)return;timer=setTimeout(function(){ZOHO.CRM.API.searchRecord({Entity:module,Type:"word",Query:query}).then(function(r){var found=productList(r);var select=$(selectId);select.innerHTML='<option value="">'+emptyLabel+'</option>';found.forEach(function(rec){var label=clean(rec[labelField])||clean(rec.Full_Name)||clean(rec.Name);if(!rec.id||!label)return;var option=document.createElement("option");option.value=rec.id;option.textContent=label;select.appendChild(option);});if(!found.length)msg("matchMessage","No CRM "+module+" results for that search.");}).catch(function(){msg("matchMessage","Could not search CRM "+module+". Check your CRM access and try again.");});},300);});$(selectId).addEventListener("change",summary);}
     // v1.24 catalog: browse by brand, sort by actual confirmed Sales Order quantity, select multiple.
     function safeCriteria(value){return clean(value).replace(/([\(),:])/g,"\\$1");}
     function crmResults(response){return productList(response).filter(function(v){return v&&v.id;});}
     function fieldSearch(field,op,value){return ZOHO.CRM.API.searchRecord({Entity:"Products",Type:"criteria",Query:"("+field+":"+op+":"+safeCriteria(value)+")"}).then(crmResults);}
     function sqlValue(value){return clean(value).replace(/\\/g,"\\\\").replace(/'/g,"\\'");}
+    // v1.42: The embedded widget COQL SDK may enforce 200 records per call
+    // even when REST API v8 supports 2,000. Page safely without truncating a brand.
     async function coqlPaged(query,maxPages){
       if(!ZOHO.CRM.API.coql)throw new Error("The CRM COQL API is not available in this widget session.");
-      var all=[],lastInfo={more_records:false};
-      for(var page=0;page<maxPages;page++){
-        var result=await ZOHO.CRM.API.coql({select_query:query+" limit "+(page*2000)+", 2000"});
-        if(result&&result.code&&result.code!=="NO_DATA"&&result.code!=="SUCCESS")throw new Error(result.message||"CRM COQL query failed");
-        var list=result&&Array.isArray(result.data)?result.data:[];
-        all=all.concat(list);lastInfo=result&&result.info||{more_records:false};
-        if(!lastInfo.more_records||list.length<2000)break;
+      var pageSize=200,all=[],pages=Math.max(1,Math.min(Number(maxPages)||500,500));
+      for(var page=0;page<pages;page++){
+        var result=await ZOHO.CRM.API.coql({select_query:query+" limit "+(page*pageSize)+", "+pageSize});
+        var body=result&&result.data&&!Array.isArray(result.data)?result.data:result;
+        if(body&&body.code==="NO_DATA")return all;
+        if(body&&body.code&&body.code!=="SUCCESS"){
+          throw new Error(body.message||body.code||"CRM COQL query failed");
+        }
+        var list=body&&Array.isArray(body.data)?body.data:[];
+        var info=body&&body.info||{};
+        all=all.concat(list);
+        if(!list.length||info.more_records===false||(info.more_records==null&&list.length<pageSize))return all;
       }
-      if(lastInfo.more_records&&all.length>=maxPages*2000)throw new Error("The brand is too large to rank completely. Narrow the search or contact the administrator.");
-      return all;
+      throw new Error("This brand exceeds the maximum complete CRM query range ("+(pages*pageSize).toLocaleString("en-US")+" records). No results were silently omitted.");
     }
     function catalogProductInOrder(p){return items.some(function(it){return it.product&&String(it.product.id)===String(p.id);});}
     function catalogRankSort(a,b){return (Number(b.confirmedQty)||0)-(Number(a.confirmedQty)||0)||clean(a.Product_Name).localeCompare(clean(b.Product_Name));}
@@ -748,10 +841,12 @@
       $("catalogPageInfo").textContent=total?"Showing "+(start+1)+"–"+Math.min(start+MANUAL_CATALOG_PAGE_SIZE,total)+" of "+total:"No results";
       $("catalogPrevPage").disabled=manualCatalogPage<=0;
       $("catalogNextPage").disabled=manualCatalogPage>=pages-1;
-      $("catalogRankingNote").textContent=manualCatalogIsRanked?"Sorted by units in confirmed CRM Sales Orders (Ordered / Shipped / Delivered). Requested and Cancelled are excluded.":"Select a brand to see products ranked by confirmed Sales Order quantity.";
+      $("catalogRankingNote").textContent=manualCatalogIsRanked?"Sorted by units in confirmed CRM Sales Orders (Ordered / Shipped / Delivered). Requested and Cancelled are excluded.":$("manualBrand").value?"All products for this brand, alphabetically. Sales ranking may be unavailable.":"Select a brand to browse its products and available sales statistics.";
       el.querySelectorAll('input[data-catalog-id]').forEach(function(input){input.addEventListener("change",function(){if(input.checked)manualCatalogSelected.add(input.dataset.catalogId);else manualCatalogSelected.delete(input.dataset.catalogId);renderCatalogResults();});});
       el.querySelectorAll('button[data-catalog-add]').forEach(function(button){button.addEventListener("click",function(){var p=manualCatalogProducts.find(function(p){return String(p.id)===button.dataset.catalogAdd;});if(p)addManualProduct(p);});});
     }
+    // v1.42: Always load the PRODUCTS first. Ranking is optional and can never
+    // hide or erase a successfully retrieved brand catalog.
     async function loadBrandCatalog(brandId){
       var record=managerBrandRecords.find(function(b){return String(b.id)===String(brandId);});
       if(!record){msg("manualMessage","Choose a valid brand from CRM.");return;}
@@ -759,21 +854,47 @@
       if(cached){catalogSetProducts(cached.products,cached.ranked);msg("manualMessage",cached.products.length+" product(s) found for "+record.name+".");return;}
       manualCatalogLoading=true;manualSearching=true;var token=++manualCatalogToken;
       $("manualSearchBtn").disabled=true;
-      msg("manualMessage","Loading "+record.name+" products and Sales Order quantities from CRM…");
+      catalogSetProducts([],false);
+      $("manualResults").innerHTML='<tr><td colspan="6" class="catalog-empty">Loading CRM products for '+esc(record.name)+'...</td></tr>';
+      $("catalogCount").textContent="Loading products...";
+      msg("manualMessage","Loading all "+record.name+" products from CRM...");
       try{
         var name=sqlValue(record.name),id=sqlValue(record.id);
         var condition="((Brand = '"+id+"') or (Brand_text = '"+name+"'))";
         var productsQuery="select id, Product_Name, UPC, Brand, Brand_text, Unit_Price from Products where "+condition;
-        var rankCondition="((Product_Name.Brand = '"+id+"') or (Product_Name.Brand_text = '"+name+"'))";
-        var rankingQuery="select Product_Name, SUM(Quantity) from Ordered_Items where (Parent_Id.Status in ('Ordered','Shipped','Delivered')) and "+rankCondition+" group by Product_Name";
-        var results=await Promise.all([coqlPaged(productsQuery,7),coqlPaged(rankingQuery,7)]);
+        // A 200-record page is compatible with older embedded SDK versions.
+        // 500 pages cover the standard 100,000-row COQL pagination range.
+        var products=uniqueProducts(await coqlPaged(productsQuery,500));
         if(token!==manualCatalogToken)return;
-        var byId=new Map();results[1].forEach(function(row){if(row.Product_Name&&row.Product_Name.id)byId.set(String(row.Product_Name.id),num(row["SUM(Quantity)"]));});
-        var products=uniqueProducts(results[0]).map(function(p){p.confirmedQty=byId.get(String(p.id))||0;return p;});
-        manualBrandCache.set(String(brandId),{products:products,ranked:true});
-        catalogSetProducts(products,true);msg("manualMessage",products.length+" product(s) for "+record.name+", ranked by confirmed SO quantity.");
-      }catch(e){if(token===manualCatalogToken){catalogSetProducts([],false);msg("manualMessage","Could not retrieve a complete ranked product list: "+(e.message||String(e))+". No approximate ranking has been shown.");}}
-      finally{if(token===manualCatalogToken){manualCatalogLoading=false;manualSearching=false;$("manualSearchBtn").disabled=false;}}
+        manualBrandCache.set(String(brandId),{products:products,ranked:false});
+        catalogSetProducts(products,false);
+        if(!products.length){msg("manualMessage","No Products in CRM are linked to "+record.name+". Check product Brand/Brand text.");return;}
+        msg("manualMessage",products.length+" product(s) for "+record.name+" loaded. Checking confirmed Sales Order quantities...");
+        // Sales ranking must be independent of product discovery: large aggregate
+        // queries or restricted subform access should not produce an empty list.
+        try{
+          var rankCondition="((Product_Name.Brand = '"+id+"') or (Product_Name.Brand_text = '"+name+"'))";
+          var rankingQuery="select Product_Name, SUM(Quantity) from Ordered_Items where (Parent_Id.Status in ('Ordered','Shipped','Delivered')) and "+rankCondition+" group by Product_Name";
+          var stats=await coqlPaged(rankingQuery,500);
+          if(token!==manualCatalogToken)return;
+          var byId=new Map();stats.forEach(function(row){if(row.Product_Name&&row.Product_Name.id)byId.set(String(row.Product_Name.id),num(row["SUM(Quantity)"]));});
+          products.forEach(function(p){p.confirmedQty=byId.get(String(p.id))||0;});
+          manualCatalogProducts.sort(catalogRankSort);
+          manualCatalogIsRanked=true;
+          manualBrandCache.set(String(brandId),{products:products,ranked:true});
+          // Do not reset product selections or page if the user is already working.
+          renderCatalogResults();
+          msg("manualMessage",products.length+" product(s) for "+record.name+", ranked by confirmed SO quantity.");
+        }catch(rankError){
+          if(token!==manualCatalogToken)return;
+          msg("manualMessage",products.length+" product(s) for "+record.name+" loaded. Sales ranking unavailable; all products are shown alphabetically.");
+          try{if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("catalog_rank_unavailable",{stage:"brand_catalog",error_code:String(rankError.code||rankError.message||"ranking_error").slice(0,100)});}catch(ignore){}
+        }
+      }catch(e){
+        if(token===manualCatalogToken){catalogSetProducts([],false);msg("manualMessage","Could not load the complete "+record.name+" product list: "+(e.message||String(e))+". Try again.");}
+      }finally{
+        if(token===manualCatalogToken){manualCatalogLoading=false;manualSearching=false;$("manualSearchBtn").disabled=false;}
+      }
     }
     function searchCatalogManual(){
       if(manualSearching||manualCatalogLoading)return;
@@ -785,6 +906,13 @@
       }
       var text=clean($("manualQuery").value);
       if(!text){msg("manualMessage","Enter a UPC/product name or choose a brand.");return;}
+      // Enter on an exact CRM brand name must browse all of its products.
+      var matchingBrand=managerBrandRecords.find(function(b){return brandKey(b.name)===brandKey(text);});
+      if(matchingBrand){
+        $("manualQuery").value="";$("manualBrand").value=String(matchingBrand.id);
+        if(window.ProcurementSearchSelect)window.ProcurementSearchSelect.sync($("manualBrand"));
+        loadBrandCatalog(matchingBrand.id);return;
+      }
       manualSearching=true;$("manualSearchBtn").disabled=true;msg("manualMessage","Searching CRM Products…");
       var tasks=[];
       if(/^[0-9]{8,14}$/.test(text))tasks.push(search({field:"UPC",value:text}).catch(function(){return [];}));
@@ -909,7 +1037,7 @@
     // Diagnostics are optional: a missing log asset cannot block the order builder.
     try{
       if(window.OrderDiagnostics){
-        var diagnosticLog=new window.OrderDiagnostics("1.36");
+        var diagnosticLog=new window.OrderDiagnostics("1.42");
         diagnosticLog.add("widget_loaded",{stage:"baseline_1.16"});
         // Record only service status, time and request ID; never request/response bodies.
         if(typeof window.fetch==="function"){
@@ -929,7 +1057,7 @@
         $("downloadLogBtn").addEventListener("click",function(){
           diagnosticLog.add("download",{count:items.length,stage:$("thinkingOverlay").hidden?"idle":"processing"});
           var blob=new Blob([diagnosticLog.report(items,{imports:importAudits,lastError:lastProcessingError})],{type:"text/plain;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
-          a.href=url;a.download="ai-order-builder-1.38-"+diagnosticLog.id+".txt";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+          a.href=url;a.download="ai-order-builder-1.42-"+diagnosticLog.id+".txt";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
         });
       }
     }catch(logError){/* Logging must never prevent startup. */}

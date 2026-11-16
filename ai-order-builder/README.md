@@ -1,26 +1,40 @@
 # AI Order Builder for Zoho CRM
 
-Latest working configuration (confirmed in live CRM on 2026-11-15):
+## Current working release (confirmed by CRM user on 2026-11-16)
 
-- **Widget:** v1.39 (saved SO edit, clean messages, auto refresh after Save SO Products)
-- **Client Scripts:** v1.33 (Fill with AI in Record + AI Order Fill Products)
+- **Widget:** v1.42
+- **Sales Orders Create / Fill with AI Client Scripts:** v1.36 (both scripts)
+- **Repository:** `gigaset2004/crm`
 
-## Download / Install
+### Install
 
-Use the packaged files in [`releases/`](releases/):
+1. In **Zoho CRM → Setup → Developer Hub → Widgets → AI Order Builder**, upload [AI_Order_Builder_Widget_v1.42.zip](releases/AI_Order_Builder_Widget_v1.42.zip). The ZIP root has `plugin-manifest.json` and `app/`.
+2. In Client Scripts, replace the **Fill with AI in Record** script with [Fill_with_AI_BUTTON_v1.36.js](client-scripts/Fill_with_AI_BUTTON_v1.36.js).
+3. Replace the **Sales Orders Create onLoad / AI Order Fill Products** script with [Sales_Orders_CREATE_onLoad_v1.36.js](client-scripts/Sales_Orders_CREATE_onLoad_v1.36.js).
+4. Confirm **Version 1.42** in the widget footer, and verify the Client Script is v1.36.
+5. **Do not** change Sales Order Subject or unrelated functions.
 
-1. Upload `AI_Order_Builder_v1.39_CLEAN_AUTO_REFRESH.zip` via **Zoho CRM Developer Hub → Widgets → AI Order Builder → Edit**.
-2. In existing Client Script **Fill with AI in Record**, replace code with `client-scripts/Fill_with_AI_BUTTON_v1.33.js`.
-3. In existing Client Script **AI Order Fill Products**, replace code with `client-scripts/Sales_Orders_CREATE_onLoad_v1.33.js`.
-4. Leave **Sales Order Subject** unchanged.
-5. Existing CRM button **Fill with AI** on saved Sales Order detail page must remain configured with widget `AI_Order_Builder`; edit mode is restricted to `Requested`.
+A [full working backup](releases/AI_Order_Builder_WORKING_v1.42_Widget_v1.36_Scripts.zip) includes the widget and both Client Scripts.
 
-### Important
+### Working behavior
 
-- v1.33 Client Scripts are the last working version. Do not replace with experimental v1.30–v1.32.
-- v1.39 widget loads existing `Ordered_Items`, allows quantity, price, Supplier and Offer Product Name edits; adds/removes products, then closes/reloads the Sales Order after verified save.
-- Existing rows linked to PO are protected.
-- Original widget ZIP root contains `plugin-manifest.json` and `app/`.
-- Check out [`releases/CRM_AI_Order_Builder_WORKING_v1.39_ALL.zip`](releases/CRM_AI_Order_Builder_WORKING_v1.39_ALL.zip) for a full local backup.
+- Import Excel/CSV product requests, or search the CRM product catalog manually.
+- Missing product/quantity/price is visibly flagged; incomplete lines cannot be submitted.
+- Search by brand and Enter displays brand products, paginated without sales-ranking query failures hiding results.
+- Select/add products; copy CRM Product Name to Offer Product Name without changing the CRM product catalog.
+- On creating a Sales Order, update Ordered_Items, validate inserted Product Name and Offer Product Name, and handle blank row behavior.
+- Editing existing Requested Sales Orders retains existing items, can update/remove/add lines, and protects PO-linked rows.
 
-These files are snapshots of the tested working installation. Do not push local service tokens or credentials.
+### Source and tests
+
+- Widget source: [widget/](widget/) (current version)
+- Immutable v1.42 source snapshot: [versions/widget-v1.42/](versions/widget-v1.42/)
+- Client Scripts: [client-scripts/](client-scripts/)
+- Tests: [tests/test_v142.js](tests/test_v142.js), [tests/test_v136.js](tests/test_v136.js)
+
+### Historical releases (preserved)
+
+- v1.39 widget backup and v1.33 Client Scripts remain in [releases/](releases/) and [client-scripts/](client-scripts/).
+- Do not remove working historical versions.
+
+No credentials or API tokens should be committed.
