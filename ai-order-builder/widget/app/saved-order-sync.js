@@ -1,4 +1,4 @@
-/* AI Order Builder 1.40: safe API-backed editing of saved Requested Sales Orders.
+/* AI Order Builder 1.44: safe API-backed editing of saved Sales Orders in any status.
  * This module is not used on new / unsaved SO forms.
  * Zoho CRM API v8 subforms: update with row.id, add without id, delete with _delete:null.
  */
@@ -8,7 +8,7 @@
   function idOf(x) { return x && x.id != null ? str(x.id) : ''; }
   function num(x) { var n = Number(x); return Number.isFinite(n) ? n : NaN; }
   function moneyEqual(a,b) { return Number.isFinite(num(a)) && Number.isFinite(num(b)) && Math.abs(num(a)-num(b)) < 0.00001; }
-  function requestAllowed(status) { return str(status) === 'Requested' || str(status) === 'Created'; }
+  function requestAllowed(status) { return !!str(status); } // v1.44: all valid SO statuses are editable
   function checkResult(data, action) {
     var payload=payloadOf(data);
     var x = payload && Array.isArray(payload.data) ? payload.data[0] : null;
@@ -176,7 +176,8 @@
         if (str(old.Offer_Product_Name)!==offer) {changes.Offer_Product_Name=offer;has=true;}
         if (idOf(old.Supplier)!==supplierId) {changes.Supplier=supplierId?{id:supplierId}:null;has=true;}
         if (has) {
-          if (idOf(old.Purchase_Order)) throw new Error('SO line '+(j+1)+' is linked to a PO and cannot be edited here.');
+          // v1.44: Allow editing fields on existing PO-linked SO lines.
+          // The Purchase_Order reference is preserved; related PO records are not modified.
           result.push(changes);stats.changed++;
         } else stats.unchanged++;
       } else {
@@ -221,7 +222,7 @@
   async function apply(zoho,soId,expectedModified,requested){
     if(!zoho || !zoho.CRM || !zoho.CRM.API)throw new Error('Zoho SDK is unavailable.');
     var before=await getRecordWithProducts(zoho,soId);
-    if(!requestAllowed(before.Status))throw new Error('Editing is allowed only while this Sales Order is Requested. Current status: '+str(before.Status));
+    // v1.44: No status gate. readParentRecord() has already validated the SO and Status.
     if(expectedModified && str(before.Modified_Time)!==str(expectedModified))throw new Error('Sales Order was modified since the widget opened. Close the widget, refresh the SO and reopen to avoid overwriting changes.');
     var plan=buildPlan(before.Ordered_Items,requested);
     if(!plan.changes.length)return {record:before,stats:plan.stats};

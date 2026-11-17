@@ -1,0 +1,1256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Order Builder · Sales Order Products · Zoho CRM</title>
+  <script src="https://live.zwidgets.com/js-sdk/1.5/ZohoEmbededAppSDK.min.js"></script>
+  <style>
+    :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#182230;background:#f6f8fb;font-synthesis:none}
+    *{box-sizing:border-box}body{margin:0;font-size:14px}button,input,textarea,select{font:inherit}button{cursor:pointer}
+    .shell{width:100%;max-width:none;margin:0;padding:20px 22px 28px}.top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:22px}
+    h1{font-size:24px;letter-spacing:-.5px;margin:0 0 6px}.sub{color:#667085;margin:0}.badge{border:1px solid #c9d8f0;background:#edf4ff;color:#275dad;padding:7px 11px;border-radius:99px;font-size:12px;font-weight:650;white-space:nowrap}
+    .panel{background:#fff;border:1px solid #edf0f4;border-radius:9px;padding:16px;margin-bottom:14px;box-shadow:none}.panel h2{font-size:15px;margin:0 0 14px}.entry{display:grid;grid-template-columns:1.4fr .8fr;gap:16px}
+    textarea{resize:vertical;min-height:156px;width:100%;border:1px solid #d4dbe5;border-radius:8px;padding:12px;line-height:1.5;color:#182230}textarea:focus,input:focus,select:focus{outline:2px solid #a9c8ff;border-color:#75a7ff}
+    .drop{border:1.5px dashed #c5d0df;border-radius:9px;min-height:156px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#fbfcfe;color:#667085;gap:7px}.drop strong{color:#344054}.drop input{max-width:100%;font-size:12px}.hint{font-size:12px;color:#7b8797;line-height:1.45}.toolbar{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:14px}.btn{border:1px solid #d0d7e2;background:#fff;border-radius:7px;padding:9px 13px;font-weight:600;color:#344054}.btn.primary{background:#1769e0;border-color:#1769e0;color:#fff}.btn.primary:hover{background:#1058c4}.btn:disabled{opacity:.5;cursor:not-allowed}.customer{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-size:12px;color:#667085;margin-bottom:6px}.field input,.field select{width:100%;height:38px;border:1px solid #d4dbe5;border-radius:7px;padding:0 10px;background:#fff;color:#182230}
+    .table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:560px}th{text-align:left;background:#f8fafc;color:#667085;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:10px;border-bottom:1px solid #e6eaf0}td{padding:9px 10px;border-bottom:1px solid #edf0f4;vertical-align:middle}td input,td select{width:100%;min-width:80px;border:1px solid #d9e0e9;border-radius:6px;padding:7px 8px;background:#fff}.product-cell .product-name{display:block;font-weight:400;line-height:1.5}.product-cell small{display:block;color:#667085;margin-top:3px}.status{font-size:11px;padding:4px 8px;border-radius:99px;white-space:nowrap}.ok{background:#e9f7ef;color:#207245}.amb{background:#fff3d8;color:#946200}.miss{background:#ffeded;color:#a72f2f}.muted{color:#8993a2}.summary{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:14px}.total{font-weight:700;font-size:16px}.message{margin:10px 0 0;color:#667085;font-size:12px;min-height:16px}.image-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.image-chip{font-size:12px;background:#eef2f7;border-radius:6px;padding:6px 8px;color:#465366}
+    [hidden]{display:none!important}.overlay{position:fixed;inset:0;z-index:1000;background:#10182899;display:flex;align-items:center;justify-content:center;padding:18px}.dialog-card{width:min(620px,100%);max-height:min(85vh,760px);overflow:auto;background:#fff;border-radius:14px;padding:24px;box-shadow:0 24px 70px #10182840}.dialog-card h2{font-size:20px;margin:0 0 8px}.dialog-card p{color:#667085;line-height:1.5;margin:0 0 16px}.spinner{width:36px;height:36px;border:4px solid #dbe8fb;border-top-color:#1769e0;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}.thinking{text-align:center;padding:34px 20px}.result-head{display:flex;align-items:flex-start;gap:12px}.result-icon{width:36px;height:36px;flex:0 0 36px;border-radius:50%;background:#e9f7ef;color:#207245;display:grid;place-items:center;font-size:20px;font-weight:800}.result-icon.warn{background:#fff3d8;color:#946200}.result-counts{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.result-counts span{padding:7px 10px;border-radius:7px;background:#f2f4f7;font-size:12px;font-weight:650}.result-lines{display:grid;gap:8px;margin:14px 0 18px}.result-line{border:1px solid #e4e7ec;border-radius:9px;padding:11px 12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.result-line strong{display:block;font-size:13px;margin-bottom:4px}.result-line small{display:block;color:#667085;line-height:1.4}.result-actions{display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:-24px;padding:12px 0 0;background:#fff}
+    .build-footer{text-align:right;color:#8993a2;font-size:11px;padding:0 2px 10px}.result-line small{display:block;color:#667085;line-height:1.4;overflow-wrap:anywhere}
+    @media(max-width:720px){.shell{padding:18px 14px}.entry{grid-template-columns:1fr}.top{flex-direction:column}.customer{grid-template-columns:1fr}.footer,.summary{align-items:flex-start;flex-direction:column}.dialog-card{padding:18px}.result-line{gap:8px}}
+  table{min-width:980px;table-layout:fixed;font-size:13px}th{font-weight:500;text-transform:none;letter-spacing:0;background:#fafbfc;padding:10px 8px}td{padding:12px 8px;border-bottom:1px solid #f0f2f5;vertical-align:top}tbody tr:hover{background:#fcfdff}td input{min-width:0;padding:7px 6px;border-color:#e3e7ed;text-align:right}.product-cell .product-name a{font-weight:400;color:#344054!important;text-decoration:none!important}.product-cell small{font-size:11px;font-weight:400;line-height:1.5;color:#85909d}.upc-cell{white-space:nowrap;font-variant-numeric:tabular-nums;color:#667085;font-size:12px;padding-top:18px}.row-number{color:#98a2b3;padding-top:18px}.row-status{display:inline-block;font-size:11px;border-radius:5px;padding:4px 7px;background:#f2f4f7;color:#667085;font-weight:400}.row-status.match{background:#f0f7f3;color:#397253}.row-status.new{background:#eff5fd;color:#416ca0}.row-status.pending{background:#fff8eb;color:#987833}.brand-cell a{font-size:12px;text-decoration:none!important}.processed-summary{font-size:12px;color:#667085;margin:12px 0 0}.delete-line{border:0;background:transparent;color:#98a2b3;padding:5px;font-size:21px;line-height:1;min-width:28px}.delete-line:hover{color:#b42318;background:#fff3f2}
+    /* Keep the page full width, but do not stretch the name column across a large monitor. */
+    .table-wrap table{width:100%;max-width:1220px;min-width:980px}.summary,.processed-summary,#processingCounts{max-width:1220px}input[data-k=productSearch]{text-align:left}.row-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.row-actions .btn{font-size:11px;padding:5px 8px;font-weight:500}.quick-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.quick-fields .wide{grid-column:1/-1}.quick-fields label{display:block;color:#667085;font-size:12px}.quick-fields input{display:block;width:100%;padding:9px;border:1px solid #d4dbe5;border-radius:6px;margin-top:5px}.quick-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}@media(max-width:600px){.quick-fields{grid-template-columns:1fr}}
+    .public-choices{margin-top:10px}.public-choice{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 0;border-top:1px solid #edf0f4}.public-choice span{flex:1}.public-choice small{display:block}.public-choice a{font-size:11px;color:#667085}.public-choice .btn{font-size:12px;white-space:nowrap}@media(max-width:600px){.public-choice{align-items:flex-start;flex-direction:column}}
+    .totals{display:flex;flex-direction:column;align-items:flex-end;gap:5px}.quantity-total{font-size:13px;color:#667085}.product-cell small{color:#98a2b3}.diagnostic-footer{margin:12px 0;font-size:11px;color:#8993a2}.diagnostic-footer .btn{font-size:11px;font-weight:400;padding:6px 9px}
+
+    /* Unified product manager v1.23 — existing full-size Client Script popup unchanged */
+    .shell{min-height:100vh;padding:17px 22px 26px}
+    .top{margin-bottom:14px}
+    .manager-tabs{display:flex;gap:9px;align-items:center;margin:0 0 14px;border-bottom:1px solid #dbe4f0;padding:0 0 10px;flex-wrap:wrap}
+    .manager-tab{border:1px solid #d0d7e2;border-radius:8px;padding:11px 18px;background:#fff;color:#344054;font-weight:700}
+    .manager-tab.active{background:#edf4ff;border-color:#94baff;color:#185bbb}
+    .manager-context{margin-left:auto;font-size:12px;color:#68798e}
+    .manager-title{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:14px}
+    .manager-title h2{margin:0 0 4px}
+    .manual-controls{display:grid;grid-template-columns:minmax(160px,1.8fr) minmax(160px,1fr) auto;align-items:end;gap:12px}
+    .manual-field{font-size:12px;color:#667085;display:block;font-weight:600}
+    .manual-field input{margin-top:6px;width:100%;height:40px;padding:9px 10px;border:1px solid #d4dbe5;border-radius:7px;color:#182230}
+    .manual-results{display:grid;grid-template-columns:repeat(auto-fill,minmax(295px,1fr));gap:9px;margin:16px 0 4px;max-height:340px;overflow-y:auto}
+    .manual-result{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px;border:1px solid #e0e7ef;border-radius:9px;min-width:0}
+    .manual-result-name{font-size:13px;font-weight:600;overflow-wrap:anywhere}
+    .manual-result .hint{margin:5px 0 0}
+    .manual-result .btn{flex:none}
+    .process-box{border:1px solid #c9d8f0;background:#edf4ff;padding:11px 14px;border-radius:8px;margin-bottom:12px}
+    .process-box p{margin:5px 0}
+    .bulk-controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:0 0 13px;padding:12px;background:#f8fafc;border:1px solid #e8edf4;border-radius:8px}
+    .bulk-label{font-size:12px;font-weight:700;white-space:nowrap}
+    .bulk-controls input{border:1px solid #d4dbe5;border-radius:7px;padding:9px 10px;min-width:230px;width:270px}
+    .items-table{min-width:1320px!important;width:100%!important;max-width:none!important;table-layout:fixed}
+    .items-table th{font-size:11px;padding:9px 7px}
+    .items-table td{padding:10px 7px;vertical-align:middle}
+    .items-table td input{width:100%;min-width:0;text-align:left}
+    .items-table td input[data-k="quantity"],.items-table td input[data-k="price"]{text-align:right}
+    .supplier-inline{display:flex;gap:5px;align-items:center}
+    .supplier-inline input{min-width:0;flex:1}
+    .supplier-inline .btn{padding:7px 8px;font-size:11px}
+    .offer-input{font-size:12px}
+    .manager-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px}
+    .manager-footer .btn{font-size:14px;padding:12px 20px;white-space:nowrap}
+    .table-wrap{width:100%;overflow-x:auto}
+    .row-number{padding-top:10px}
+    .upc-cell{padding-top:10px;white-space:normal;overflow-wrap:anywhere}
+    .manual-result .btn:disabled{opacity:.6}
+    @media(max-width:840px){.manual-controls{grid-template-columns:1fr}.manager-context{margin-left:0}.manager-footer{flex-direction:column;align-items:flex-start}.bulk-controls input{width:100%}.shell{padding:15px 12px}}
+
+    /* v1.24 catalog: one full-width line per item and searchable dropdowns from Procurement Widget */
+    .manual-controls{grid-template-columns:minmax(230px,1.7fr) minmax(240px,1fr) auto;gap:14px}
+    .manual-field select{margin-top:6px;width:100%;height:40px;border:1px solid #d4dbe5;border-radius:7px;background:#fff;color:#182230}
+    .manual-field .search-combo{margin-top:6px}
+    .manual-field .search-combo-trigger{height:40px}
+    .catalog-toolbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:16px 0 10px}
+    .catalog-select-all{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;font-size:13px;color:#344054;font-weight:600}
+    .catalog-select-all input,.catalog-check{accent-color:#1769e0;width:17px;height:17px;cursor:pointer}
+    .catalog-toolbar .hint{margin-right:auto}
+    .catalog-table-wrap{width:100%;overflow-x:auto;border:1px solid #dfe6f0;border-radius:9px;max-height:460px;overflow-y:auto}
+    .catalog-table{width:100%!important;max-width:none!important;min-width:990px!important;table-layout:fixed;border-collapse:collapse}
+    .catalog-table thead{position:sticky;top:0;z-index:1}
+    .catalog-table th{background:#f5f8fc;font-size:12px;color:#637188;font-weight:700;padding:11px 12px;letter-spacing:0;text-transform:none}
+    .catalog-table td{height:47px;padding:8px 12px;border-bottom:1px solid #eef2f6;vertical-align:middle;white-space:nowrap;font-size:13px}
+    .catalog-table td.catalog-name{overflow:hidden;text-overflow:ellipsis;font-weight:600;color:#213249;max-width:0}
+    .catalog-table td.catalog-upc{font-variant-numeric:tabular-nums;color:#344054;font-weight:600}
+    .catalog-table td.catalog-brand{color:#52627c}
+    .catalog-table td.catalog-sales{text-align:right;color:#344054;font-variant-numeric:tabular-nums;font-weight:700}
+    .catalog-table td.catalog-actions{text-align:right}
+    .catalog-table .btn{padding:7px 13px;font-size:12px;white-space:nowrap}
+    .catalog-table .btn.added{background:#eef6f1;color:#25774d;border-color:#c9e9d7}
+    .catalog-empty{text-align:center;color:#8793a3!important;height:90px!important}
+    .catalog-pages{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-top:10px}
+    .catalog-pages>div{display:flex;gap:8px}
+    .catalog-pages .btn{padding:7px 12px;font-size:12px}
+    .catalog-method{margin-top:10px;color:#6c7a8d}
+    .bulk-controls select{width:min(310px,100%);min-width:210px;border:1px solid #d4dbe5;border-radius:7px;background:#fff;padding:8px 10px;color:#182230}
+    .bulk-controls .search-combo{width:min(310px,100%)}
+    .supplier-inline .search-combo{min-width:0;flex:1}
+    .supplier-inline .search-combo--supplier .search-combo-trigger{height:35px}
+    .items-table td .search-combo select{min-width:0}
+    .search-combo{position:relative;display:block;width:100%;min-width:0}
+    .search-combo-native{display:none!important}
+    .search-combo-trigger{display:flex;align-items:center;justify-content:space-between;gap:9px;width:100%;min-width:0;height:40px;padding:8px 11px;border:1px solid #d7e0eb;border-radius:8px;color:#283b56;background:#fff;text-align:left;font-size:13px;cursor:pointer}
+    .search-combo-trigger:hover:not(:disabled){border-color:#aac1df}
+    .search-combo-trigger:focus-visible,.search-combo-trigger.is-open{outline:none;border-color:#6c9fe6;box-shadow:0 0 0 3px #e3eeff}
+    .search-combo-value{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0;color:inherit!important;font-size:inherit!important;font-weight:inherit!important}
+    .search-combo-chevron{flex:none;font-size:14px!important;color:#60728b!important}
+    .search-combo--supplier .search-combo-trigger{height:35px;padding:5px 8px;font-size:12px;font-weight:720;color:#234b8d;border-radius:7px}
+    .search-combo-panel{position:fixed;z-index:10000;display:flex;flex-direction:column;gap:7px;max-height:355px;padding:8px;background:#fff;border:1px solid #ccd8e8;border-radius:10px;box-shadow:0 10px 30px #17314b36}
+    .search-combo-search{flex:none;box-sizing:border-box;width:100%;height:36px;min-height:36px!important;padding:8px 10px;border:1px solid #d4dfeb;border-radius:7px;outline:none;font-size:13px;color:#243950;background:#fff}
+    .search-combo-search:focus{border-color:#6c9fe6;box-shadow:0 0 0 2px #e3eeff}
+    .search-combo-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+    .search-combo-option{display:block;width:100%;border:0;border-radius:6px;padding:9px 10px;text-align:left;font-size:13px;line-height:1.3;color:#283b56;background:transparent;white-space:normal;overflow-wrap:anywhere}
+    .search-combo-option:hover,.search-combo-option.active{background:#edf4ff}
+    .search-combo-option.selected{background:#e6f0ff;font-weight:730;color:#234e93}
+    .search-combo-empty{padding:11px 9px;color:#7d8999;font-size:12px}
+    .brand-cell .brand-inline{display:flex;align-items:center;gap:5px;min-width:0}
+    .brand-cell .brand-inline>a,.brand-cell .brand-inline>span{white-space:normal;overflow-wrap:anywhere;min-width:0}
+    .brand-edit-btn{padding:3px 5px!important;border:1px solid #c9d8ef!important;border-radius:5px!important;background:#f6f9ff!important;color:#1769e0!important;font-size:13px!important;line-height:1.2!important;flex:none}
+    .brand-picker{display:flex;align-items:center;gap:9px;min-width:0;margin-top:6px}
+    .brand-picker>.search-combo,.brand-picker>select{flex:1;min-width:0}
+    .brand-picker>.btn{flex:none;font-size:12px;white-space:nowrap;padding:9px 10px}
+    .quick-fields .brand-picker{margin:6px 0 0}
+    .quick-fields label .search-combo{width:100%}
+    .brand-new-overlay{z-index:1200}
+    .shell{padding-bottom:62px}
+    .build-footer{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;justify-content:space-between;align-items:center;gap:12px;height:38px;padding:0 23px;background:#f6f8fbef;border-top:1px solid #e1e6ee;color:#667085;font-size:12px;backdrop-filter:blur(10px)}
+    .build-footer strong{color:#2b5a9b;font-size:12px}
+    @media(max-width:840px){.manual-controls{grid-template-columns:1fr}.catalog-toolbar .hint{width:100%;order:3}.catalog-table-wrap{max-height:420px}.catalog-pages{align-items:flex-start}.build-footer{padding:0 12px}}
+
+    /* v1.28: inline CRM Product Name edit and line-price copy/paste. */
+    .official-name-line{display:flex;align-items:flex-start;gap:5px;min-width:0}
+    .official-name-line .product-name{min-width:0;flex:1;overflow-wrap:anywhere}
+    .product-name-edit-btn{display:inline-flex;align-items:center;justify-content:center;flex:none;border:1px solid #c9d8ef;background:#f6f9ff;color:#1769e0;border-radius:5px;min-width:24px;height:24px;padding:2px;line-height:1}
+    .product-name-edit-btn:hover{background:#e4f0ff;border-color:#8bb8ff}
+    /* v1.40: place a CRM-name-to-offer copy action immediately below the pencil. */
+    .product-name-actions{display:inline-flex;flex:none;flex-direction:column;gap:5px;align-items:center}
+    .product-name-copy-btn{display:inline-flex;align-items:center;justify-content:center;flex:none;border:1px solid #c9d8ef;background:#f6f9ff;color:#1769e0;border-radius:5px;width:24px;height:24px;padding:3px;line-height:1}
+    .product-name-copy-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+    .product-name-copy-btn:hover{background:#e4f0ff;border-color:#8bb8ff}
+    .price-editor{display:flex;align-items:center;gap:3px;white-space:nowrap}
+    .price-editor input[data-k="price"]{min-width:0;width:100%;flex:1;padding:7px 4px;text-align:right}
+    .price-icon-btn{width:25px;height:26px;min-width:25px;flex:none;border:1px solid #d5dfea;background:#fff;color:#416386;border-radius:5px;padding:3px;display:inline-flex;align-items:center;justify-content:center}
+    .price-icon-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+    .price-icon-btn:hover:not(:disabled){color:#1769e0;background:#edf4ff;border-color:#8bb8ff}
+    .price-icon-btn:disabled{opacity:.35;cursor:not-allowed}
+
+    /* v1.41: no silent defaults; incomplete source rows require visible review. */
+    .items-table tr.line-validation-error>td{background:#fff6f6}
+    .items-table input.line-invalid,.items-table select.line-invalid{border:2px solid #d93636!important;background:#fff0f0!important;box-shadow:0 0 0 1px #ffd3d3}
+    .items-table .row-issues{display:block;margin-top:5px;color:#bf2424;font-size:11px;line-height:1.35;font-weight:650;white-space:normal}
+    .items-table .product-missing{outline:2px solid #d93636;outline-offset:3px;border-radius:3px}
+    .validation-hint{color:#b42318;font-weight:650}
+    .name-edit-hint{font-size:12px;color:#667085;margin-top:6px}
+    /* 1.36: record-context confirmation and safe recovery for saved SO. */
+    .saved-so-banner{border:1px solid #b3cbea;background:#edf4ff;border-radius:8px;padding:11px 14px;margin:0 0 13px;font-size:13px;display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+    .saved-so-banner[data-kind="error"]{background:#fff6eb;border-color:#f5c990;color:#734b18}
+    .saved-so-banner[data-kind="ok"]{background:#eef8f2;border-color:#a8d4b8;color:#225d3a}
+    .saved-so-banner[data-kind="readonly"]{background:#f3f5f8;border-color:#cfd5df;color:#344054}
+    .saved-so-banner b{font-weight:700}.saved-so-banner .btn{padding:6px 9px;font-size:12px}
+    .saved-so-recovery{flex-basis:100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .saved-so-recovery input{width:min(460px,100%);min-width:150px;min-height:34px;border:1px solid #cbd5e1;border-radius:6px;padding:6px 9px}
+    .saved-so-banner .connection-detail{font-size:11px;color:#667085}
+
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="top"><div><h1>AI Order Builder</h1><p class="sub" id="aiStatus">Add a customer request, then review the products and quantities.</p></div><span class="badge">Import with AI or add products manually</span></header>
+    <div id="savedSOStatusBanner" class="saved-so-banner" hidden role="status" aria-live="polite">
+      <b id="savedSOStatusTitle">Opening saved Sales Order</b><span id="savedSOStatusText">Reading CRM record…</span>
+      <button id="savedSORetryBtn" class="btn" type="button">Reload SO products</button>
+      <div id="savedSORecovery" class="saved-so-recovery" hidden>
+        <input id="savedSOUrlInput" aria-label="Sales Order URL" placeholder="Paste the URL of this Sales Order from the CRM address bar">
+        <button id="savedSOLinkBtn" class="btn" type="button">Link this SO</button>
+        <span id="savedSOContextHint" class="connection-detail"></span>
+      </div>
+    </div>
+    <nav class="manager-tabs" aria-label="Product management modes"><button id="tabAI" class="manager-tab active" type="button">AI Import</button><button id="tabManual" class="manager-tab" type="button">Search &amp; Add Products</button><span class="manager-context">Current unsaved Sales Order · changes go back into this form</span></nav>
+    <section id="manualSearchPanel" class="panel" hidden>
+      <div class="manager-title"><div><h2>Find products in CRM</h2><p class="hint">Search by UPC or product name, or choose a brand to browse all products. Official CRM names stay unchanged.</p></div><span class="badge">Products catalog</span></div>
+      <div class="manual-controls">
+        <label class="manual-field">UPC / Product name<input id="manualQuery" autocomplete="off" placeholder="Enter UPC or product name"></label>
+        <label class="manual-field">Brand<select id="manualBrand" aria-label="Choose a brand"><option value="">All brands</option></select></label>
+        <button id="manualSearchBtn" class="btn primary" type="button">Search</button>
+      </div>
+      <div class="catalog-toolbar">
+        <label class="catalog-select-all"><input id="catalogSelectAll" type="checkbox"> Select all on this page</label>
+        <span id="catalogCount" class="hint" aria-live="polite">Choose a brand or search by UPC/name.</span>
+        <button id="catalogAddSelected" class="btn primary" type="button" disabled>Add selected (0)</button>
+      </div>
+      <div class="catalog-table-wrap"><table class="catalog-table" aria-label="CRM product catalog"><colgroup><col style="width:44px"><col style="width:160px"><col style="width:160px"><col><col style="width:148px"><col style="width:112px"></colgroup><thead><tr><th></th><th>UPC</th><th>Brand</th><th>Product name</th><th title="Sum of item quantities in Ordered, Shipped and Delivered Sales Orders">Ordered qty</th><th>Action</th></tr></thead><tbody id="manualResults"><tr><td colspan="6" class="catalog-empty">Choose a brand or enter an UPC/name above.</td></tr></tbody></table></div>
+      <div class="catalog-pages"><span id="catalogPageInfo" class="hint">No results</span><div><button id="catalogPrevPage" class="btn" type="button" disabled>Previous</button><button id="catalogNextPage" class="btn" type="button" disabled>Next</button></div></div>
+      <p class="hint catalog-method" id="catalogRankingNote">When a brand is selected, products are sorted by ordered quantity in CRM (Ordered / Shipped / Delivered Sales Orders; Requested and Cancelled excluded).</p>
+      <p class="message" id="manualMessage" role="status"></p>
+    </section>
+    <section class="panel" id="aiInputPanel"><h2>1 · Add the request</h2><div class="entry">
+      <div><label class="field"><span class="hint">Paste order text or tabular rows. Expected columns include product, UPC, quantity and price.</span><textarea id="sourceText" placeholder="Example:&#10;3337875816809  La Roche-Posay Cicaplast Baume B5+ 40 ml  90 pcs  $10.20"></textarea></label></div>
+      <div class="drop"><strong>Upload an Excel, CSV or image file</strong><span>AI can read order text and screenshots.</span><input id="fileInput" type="file" accept=".xlsx,.csv,.tsv,image/jpeg,image/png,image/webp" multiple><span class="hint">Up to four images. Save legacy .xls files as .xlsx or .csv first.</span><div class="image-list" id="fileNames"></div></div>
+    </div><div class="toolbar"><button id="extractBtn" class="btn primary">Extract and match</button></div><p class="message" id="sourceMessage" role="status"></p></section>
+    <section class="panel" id="reviewPanel" hidden>
+      <div class="manager-title"><div><h2>2 · Order products</h2><p class="hint">The product is linked by CRM Product ID / UPC. Its name in the offer and supplier code belong to this order only.</p></div><button id="addLineBtn" class="btn" type="button">+ Add unmatched line</button></div>
+      <div id="processBox" class="process-box" role="status" aria-live="polite" hidden><strong id="processingTitle">Processing products…</strong><p id="processingCounts" class="hint"></p><button id="resumeBtn" class="btn" hidden>Continue processing</button></div>
+      <div class="bulk-controls"><span class="bulk-label">Supplier for all lines</span>
+        <select id="bulkSupplierCode" aria-label="Supplier code for all lines"><option value="">Choose supplier code</option></select>
+        <button id="bulkApplyBtn" class="btn" type="button">Apply supplier to all</button>
+        <span class="hint">Choose a supplier once to fill the order, or select a different code in an individual line. Existing values require confirmation to overwrite.</span>
+      </div>
+      <div class="table-wrap"><table class="items-table"><colgroup>
+        <col style="width:34px"><col style="width:76px"><col style="width:108px"><col style="width:121px"><col style="width:241px"><col style="width:205px"><col style="width:184px"><col style="width:76px"><col style="width:140px"><col style="width:30px">
+      </colgroup><thead><tr><th>#</th><th>Status</th><th>Brand</th><th>UPC</th><th>Official CRM product</th><th>Name from supplier offer</th><th>Supplier code</th><th>Qty</th><th>Unit price</th><th></th></tr></thead>
+      <tbody id="rows"><tr><td colspan="10" class="muted">No products yet. Search manually or import with AI.</td></tr></tbody></table></div>
+      <div class="summary"><span class="hint" id="matchSummary">Match every line to a CRM product.</span><div class="totals"><span class="quantity-total" id="totalQuantity">Total Quantity: 0</span><span class="total" id="orderTotal">Request total: $0.00</span></div></div>
+      <p class="hint">Product, quantity and unit price are required for every row. Missing values are shown in red; saving is blocked until corrected.</p><p class="processed-summary" id="processedSummary"></p><p class="message" id="matchMessage" role="status"></p>
+      <div class="manager-footer"><span class="hint">Edit the products of this SO, then click Fill Sales Order. Added and removed rows, prices, Offer Product Name and Supplier are synchronized with the open form.</span><button id="createBtn" class="btn primary" disabled>Fill Sales Order</button></div>
+    </section>
+    
+    <div class="overlay" id="supplierBulkOverlay" hidden role="dialog" aria-modal="true" aria-label="Apply supplier to all items">
+      <div class="dialog-card"><h2>Apply supplier to order items?</h2><p id="supplierBulkMessage"></p>
+        <div class="result-actions"><button id="supplierBulkCancel" class="btn" type="button">Cancel</button><button id="supplierBulkEmpty" class="btn" type="button">Fill empty only</button><button id="supplierBulkOverwrite" class="btn primary" type="button">Replace all suppliers</button></div>
+      </div>
+    </div>
+    <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.44</strong></footer>
+  <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Check the details, then create the product in CRM.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
+  <div class="overlay" id="editBrandOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editBrandTitle"><div class="dialog-card"><h2 id="editBrandTitle">Change product brand</h2><p id="editBrandDescription">Choose the correct brand linked to this product.</p><div class="brand-picker"><select id="editBrandSelect" aria-label="Select CRM brand"><option value="">Choose a CRM brand</option></select><button id="editBrandNew" class="btn" type="button">+ New brand</button></div><p id="editBrandMessage" class="message" role="status"></p><div class="quick-actions"><button id="editBrandCancel" class="btn" type="button">Cancel</button><button id="editBrandSave" class="btn primary" type="button">Save brand</button></div></div></div>
+  <div class="overlay" id="editProductNameOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editProductNameTitle"><div class="dialog-card"><h2 id="editProductNameTitle">Edit official CRM product name</h2><p id="editProductNameDescription">Changes the linked Products record for all CRM users. Does not change the supplier offer name in this order.</p><label class="manual-field">Official Product Name<input id="editProductNameInput" autocomplete="off" maxlength="255" placeholder="Official product name"></label><p class="name-edit-hint">The UPC and Product ID remain unchanged. The supplier offer name is saved separately.</p><p class="message" id="editProductNameMessage" role="status"></p><div class="quick-actions"><button id="editProductNameCancel" class="btn" type="button">Cancel</button><button id="editProductNameSave" class="btn primary" type="button">Save to CRM Products</button></div></div></div>
+  <div class="overlay brand-new-overlay" id="createBrandOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="createBrandTitle"><div class="dialog-card"><h2 id="createBrandTitle">Create a CRM brand</h2><p>First search existing brands. Creating a new brand adds one permanent record in CRM.</p><label class="manual-field">New brand name<input id="createBrandName" autocomplete="off" maxlength="100" placeholder="Brand name"></label><p id="createBrandMessage" class="message" role="status"></p><div class="quick-actions"><button id="createBrandCancel" class="btn" type="button">Cancel</button><button id="createBrandSave" class="btn primary" type="button">Create brand in CRM</button></div></div></div>
+  <div class="overlay" id="thinkingOverlay" hidden role="status" aria-live="polite"><div class="dialog-card thinking"><div class="spinner" aria-hidden="true"></div><h2>Analyzing the request</h2><p id="thinkingText">Reading the file and checking products in Zoho CRM…</p><button id="pauseBtn" class="btn">Pause</button></div></div>
+  <script src="product-enrichment.js"></script>
+  <script src="order-pipeline.js"></script>
+  <script src="diagnostics.js"></script>
+  <script src="searchable-select.js"></script>
+  <script src="spreadsheet-import.js"></script>
+  <script src="saved-order-sync.js"></script>
+  <script>
+  (function(){
+    "use strict";
+    var items=[], fileInput=document.getElementById("fileInput"), rows=document.getElementById("rows"), crmReady=false, aiSession="", aiSessionExpires=0, aiConnectionPromise=null;
+    var AI_SERVICE_URL="https://ai-order-builder-ai-67003629024.us-east1.run.app", pipeline=null, nativeFormBridge=false, enrichingSelection=false;
+    var bridgeMode="",bridgeRows=null,bridgeHydrated=false,bridgeOriginalCount=0;
+    var savedSOId="",savedSORecord=null,savedSOReady=false,savedSOSaving=false,savedSOReadOnly=false;
+    var widgetStartupReady=false,savedSOLoadPromise=null,loadedSavedSOId="";
+    var pageLoadSeen=false,pageLoadCounter=0,lastSavedSOContext="waiting for PageLoad";
+    var brandCache=new Map();
+    var managerMode="ai",managerBrands=[],managerSuppliers=[],bulkPending=null,manualSearching=false;
+    var supplierLoading=false,listsLoaded=false,managerListPromise=null,managerBrandRecords=[],manualCatalogProducts=[],manualCatalogIsRanked=false,manualCatalogPage=0,manualCatalogSelected=new Set(),manualCatalogLoading=false,manualCatalogToken=0,manualBrandCache=new Map();
+    var MANUAL_CATALOG_PAGE_SIZE=40;
+    var importAudits=[],lastProcessingError=null,lineRetryBusy=false,lineBrandItem=null,lineBrandBusy=false,brandCreateTarget="",brandCreateBusy=false;
+    var lineProductNameItem=null,lineProductNameBusy=false,priceClipboard=null;
+    var $=function(id){return document.getElementById(id);};
+    function msg(id,text){$(id).textContent=text||"";}
+    function clean(v){return String(v==null?"":v).replace(/\u00a0/g," ").trim();}
+    function readableError(error){
+      if(error==null)return "An unknown error occurred.";
+      if(typeof error==="string")return error;
+      var parts=[];
+      function push(value){
+        if(value==null)return;
+        if(typeof value==="object"){
+          if(value.message)push(value.message);
+          else if(value.error)push(value.error);
+          else try{parts.push(JSON.stringify(value).slice(0,350));}catch(ignore){}
+        }else{var valueText=String(value).trim();if(valueText&&valueText!=="[object Object]"&&parts.indexOf(valueText)<0)parts.push(valueText);}
+      }
+      push(error.message);push(error.code);push(error.error);push(error.data&&error.data.message);
+      if(Array.isArray(error.data)&&error.data[0]){push(error.data[0].code);push(error.data[0].message);}
+      push(error.response&&error.response.message);push(error.response&&error.response.data&&error.response.data.message);
+      if(!parts.length)try{push(JSON.stringify(error));}catch(ignore){}
+      return parts.length?parts.join(" · ").slice(0,900):"An unknown CRM error occurred.";
+    }
+    function friendlySavedSOError(error){
+      var description=readableError(error);
+      // Keep technical diagnostics in the browser console, not in staff alerts.
+      if(/\b(?:v8\s+(?:GET|COQL)|SDK\s+(?:COQL|getRecord)|ZRC|OAUTH_SCOPE_MISMATCH|NO_PERMISSION|API\s+v8|v1\.38)\b/i.test(description)){
+        console.error("AI Order Builder: Sales Order request failed",error);
+        return "Could not load the Sales Order products. Try again; if the problem continues, contact your CRM administrator.";
+      }
+      return description;
+    }
+    function num(v){var s=clean(v).replace(/[^0-9,.-]/g,"");if(/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s))s=s.replace(/,/g,"");else s=s.replace(/,/g,".");var n=Number(s);return Number.isFinite(n)?n:0;}
+    function norm(v){return clean(v).toLowerCase().replace(/[^\p{L}\p{N}]+/gu,"");}
+    function brandKey(name){return clean(name).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^\p{L}\p{N}]/gu,"");}
+    function canonicalBrand(name){var source=clean(name);if(/^(gucci|gucci beauty|gucci make\s*up|gucci cosmetics)$/i.test(source))return"Gucci";if(/^nars(?:[\s-]+(?:cosmetics|beauty|makeup|make up))?$/i.test(source))return"Nars";return brandKey(source)==="kerastase"?"Kerastase":source;}
+    function publicBrandName(it){var facts=it.publicCandidates||[],name=clean(facts[0]&&facts[0].brand);return name&&facts.every(function(f){return brandKey(f.brand)===brandKey(name);})?name:"";}
+    function brandHint(item,p){var selected=managerBrandRecords.find(function(b){return item&&String(item.selectedBrandId||"")===String(b.id);});return canonicalBrand(clean(selected&&selected.name)||(item&&item.sourceFile?clean(item.requestedBrand):"")||clean(p&&p.Brand&&p.Brand.name)||clean(p&&p.Brand_text)||clean(item&&item.requestedBrand)||(/\bgucci\b/i.test(clean(item&&item.requestedName)+" "+clean(p&&p.Product_Name))?"Gucci":""));}
+    function requestContext(parsed,input){var singleGucciFile=/^File: /.test(input.trim())&&(input.match(/^File: /gm)||[]).length===1&&/^Gucci make\s*up\s*$/im.test(input);parsed.forEach(function(it){if(/\bgucci\b/i.test(it.requestedName||"")||singleGucciFile)it.requestedBrand="Gucci";});return parsed;}
+    function tidyName(name,brand){var s=clean(name).replace(/\s*[—–]\s*/g," ").replace(/[“”]/g,'"');var aliases=canonicalBrand(brand)==="Gucci"?["Gucci Beauty","Gucci Make Up","Gucci"]:[clean(brand)];aliases.filter(Boolean).some(function(b){if(brandKey(s.slice(0,b.length))===brandKey(b)&&/^[\s:|,-]/.test(s.slice(b.length))){s=clean(s.slice(b.length).replace(/^[\s:|,-]+/,""));return true;}return false;});return s;}
+    function offerNameFor(it){return clean(it.offerName)||clean(it.requestedName)||clean(it.product&&it.product.Product_Name);}
+    function supplierCodeFor(id){var rec=managerSuppliers.find(function(s){return String(s.id)===String(id||"");});return rec?rec.code:"";}
+    // v1.44: Saved SO products can be edited in every order status.
+    // Keep the existing UI helper for compatibility; loadSavedSO always
+    // passes false so status never locks the editor.
+    function savedSOAccessUI(readOnly){
+      savedSOReadOnly=!!readOnly;
+      var locked=!!(savedSOId&&savedSOReadOnly&&!nativeFormBridge);
+      ["tabAI","tabManual"].forEach(function(id){$(id).hidden=locked;$(id).disabled=locked;});
+      $("addLineBtn").hidden=locked;$("addLineBtn").disabled=locked;
+      var bulk=$("bulkSupplierCode").closest(".bulk-controls");if(bulk)bulk.hidden=locked;
+      $("bulkSupplierCode").disabled=locked;$("bulkApplyBtn").disabled=locked;
+      $("sourceText").disabled=locked;$("fileInput").disabled=locked;$("extractBtn").disabled=locked;
+      if(locked){
+        $("aiInputPanel").hidden=true;$("manualSearchPanel").hidden=true;
+        $("reviewPanel").hidden=false;
+        rows.querySelectorAll("input,select,button").forEach(function(el){el.disabled=true;});
+      }else{
+        $("aiInputPanel").hidden=managerMode!=="ai";
+        $("manualSearchPanel").hidden=managerMode!=="manual";
+      }
+    }
+    function loadCurrentSORows(){
+      // The Client Script passes a snapshot of the CURRENT unsaved SO rows to this widget.
+      // Ignore any previous session draft — current form fields are authoritative.
+      if(bridgeHydrated||!pipeline||!bridgeRows||!Array.isArray(bridgeRows))return;
+      bridgeHydrated=true;
+      bridgeOriginalCount=bridgeRows.length;
+      var current=[];
+      bridgeRows.forEach(function(r){
+        if(!r||!r.Product_Name||!r.Product_Name.id)return;
+        var supplier=r.Supplier&&r.Supplier.id?r.Supplier:null;
+        if(supplier&&supplier.name&&!managerSuppliers.some(function(x){return String(x.id)===String(supplier.id);})){
+          managerSuppliers.push({id:String(supplier.id),code:clean(supplier.name),vendor:""});
+        }
+        var prod={id:String(r.Product_Name.id),Product_Name:clean(r.Product_Name.name),UPC:clean(r.UPC),Brand_text:clean(r.Brand),Unit_Price:num(r.List_Price)};
+        var it={identifier:clean(r.UPC),requestedName:clean(r.Product_Name.name),requestedBrand:clean(r.Brand),offerName:clean(r.Offer_Product_Name)||clean(r.Product_Name.name),
+          quantity:enteredNumber(r.Quantity),price:enteredNumber(r.List_Price),product:prod,match:"matched",candidates:[prod],researchDone:true,enrichmentDone:true,writeState:"done",
+          supplierId:supplier?String(supplier.id):"",supplierFallbackName:supplier?clean(supplier.name):"",bridgeIndex:Number(r.__ai_source_index),bridgeRecordId:clean(r.__ai_record_id||r.id),
+          purchaseOrderId:r.Purchase_Order&&r.Purchase_Order.id?String(r.Purchase_Order.id):""};
+        current.push(it);
+      });
+      items=current;
+      pipeline.items=items;
+      $("reviewPanel").hidden=false;
+      $("processBox").hidden=true;
+      render();
+      msg("matchMessage",savedSOReadOnly?current.length+" existing SO product line(s) loaded for viewing only. Changes are allowed only in Requested status.":current.length+" existing SO product line(s) loaded. Add, edit or remove products here, then Fill Sales Order.");
+      if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("so_rows_loaded",{count:current.length,stage:"sync_1.30"});
+    }
+    function productBrand(p){return clean(p&&p.Brand&&p.Brand.name)||clean(p&&p.Brand_text)||"";}
+    // Import values are authoritative. Never silently substitute the CRM catalog
+    // price for a missing unit price in a supplier order.
+    function enteredNumber(value){
+      if(value==null||clean(value)==="")return null;
+      var n=typeof value==="number"?value:num(value);
+      return Number.isFinite(n)?n:null;
+    }
+    function priceFor(it){
+      if(it.price!=null)return enteredNumber(it.price);
+      if(it.sourceType==="import"||it.sourceFile)return null;
+      return enteredNumber(it.product&&it.product.Unit_Price);
+    }
+    function lineIssues(it,index){
+      var errs=[];
+      if(!it.product||!it.product.id||!clean(it.product.Product_Name))errs.push("CRM product missing");
+      if(!clean(offerNameFor(it)))errs.push("Offer name missing");
+      if(enteredNumber(it.quantity)==null||enteredNumber(it.quantity)<=0)errs.push("Quantity required");
+      var price=priceFor(it);
+      if(price==null||price<=0)errs.push("Unit price required");
+      if(it.sourceUPC&&!it.identifier&&(!it.product||!it.product.id))errs.push("UPC requires review");
+      for(var n=0;n<index;n++){
+        var other=items[n];
+        if(it.product&&other.product&&it.product.id&&String(it.product.id)===String(other.product.id)){
+          errs.push("Duplicate product (line "+(n+1)+")");break;
+        }
+        if(it.identifier&&other.identifier&&clean(it.identifier)===clean(other.identifier)){
+          errs.push("Duplicate UPC (line "+(n+1)+")");break;
+        }
+      }
+      return errs;
+    }
+    function parseLines(text){
+      var out=[], lines=String(text||"").split(/\r?\n/).map(clean).filter(Boolean);
+      lines.forEach(function(line){
+        if(/^(product\s*name|product|item|description|sku|upc)\b/i.test(line)&&/qty|quantity|price|upc|sku/i.test(line))return;
+        var cols=line.includes("\t")?line.split("\t"):line.split(/\s{2,}|\s*[,;|]\s*/).filter(Boolean);
+        var id=(line.match(/\b\d{8,14}\b/)||[])[0]||"", unit="(?:pcs?|units?|шт(?:ук(?:а|и)?)?|штук|ед(?:иниц(?:а|ы)?)?)", qty=(line.match(new RegExp("(?:qty|quantity|кол(?:ичество)?)\\s*[:x-]?\\s*(\\d+(?:[.,]\\d+)?)","i"))||line.match(new RegExp("(?:^|\\s)(\\d+(?:[.,]\\d+)?)\\s*"+unit+"(?=\\s|$|[,;])","i"))||[])[1];
+        var price=(line.match(/(?:\$|€|usd\s*)\s*(\d+(?:[.,]\d{1,4})?)/i)||line.match(/\b(\d+(?:[.,]\d{1,4})?)\s*(?:usd|eur)\b/i)||[])[1];
+        var name=line.replace(id,"").replace(new RegExp("(?:qty|quantity|кол(?:ичество)?)\\s*[:x-]?\\s*\\d+(?:[.,]\\d+)?","ig"),"").replace(new RegExp("\\d+(?:[.,]\\d+)?\\s*"+unit,"ig"),"").replace(/(?:\$|€|usd\s*)\s*\d+(?:[.,]\d{1,4})?/ig,"").replace(/\s{2,}/g," ").trim();
+        if(cols.length>=3){name=clean(cols.find(function(c){return c!==id&&!/^\d+(?:[.,]\d+)?$/.test(c)&&!/(?:pcs?|units?|usd|eur|\$|€)/i.test(c);})||name);qty=qty||cols.find(function(c){return /^\d+(?:\.\d+)?$/.test(clean(c));});price=price||cols.find(function(c){return /(?:\$|€|usd|eur)/i.test(c);});}
+        name=name.replace(/^[-–—:\s]+|[-–—:\s]+$/g,"");
+        if(id||name||qty){out.push({identifier:id,requestedName:name,quantity:enteredNumber(qty),price:enteredNumber(price),product:null,match:"pending"});}
+      });
+      return out;
+    }
+    function parseCsv(text,delimiter){var lines=String(text).replace(/^\uFEFF/,"").split(/\r?\n/).filter(function(x){return x.trim();});return lines.map(function(line){var a=[],cur="",q=false;for(var i=0;i<line.length;i++){var c=line[i];if(c==='"'&&line[i+1]==='"'&&q){cur+='"';i++;}else if(c==='"'){q=!q;}else if(c===delimiter&&!q){a.push(cur);cur="";}else cur+=c;}a.push(cur);return a;});}
+    function fromGrid(grid){if(!grid.length)return[];var hdr=grid[0].map(function(x){return norm(x);}), ix=function(keys){return hdr.findIndex(function(h){return keys.some(function(k){return h===k||h.includes(k);});});};var pi=ix(["productname","product","item","description"]),ui=ix(["upc","barcode"]),si=ix(["sku","itemnumber"]),qi=ix(["qty","quantity","units"]),pri=ix(["unitprice","price","cost"]);return grid.slice(1).map(function(r){var name=pi>=0?clean(r[pi]):"",id=ui>=0?clean(r[ui]):"";if(!id&&si>=0)id=clean(r[si]);if(!name&&!id)return null;return{identifier:id,requestedName:name,quantity:enteredNumber(qi>=0?r[qi]:null),price:enteredNumber(pri>=0?r[pri]:null),offerName:name,product:null,match:"pending"};}).filter(Boolean);}
+    function xlsxGrid(buf){
+      if(!window.DecompressionStream)throw new Error("This browser cannot read .xlsx directly. Save the workbook as CSV and upload that file.");
+      var u=new Uint8Array(buf),dv=new DataView(buf),eocd=-1;for(var i=u.length-22;i>=Math.max(0,u.length-65558);i--){if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;}}if(eocd<0)throw new Error("Invalid Excel workbook.");
+      var count=dv.getUint16(eocd+10,true),off=dv.getUint32(eocd+16,true),files={};for(var n=0;n<count;n++){if(dv.getUint32(off,true)!==0x02014b50)break;var method=dv.getUint16(off+10,true),cs=dv.getUint32(off+20,true),nl=dv.getUint16(off+28,true),el=dv.getUint16(off+30,true),cl=dv.getUint16(off+32,true),lo=dv.getUint32(off+42,true),name=new TextDecoder().decode(u.slice(off+46,off+46+nl));var lnl=dv.getUint16(lo+26,true),lel=dv.getUint16(lo+28,true),start=lo+30+lnl+lel,dat=u.slice(start,start+cs);files[name]={method:method,data:dat};off+=46+nl+el+cl;}
+      function get(k){var f=files[k];if(!f)return Promise.resolve("");if(f.method===0)return Promise.resolve(new TextDecoder().decode(f.data));if(f.method!==8)throw new Error("Unsupported Excel compression.");return new Response(new Blob([f.data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text();}
+      function tags(node,name){return Array.from(node.getElementsByTagNameNS("*",name));}
+      return Promise.all([get("xl/sharedStrings.xml"),get("xl/worksheets/sheet1.xml")]).then(function(d){var shared=[],doc=new DOMParser().parseFromString(d[0],"application/xml");tags(doc,"si").forEach(function(si){shared.push(tags(si,"t").map(function(t){return t.textContent;}).join(""));});var sd=new DOMParser().parseFromString(d[1],"application/xml"),grid=[],rowNumbers=[];tags(sd,"row").forEach(function(row){var vals=[];tags(row,"c").forEach(function(c){var ref=c.getAttribute("r")||"A1",col=0;for(var z=0;z<ref.length&&/[A-Z]/i.test(ref[z]);z++)col=col*26+ref.toUpperCase().charCodeAt(z)-64;var v=tags(c,"v")[0],value=v?v.textContent:"";if(c.getAttribute("t")==="s")value=shared[Number(value)]||"";if(c.getAttribute("t")==="inlineStr")value=tags(c,"t").map(function(t){return t.textContent;}).join("");vals[col-1]=value;});grid.push(vals.map(function(v){return v||"";}));rowNumbers.push(Number(row.getAttribute("r"))||rowNumbers.length+1);});if(!grid.length)throw new Error("No rows found in the first Excel sheet.");grid.__rowNumbers=rowNumbers;return grid;});
+    }
+    function readFile(file,raw){
+      return new Promise(function(resolve,reject){
+        if(file.size>12*1024*1024){reject(new Error(file.name+" is too large. Upload a file smaller than 12 MB."));return;}
+        var reader=new FileReader();
+        reader.onerror=function(){reject(new Error("Could not read "+file.name));};
+        function finish(grid){
+          var parsed=window.OrderSpreadsheetImport?window.OrderSpreadsheetImport.parseGrid(grid,file.name):null;
+          var rawGrid=window.OrderSpreadsheetImport?window.OrderSpreadsheetImport.normalizeRawGrid(grid):grid.map(function(row){return row.map(clean).join("\t");}).join("\n");
+          var text="File: "+file.name+"\n"+rawGrid;
+          resolve({structured:!!parsed,items:parsed?parsed.items:[],audit:parsed?parsed.audit:null,text:text});
+        }
+        if(/\.csv$|\.tsv$/i.test(file.name)){
+          reader.onload=function(){var first=String(reader.result||"").split(/\r?\n/)[0],delimiter=file.name.toLowerCase().endsWith(".tsv")?"\t":first.split(";").length>first.split(",").length?";":",";finish(parseCsv(reader.result,delimiter));};
+          reader.readAsText(file);
+        }else if(/\.xlsx$/i.test(file.name)){
+          reader.onload=function(){xlsxGrid(reader.result).then(finish).catch(reject);};
+          reader.readAsArrayBuffer(file);
+        }else if(file.type.startsWith("image/")){resolve({structured:false,items:[],audit:null,text:""});}
+        else reject(new Error("Unsupported file: "+file.name+". Use .xlsx, .csv, .tsv or an image."));
+      });
+    }
+    function readImage(file){return new Promise(function(resolve,reject){var r=new FileReader();r.onerror=function(){reject(new Error("Could not read image "+file.name));};r.onload=function(){var value=String(r.result||""),comma=value.indexOf(",");resolve({mime_type:file.type,data:comma>=0?value.slice(comma+1):""});};r.readAsDataURL(file);});}
+    function connectAI(){if(!AI_SERVICE_URL)return Promise.resolve("");if(aiSession&&Date.now()<aiSessionExpires-30000)return Promise.resolve(aiSession);if(aiConnectionPromise)return aiConnectionPromise;aiConnectionPromise=new Promise(function(resolve,reject){var popup=window.open(AI_SERVICE_URL+"/auth/start","zohoAiOrderBuilderAuth","width=600,height=720,resizable=yes,scrollbars=yes");if(!popup){reject(new Error("Allow the Zoho sign-in window to open, then try again."));return;}var timeout=setTimeout(function(){finish(new Error("Zoho sign-in timed out. Please try again."));},180000),closed=setInterval(function(){if(popup.closed)finish(new Error("Zoho sign-in window was closed. Click Extract and match to connect and try again."));},750);function finish(error,token){clearTimeout(timeout);clearInterval(closed);window.removeEventListener("message",onMessage);if(error)reject(error);else resolve(token);}function onMessage(e){if(e.origin!==AI_SERVICE_URL||e.source!==popup||!e.data||e.data.type!=="AI_ORDER_BUILDER_AUTH"||typeof e.data.token!=="string")return;aiSession=e.data.token;aiSessionExpires=Date.now()+14*60*1000;$("aiStatus").textContent="AI is connected.";finish(null,aiSession);}window.addEventListener("message",onMessage);});return aiConnectionPromise.then(function(token){aiConnectionPromise=null;return token;},function(error){aiConnectionPromise=null;throw error;});}
+    function aiExtract(text,images,token){if(!text&&!images.length)return Promise.reject(new Error("Paste order text or choose a file first."));return fetch(AI_SERVICE_URL+"/v1/extract",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({text:text,images:images})}).then(function(r){if(r.status===401){aiSession="";aiSessionExpires=0;}return r.json().then(function(data){if(!r.ok)throw new Error(readableError(data.error||data.message||"AI extraction failed."));return data;});}).then(function(data){if(!Array.isArray(data.items))throw new Error("AI returned no order lines.");return requestContext(data.items.map(function(x){return{identifier:clean(x.identifier),requestedName:clean(x.product_name),quantity:enteredNumber(x.quantity),price:enteredNumber(x.unit_price),offerName:clean(x.product_name),product:null,match:"pending"};}),text);});}
+    function productList(r){return r&&r.data? r.data : Array.isArray(r)?r:[];}
+    function researchProducts(products){return fetch(AI_SERVICE_URL+"/v1/research",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+aiSession},body:JSON.stringify({products:products})}).then(function(r){return r.json().then(function(data){if(!r.ok){if(r.status===401){aiSession="";aiSessionExpires=0;}var e=new Error(readableError(data.error||data.message||"Product lookup failed. Resume processing to try again."));e.retryAfter=data.retry_after||0;throw e;}return data.items;});});}
+    async function createProduct(fact){
+      if(!fact.verified||!clean(fact.product_name)||!/^\d{8,14}$/.test(fact.upc))return Promise.reject(new Error("Product identity could not be verified."));
+      var productName=tidyName(fact.product_name,fact.brand),brandName=canonicalBrand(fact.brand);if(brandName&&productName.slice(0,brandName.length).toLowerCase()===brandName.toLowerCase()&&/^[\s:|–—-]/.test(productName.slice(brandName.length))){productName=productName.slice(brandName.length).replace(/^[\s:|–—-]+/,"")||productName;}
+      var brandWords=brandName.split(/\s+/);if(brandWords.length>1&&brandWords.slice(1).every(function(w){return /^(beauty|cosmetics|skincare)$/i.test(w);})&&productName.slice(0,brandWords[0].length).toLowerCase()===brandWords[0].toLowerCase()&&/^\s/.test(productName.slice(brandWords[0].length))){productName=clean(productName.slice(brandWords[0].length))||productName;}
+      var data={Product_Name:productName.slice(0,255),UPC:fact.upc};
+      if(fact.hs_code)data.HS_Code=clean(fact.hs_code);if(fact.country_of_origin)data.Country_of_origin=clean(fact.country_of_origin);
+      if(brandName){
+        var selectedBrand=fact.brandId&&managerBrandRecords.find(function(b){return String(b.id)===String(fact.brandId);});
+        var brand=selectedBrand?{id:selectedBrand.id,Name:selectedBrand.name}:await findBrand(brandName);
+        if(!brand){var brandError=new Error("CRM Brand not found for '"+brandName+"'. Choose an existing brand or create one in the Create Product dialog. No product was created.");brandError.safeNoWrite=true;throw brandError;}
+        data.Brand={id:String(brand.id)};data.Brand_text=brand.Name;
+      }else{var missingBrand=new Error("Brand is missing. Choose an existing CRM brand in Create Product. No product was created.");missingBrand.safeNoWrite=true;throw missingBrand;}
+      return ZOHO.CRM.API.insertRecord({Entity:"Products",APIData:data,Trigger:[]}).then(function(r){var result=r&&r.data&&r.data[0];if(!result||result.code!=="SUCCESS"||!result.details||!result.details.id){var err=new Error("Zoho CRM refused or did not confirm product creation: "+readableError(result||r)+". Check Products before retrying.");err.stage="create_product";throw err;}return Object.assign({id:String(result.details.id)},data);});
+    }
+    function saveDraft(){if(pipeline){pipeline.items=items;pipeline.save();}}
+    async function readProduct(id){var response=await ZOHO.CRM.API.getRecord({Entity:"Products",RecordID:String(id)}),product=productList(response)[0];if(!product||String(product.id)!==String(id))throw new Error("Could not read the CRM product.");return product;}
+    async function findBrand(name){name=canonicalBrand(name);var key=brandKey(name);if(brandCache.has(key))return brandCache.get(key);var response=await ZOHO.CRM.API.searchRecord({Entity:"Brands",Type:"word",Query:name});if(response&&response.code&&response.code!=="SUCCESS"&&response.code!=="NO_DATA")throw new Error("Could not search Brands.");var found=productList(response).filter(function(b){return brandKey(b.Name)===key;});var result=found.length===1?found[0]:null;if(!result&&found.length>1){var exact=found.filter(function(b){return clean(b.Name).toLowerCase()===name.toLowerCase();});if(exact.length===1)result=exact[0];}if(result)brandCache.set(key,result);return result;}
+    async function updateProduct(data){var response=await ZOHO.CRM.API.updateRecord({Entity:"Products",APIData:data,Trigger:[]}),result=response&&response.data&&response.data[0];if(!result||result.code!=="SUCCESS")throw new Error("CRM did not confirm product update.");}
+    async function repairBrand(p,item){var hint=brandHint(item,p);if(!hint)return p;var b=await findBrand(hint);if(!b)return p;var patch={id:String(p.id)};if(!p.Brand||String(p.Brand.id)!==String(b.id))patch.Brand={id:String(b.id)};if(Object.prototype.hasOwnProperty.call(p,"Brand_text")&&clean(p.Brand_text)!==b.Name)patch.Brand_text=b.Name;if(Object.keys(patch).length===1)return p;await updateProduct(patch);var confirmed=await readProduct(p.id);if(!confirmed.Brand||String(confirmed.Brand.id)!==String(b.id))throw new Error("Brand update was not confirmed.");return confirmed;}
+    function officialName(fact){var url=fact&&fact.evidence&&fact.evidence.product_name&&fact.evidence.product_name.url||"";return /^https:\/\/(?:www\.)?(?:gucci\.com|sephora\.com)\//i.test(url)?tidyName(fact.product_name,fact.brand):"";}
+    async function enrichExisting(value,notify){var enricher=new window.ProductEnricher({read:readProduct,research:researchProducts,findBrand:findBrand,repairIdentity:repairBrand,officialName:officialName,brandHint:brandHint,shouldPause:function(){return !!(pipeline&&pipeline.running&&pipeline.paused);},update:updateProduct});return enricher.run(value,notify);}
+    function chooseBrandRecord(id){return managerBrandRecords.find(function(b){return String(b.id)===String(id||"");})||null;}
+    function chooseBrandByName(name){return managerBrandRecords.find(function(b){return brandKey(b.name)===brandKey(canonicalBrand(name));})||null;}
+    function brandDropdownOptions(selected){var value=String(selected||"");return '<option value="">Choose a CRM brand</option>'+managerBrandRecords.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(b){return '<option value="'+esc(b.id)+'" '+(value===String(b.id)?'selected':'')+'>'+esc(b.name)+'</option>';}).join("");}
+    function syncBrandPicker(select,value){if(!select)return;var wanted=String(value||select.value||"");select.innerHTML=brandDropdownOptions(wanted);select.value=wanted;if(window.ProcurementSearchSelect)window.ProcurementSearchSelect.sync(select);}
+    function setQuickBrandFromItem(it){var fromProduct=it&&it.product&&it.product.Brand&&it.product.Brand.id,selected=it&&it.selectedBrandId||fromProduct,byName=chooseBrandByName(it&&it.requestedBrand||it&&it.research&&it.research.brand||"");syncBrandPicker($("quickBrand"),selected||byName&&byName.id||"");}
+    function openBrandCreator(target){if(lineBrandBusy||quickBusy||brandCreateBusy)return;brandCreateTarget=target;$("createBrandName").value="";msg("createBrandMessage","");$("createBrandOverlay").hidden=false;$("createBrandName").focus();}
+    function closeBrandCreator(){if(brandCreateBusy)return;$("createBrandOverlay").hidden=true;brandCreateTarget="";}
+    async function saveNewBrand(){if(brandCreateBusy)return;var name=clean($("createBrandName").value),target=brandCreateTarget;if(name.length<2||name.length>100){msg("createBrandMessage","Enter a brand name (2–100 characters).");return;}if(!crmReady){msg("createBrandMessage","CRM connection is not ready.");return;}brandCreateBusy=true;$("createBrandSave").disabled=true;$("createBrandCancel").disabled=true;
+      try{await loadManagerLists();var existing=chooseBrandByName(name),remote=existing?{id:existing.id,Name:existing.name}:await findBrand(name);var record;
+        if(remote){record={id:String(remote.id),name:clean(remote.Name||remote.name)};}
+        else{var r=await ZOHO.CRM.API.insertRecord({Entity:"Brands",APIData:{Name:name},Trigger:[]}),result=r&&r.data&&r.data[0];if(!result||result.code!=="SUCCESS"||!result.details||!result.details.id)throw new Error("Zoho CRM did not confirm brand creation: "+readableError(result||r));record={id:String(result.details.id),name:name};}
+        if(!chooseBrandRecord(record.id))managerBrandRecords.push(record);managerBrands=managerBrandRecords.map(function(b){return b.name;});brandCache.set(brandKey(canonicalBrand(record.name)),{id:record.id,Name:record.name});updateDatalists();var select=$(target);if(select){syncBrandPicker(select,record.id);select.dispatchEvent(new Event("change",{bubbles:true}));}$("createBrandOverlay").hidden=true;brandCreateTarget="";if(target==="quickBrand")msg("quickMessage",remote?"Selected existing CRM brand: "+record.name:"Created CRM brand: "+record.name);else msg("editBrandMessage",remote?"Selected existing CRM brand: "+record.name:"Created CRM brand: "+record.name);
+      }catch(error){msg("createBrandMessage",readableError(error)+". Check Brands in CRM before retrying.");}finally{brandCreateBusy=false;$("createBrandSave").disabled=false;$("createBrandCancel").disabled=false;}}
+    var quickItem=null,quickBusy=false;
+    function openQuickProduct(index){if(enrichingSelection||pipeline&&pipeline.running)return;var it=items[index];if(!it||it.product)return;var known=items.find(function(other){return other!==it&&other.product&&clean(it.identifier)&&clean(other.product.UPC).replace(/^0+/,"")===clean(it.identifier).replace(/^0+/,"");});if(known){it.product=known.product;it.match="matched";it.createdInCrm=!!known.createdInCrm;it.writeState="done";it.researchDone=true;render();showResult();return;}quickItem=it;var fact=it.selectedPublicCandidate||it.research||{};$("quickName").value=tidyName(fact.product_name||it.requestedName,fact.brand||brandHint(it));$("quickUPC").value=fact.upc||it.identifier||"";setQuickBrandFromItem(it);$("quickHS").value=fact.hs_code||"";$("quickCOO").value=fact.country_of_origin||"";msg("quickMessage","");$("quickProductOverlay").hidden=false;loadManagerLists().then(function(){if(quickItem===it)setQuickBrandFromItem(it);}).catch(function(e){msg("quickMessage",readableError(e));});$("quickName").focus();}
+    async function saveQuickProduct(){if(quickBusy||!quickItem)return;var it=quickItem,brand=chooseBrandRecord($("quickBrand").value),fact={verified:true,product_name:clean($("quickName").value),upc:clean($("quickUPC").value),brand:brand&&brand.name||"",brandId:brand&&brand.id||"",hs_code:clean($("quickHS").value),country_of_origin:clean($("quickCOO").value)};
+      if(!fact.product_name||!/^\d{8,14}$/.test(fact.upc)||!brand){msg("quickMessage","Enter a name, an 8–14 digit UPC, and select a CRM brand. Use + New brand if needed.");return;}
+      if(fact.hs_code&&!/^\d{6,10}$/.test(fact.hs_code.replace(/[.\s]/g,""))){msg("quickMessage","HS code must contain 6–10 digits.");return;}quickBusy=true;$("quickSave").disabled=true;$("quickCancel").disabled=true;
+      try{var check={identifier:fact.upc,requestedName:fact.product_name};await resolveProduct(check);if(check.product){it.product=check.product;it.match="matched";it.researchDone=true;it.writeState="done";it.requestedBrand=brand.name;it.selectedBrandId=brand.id;msg("matchMessage","Existing product found in CRM; use the brand edit button if its catalog brand needs correction.");}
+        else{if(check.match==="ambiguous")throw new Error("Several products already use this UPC. Choose the correct CRM record.");if(it.writeState==="unknown"||it.writeState==="inflight")throw new Error("A previous creation was not confirmed. Check Products in CRM before trying again.");it.writeState="inflight";saveDraft();try{it.product=await createProduct(fact);}catch(e){it.writeState=e.safeNoWrite?"none":"unknown";it.match=e.safeNoWrite?"missing":"uncertain";throw e;}if(!it.offerName)it.offerName=clean(it.requestedName);it.identifier=fact.upc;it.requestedName=fact.product_name;it.requestedBrand=brand.name;it.selectedBrandId=brand.id;it.match="matched";it.createdInCrm=true;it.writeState="done";it.researchDone=true;it.enrichmentDone=true;it.note="New product created";}
+        $("quickProductOverlay").hidden=true;quickItem=null;render();showResult();}
+      catch(e){msg("quickMessage",readableError(e));saveDraft();}finally{quickBusy=false;$("quickSave").disabled=false;$("quickCancel").disabled=false;}}
+    async function openLineBrand(index){if(lineBrandBusy||pipeline&&pipeline.running||lineRetryBusy)return;var it=items[index];if(!it)return;lineBrandItem=it;msg("editBrandMessage","");var fromRecord=it.product&&it.product.Brand&&it.product.Brand.id,byName=chooseBrandByName(brandHint(it,it.product));
+      $("editBrandDescription").textContent=it.product?"This changes the brand on the linked CRM Products record (Product ID "+it.product.id+") for all users. Confirm the correct brand before saving.":"This line has no linked product yet. Select the brand for product research and future creation.";
+      syncBrandPicker($("editBrandSelect"),it.selectedBrandId||fromRecord||byName&&byName.id||"");$("editBrandOverlay").hidden=false;
+      try{await loadManagerLists();if(lineBrandItem===it)syncBrandPicker($("editBrandSelect"),it.selectedBrandId||fromRecord||chooseBrandByName(brandHint(it,it.product))&&chooseBrandByName(brandHint(it,it.product)).id||"");}
+      catch(error){msg("editBrandMessage",readableError(error));}}
+    async function saveLineBrand(){if(lineBrandBusy||!lineBrandItem)return;var brand=chooseBrandRecord($("editBrandSelect").value),it=lineBrandItem;
+      if(!brand){msg("editBrandMessage","Select an existing CRM brand or use + New brand.");return;}lineBrandBusy=true;$("editBrandSave").disabled=true;$("editBrandCancel").disabled=true;
+      try{if(it.product&&it.product.id){await updateProduct({id:String(it.product.id),Brand:{id:brand.id},Brand_text:brand.name});var confirmed=await readProduct(it.product.id);if(!confirmed.Brand||String(confirmed.Brand.id)!==brand.id)throw new Error("CRM did not confirm the product brand update. Check Products before retrying.");items.forEach(function(row){if(row.product&&String(row.product.id)===String(confirmed.id)){row.product=confirmed;row.requestedBrand=brand.name;row.selectedBrandId=brand.id;}});}
+        else{it.requestedBrand=brand.name;it.selectedBrandId=brand.id;if(it.research)it.research.brand=brand.name;}
+        $("editBrandOverlay").hidden=true;lineBrandItem=null;render();msg("matchMessage","Brand saved: "+brand.name+(it.product?" (CRM Products record updated).":" (this order line)."));saveDraft();}
+      catch(error){msg("editBrandMessage",readableError(error));}finally{lineBrandBusy=false;$("editBrandSave").disabled=false;$("editBrandCancel").disabled=false;}}
+    function openLineProductName(index){
+      if(lineProductNameBusy||lineBrandBusy||lineRetryBusy||pipeline&&pipeline.running)return;
+      var it=items[index];if(!it||!it.product||!it.product.id){msg("matchMessage","Link this row to a CRM Product before editing its official name.");return;}
+      lineProductNameItem=it;
+      $("editProductNameInput").value=clean(it.product.Product_Name);
+      $("editProductNameDescription").textContent="Product ID "+it.product.id+" · UPC "+clean(it.product.UPC||it.identifier)+". Changing this name updates the CRM Products catalog for all users, not the supplier name in this SO.";
+      msg("editProductNameMessage","");$("editProductNameOverlay").hidden=false;$("editProductNameInput").focus();
+    }
+    async function saveLineProductName(){
+      if(lineProductNameBusy||!lineProductNameItem||!lineProductNameItem.product)return;
+      var item=lineProductNameItem,id=String(item.product.id),next=clean($("editProductNameInput").value),before=clean(item.product.Product_Name);
+      if(next.length<2||next.length>255){msg("editProductNameMessage","Enter an official product name (2–255 characters).");return;}
+      if(next===before){$("editProductNameOverlay").hidden=true;lineProductNameItem=null;return;}
+      lineProductNameBusy=true;$("editProductNameSave").disabled=true;$("editProductNameCancel").disabled=true;
+      try{
+        // Freeze the order-specific supplier names before the catalog name changes.
+        items.forEach(function(row){if(row.product&&String(row.product.id)===id&&!clean(row.offerName))row.offerName=offerNameFor(row);});
+        await updateProduct({id:id,Product_Name:next});
+        var confirmed=await readProduct(id);
+        if(clean(confirmed.Product_Name)!==next)throw new Error("CRM did not confirm this product name. Open Products and verify before retrying.");
+        items.forEach(function(row){if(row.product&&String(row.product.id)===id)row.product=confirmed;});
+        manualBrandCache.clear();manualCatalogProducts.forEach(function(p){if(String(p.id)===id)p.Product_Name=next;});
+        $("editProductNameOverlay").hidden=true;lineProductNameItem=null;render();saveDraft();
+        msg("matchMessage","Official CRM product name saved. UPC and supplier offer names have not changed.");
+      }catch(error){msg("editProductNameMessage",readableError(error));saveDraft();}
+      finally{lineProductNameBusy=false;$("editProductNameSave").disabled=false;$("editProductNameCancel").disabled=false;}
+    }
+    function copyLineProductName(index){
+      var it=items[index];
+      if(!it||!it.product||!it.product.id){msg("matchMessage","Select a CRM Product before copying its name.");return;}
+      var official=clean(it.product.Product_Name);
+      if(!official||official.length>255){msg("matchMessage","The official CRM Product Name cannot be copied (empty or over 255 characters).");return;}
+      // This only changes this order line's supplier offer title, never the Products catalog.
+      it.offerName=official;
+      var input=rows.querySelector('input[data-i="'+index+'"][data-k="offerName"]');
+      if(input)input.value=official;
+      summary();saveDraft();
+      msg("matchMessage","CRM Product Name copied to Offer Product Name on line "+(index+1)+". Save the Sales Order to keep this change.");
+    }
+    function copyLinePrice(index){
+      var item=items[index],el=rows.querySelector('input[data-i="'+index+'"][data-k="price"]');
+      if(!item||!el||clean(el.value)===""){msg("matchMessage","Enter a unit price on line "+(index+1)+" before copying.");return;}
+      var value=Number(el.value);
+      if(!Number.isFinite(value)||value<0){msg("matchMessage","Line "+(index+1)+" has an invalid unit price.");return;}
+      priceClipboard={value:Math.round((value+Number.EPSILON)*100)/100,line:index};
+      rows.querySelectorAll('button[data-paste-price]').forEach(function(btn){btn.disabled=false;btn.title="Paste $"+priceClipboard.value.toFixed(2)+" from line "+(index+1);});
+      msg("matchMessage","Copied $"+priceClipboard.value.toFixed(2)+" from line "+(index+1)+". Use the Paste icon on another line.");
+    }
+    function pasteLinePrice(index){
+      if(priceClipboard===null||!items[index])return;
+      var value=priceClipboard.value;items[index].price=value;
+      var el=rows.querySelector('input[data-i="'+index+'"][data-k="price"]');if(el)el.value=value.toFixed(2);
+      summary();saveDraft();msg("matchMessage","Pasted $"+value.toFixed(2)+" into line "+(index+1)+".");
+    }
+    async function retryLine(index){if(enrichingSelection||!pipeline||pipeline.running||lineRetryBusy)return;var it=items[index];if(!it||it.product)return;if(it.match==="ambiguous"){msg("matchMessage","Choose the correct existing product. A new product would be a duplicate.");return;}
+      lineRetryBusy=true;$("thinkingOverlay").hidden=false;$("thinkingText").textContent="Searching ONLY order line "+(index+1)+" of "+items.length+"…";$("extractBtn").disabled=true;$("addLineBtn").disabled=true;
+      try{if(it.writeState==="unknown"||it.writeState==="inflight"){await resolveProduct(it);if(!it.product){it.match="uncertain";it.note="Previous creation not confirmed. Check Products by UPC before creating again.";throw new Error(it.note);}}
+        else{it.researchDone=false;it.research=null;it.publicCandidates=[];it.match="missing";await connectAI();var single=new window.OrderPipeline(Object.assign({},pipeline.options,{storage:null,storageKey:"",enrichExisting:null,changed:function(value,text){$("thinkingText").textContent="Line "+(index+1)+": "+text;saveDraft();}}));await single.run([it]);}
+        msg("matchMessage","Only line "+(index+1)+" was searched. Other rows were not processed.");}
+      catch(error){it.note=readableError(error);msg("matchMessage","Line "+(index+1)+" (UPC "+clean(it.identifier)+"): "+readableError(error));}
+      finally{lineRetryBusy=false;$("thinkingOverlay").hidden=true;$("extractBtn").disabled=false;$("addLineBtn").disabled=false;render();saveDraft();}}
+    async function choosePublicCandidate(index,choice){
+      var it=items[index],fact=it&&it.publicCandidates&&it.publicCandidates[choice];
+      if(!fact||enrichingSelection||pipeline&&pipeline.running)return;
+      if(it.writeState==="unknown"||it.writeState==="inflight"){msg("matchMessage","Check the previous product creation in CRM before trying again.");return;}
+      enrichingSelection=true;$("extractBtn").disabled=true;$("addLineBtn").disabled=true;$("thinkingOverlay").hidden=false;$("thinkingText").textContent="Checking the selected product and its UPC…";summary();
+      try{
+        it.selectedPublicCandidate=fact;
+        if(!fact.verified){var selected=fact,checked=await researchProducts([{key:"selected",identifier:clean(fact.upc),product_name:clean(fact.brand)+" "+clean(fact.product_name)}]);fact=checked[0];if(fact&&fact.verified){var tokens=function(s){return (clean(s).toLowerCase().match(/[\\p{L}\\p{N}]+/gu)||[]).sort().join("|");};if(brandKey(fact.brand)!==brandKey(selected.brand)||tokens(fact.product_name)!==tokens(selected.product_name))throw new Error("The UPC result does not match the selected variant. Check the details using Create product manually.");}}
+        if(!fact||!fact.verified||!/^\d{8,14}$/.test(fact.upc||""))throw new Error("The selected variant's UPC is not confirmed yet. Add its UPC or use Create product to check the details manually.");
+        var originalName=it.requestedName;
+        var check={identifier:fact.upc,requestedName:fact.product_name};await resolveProduct(check);
+        if(check.match==="ambiguous"){it.identifier=fact.upc;it.requestedName=fact.product_name;it.candidates=check.candidates;it.match="ambiguous";it.publicCandidates=[];it.note="Choose the correct existing CRM product.";return;}
+        var product=check.product,created=false;
+        if(!product){it.writeState="inflight";saveDraft();try{product=await createProduct(fact);}catch(e){it.writeState="unknown";it.match="uncertain";throw e;}created=true;}
+        items.forEach(function(other){if(other===it||!other.product&&!other.identifier&&other.writeState!=="unknown"&&other.writeState!=="inflight"&&other.requestedName===originalName){other.product=product;other.identifier=fact.upc;other.requestedName=fact.product_name;other.match="matched";other.createdInCrm=created;other.writeState="done";other.researchDone=true;other.enrichmentDone=created;other.publicCandidates=[];other.research=fact;other.note=created?"New product created":"Found in CRM";}});
+      }catch(e){msg("sourceMessage",e.message||"Could not check the selected product.");it.note=e.message||"Could not check the selected product.";}
+      finally{enrichingSelection=false;$("thinkingOverlay").hidden=true;$("extractBtn").disabled=false;$("addLineBtn").disabled=false;render();showResult();saveDraft();}
+    }
+    function enrichSelected(item){if(!item.product||enrichingSelection)return;enrichingSelection=true;$("thinkingText").textContent="Checking product details…";$("thinkingOverlay").hidden=false;$("extractBtn").disabled=true;$("addLineBtn").disabled=true;summary();connectAI().then(function(){return enrichExisting([item],function(text){$("thinkingText").textContent=text;});}).catch(function(){item.note="Could not check missing product details. Try Extract and match again later.";}).finally(function(){enrichingSelection=false;$("thinkingOverlay").hidden=true;$("extractBtn").disabled=false;$("addLineBtn").disabled=false;render();});}
+    function initPipeline(){
+      if(pipeline)return Promise.resolve();
+      return Promise.all([ZOHO.CRM.CONFIG.getCurrentUser(),ZOHO.CRM.CONFIG.getOrgInfo()]).then(function(values){var user=(values[0].users||[])[0],org=(values[1].org||[])[0];if(!user||!user.id||!org||!org.id)throw new Error("Could not identify this CRM session.");
+        var storage;try{storage=window.localStorage;}catch(e){storage=null;}
+        pipeline=new window.OrderPipeline({storage:storage,storageKey:"ai-order-builder:v1.8:"+org.id+":"+user.id,match:resolveProduct,research:researchProducts,create:createProduct,enrichExisting:enrichExisting,autoEnrich:false,changed:function(value,text){items=value;$("thinkingText").textContent=text;}});
+        pipeline.load();pipeline.items=[];items=[];$("reviewPanel").hidden=true;$("resumeBtn").hidden=true;loadCurrentSORows();
+      });
+    }
+    function finishProcessing(error){render();$("thinkingOverlay").hidden=true;$("extractBtn").disabled=false;$("addLineBtn").disabled=false;showResult(error);saveDraft();}
+    function resumeProcessing(){if(!pipeline||pipeline.running)return;var authentication=connectAI();$("thinkingOverlay").hidden=false;$("extractBtn").disabled=true;$("addLineBtn").disabled=true;authentication.then(function(){return pipeline.run(items);}).then(function(){finishProcessing();}).catch(finishProcessing);}
+    // Barcode is display-only in this CRM: its Search API explicitly rejects criteria on that field.
+    function search(criteria){var value=clean(criteria.value),escaped=value.replace(/([\\(),])/g,"\\$1");return ZOHO.CRM.API.searchRecord({Entity:"Products",Type:"criteria",Query:"("+criteria.field+":equals:"+escaped+")"}).then(function(r){if(r&&r.code&&r.code!=="SUCCESS"&&r.code!=="NO_DATA")throw new Error("Could not search CRM Products. Check your CRM access and try again.");return productList(r).filter(function(p){return clean(p[criteria.field]).toLowerCase()===value.toLowerCase();});});}
+    function uniqueProducts(arr){var seen={};return arr.filter(function(p){var id=p.id||p.Product_Name&&p.Product_Name.id;if(!id||seen[id])return false;seen[id]=true;return true;});}
+    function resolveProduct(item){var ident=clean(item.identifier);var checks=[];if(ident){checks.push({field:"UPC",value:ident},{field:"SKU",value:ident});}if(item.requestedName)checks.push({field:"Product_Name",value:item.requestedName});var candidates=[];return checks.reduce(function(p,c){return p.then(function(){if(candidates.length)return;return search(c).then(function(found){candidates=uniqueProducts(found);});});},Promise.resolve()).then(function(){if(!candidates.length&&item.requestedName)return ZOHO.CRM.API.searchRecord({Entity:"Products",Type:"word",Query:item.requestedName}).then(function(r){candidates=uniqueProducts(productList(r).filter(function(p){return norm(p.Product_Name)===norm(item.requestedName);}));});}).then(function(){item.product=candidates.length===1?candidates[0]:null;item.match=candidates.length===1?"matched":candidates.length>1?"ambiguous":"missing";item.candidates=candidates;return item;});}
+    function render(){
+      if(!items.length){rows.innerHTML='<tr><td colspan="10" class="muted">No products yet. Search manually or import with AI.</td></tr>';summary();return;}
+      rows.innerHTML="";
+      items.forEach(function(it,i){
+        var tr=document.createElement("tr"),opts='<option value="">Choose a CRM product</option>'+(it.candidates||[]).map(function(p){return'<option value="'+esc(p.id)+'" '+(it.product&&String(it.product.id)===String(p.id)?"selected":"")+'>'+esc(p.Product_Name||"Unnamed product")+" · "+esc(p.UPC||p.id)+"</option>";}).join("");
+        var title=it.product&&it.product.Product_Name||it.requestedName||"Select a CRM product";
+        var searchControl=it.product?"":'<input data-i="'+i+'" data-k="productSearch" value="" placeholder="Search existing CRM products" aria-label="Search CRM products" style="margin-top:7px"><div class="row-actions"><button class="btn" data-retry="'+i+'">Search again</button>'+(it.match==="ambiguous"||it.match==="uncertain"?'':'<button class="btn" data-quick="'+i+'">Create product</button>')+'</div>';
+        var productTitle=it.product?recordLink("Products",it.product.id,title):esc(title),productTitleHtml='<div class="official-name-line"><span class="product-name">'+productTitle+'</span>'+(it.product&&it.product.id?'<span class="product-name-actions"><button class="product-name-edit-btn" type="button" data-edit-product-name="'+i+'" aria-label="Edit official CRM Product name on line '+(i+1)+'" title="Edit official CRM product name (updates Products)">&#9998;</button><button class="product-name-copy-btn" type="button" data-copy-product-name="'+i+'" aria-label="Copy CRM Product Name to Offer Product Name on line '+(i+1)+'" title="Copy CRM Product Name to Offer Product Name"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button></span>':'')+'</div>',brand=it.product&&it.product.Brand,selectedBrand=chooseBrandRecord(it.selectedBrandId),brandName=selectedBrand&&selectedBrand.name||productBrand(it.product)||clean(it.requestedBrand)||publicBrandName(it),brandLine=brand&&brand.id&&!selectedBrand?recordLink("Brands",brand.id,brandName||"Open brand"):selectedBrand?recordLink("Brands",selectedBrand.id,brandName):esc(brandName||"—");
+        var fact=it.research&&it.research.verified?it.research:{},hs=clean(it.product&&it.product.HS_Code)||clean(fact.hs_code),coo=clean(it.product&&it.product.Country_of_origin)||clean(fact.country_of_origin);
+        var status=it.product?(it.createdInCrm?"New":"Match"):it.match==="uncertain"?"Check":it.match==="ambiguous"||it.match==="web_choice"?"Choose":it.researchDone?"Not found":"Pending";
+        // Preserve v1.21 web-result variant chooser, including verified source links and create-manually fallback.
+        if(it.match==="web_choice"&&it.publicCandidates&&it.publicCandidates.length){searchControl='<div class="public-choices"><p class="hint">'+esc(it.note||"Choose the product line and size.")+'</p>'+it.publicCandidates.map(function(f,n){var url=f.official_url||f.evidence&&f.evidence.product_name&&f.evidence.product_name.url||"";var link=/^https:\/\//i.test(url)?'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Official/source page</a>':'';return '<div class="public-choice"><span>'+esc(f.product_name)+'<small>'+esc(f.brand||"")+(f.upc?' · UPC: '+esc(f.upc):' · UPC needs confirmation')+'</small>'+link+'</span><button class="btn" data-public-line="'+i+'" data-public-choice="'+n+'">Use this product</button></div>';}).join("")+'<div class="row-actions"><button class="btn" data-retry="'+i+'">Search again</button><button class="btn" data-quick="'+i+'">Create product manually</button></div></div>';}
+        var statusClass=it.product?(it.createdInCrm?"new":"match"):"pending";
+        var currentIssues=lineIssues(it,i);
+        var code=supplierCodeFor(it.supplierId),supplierTitle=managerSuppliers.find(function(s){return String(s.id)===String(it.supplierId);});
+        var supplierHint=supplierTitle?"Supplier: "+(supplierTitle.vendor||code):"Choose a supplier code";
+        tr.innerHTML='<td class="row-number">'+(i+1)+'</td><td><span class="row-status '+statusClass+'" title="'+esc(window.OrderPipeline.describeLine(it))+'">'+esc(status)+'</span><small class="row-issues">'+esc(currentIssues.join(" · "))+'</small></td><td class="brand-cell"><div class="brand-inline">'+brandLine+'<button class="brand-edit-btn" type="button" data-edit-brand="'+i+'" aria-label="Edit CRM brand on line '+(i+1)+'" title="Choose or correct CRM brand">✎</button></div></td><td class="upc-cell">'+esc(it.product&&it.product.UPC||it.identifier||"—")+'</td>'+
+          '<td><div class="product-cell">'+productTitleHtml+'<small>HS: '+esc(hs||"—")+' &nbsp; · COO: '+esc(coo||"—")+'</small>'+(it.candidates&&it.candidates.length>1&&!it.product?'<select data-i="'+i+'" data-k="product">'+opts+'</select>':'')+searchControl+'</div></td>'+
+          '<td><input class="offer-input" data-i="'+i+'" data-k="offerName" aria-label="Product name from supplier offer" maxlength="255" placeholder="Supplier title (or official name)" value="'+esc(offerNameFor(it))+'"></td>'+
+          '<td><div class="supplier-inline"><select data-i="'+i+'" data-k="supplierCode" aria-label="Supplier abbreviation" title="'+esc(supplierHint)+'">'+supplierOptions(it.supplierId)+'</select></div></td>'+
+          '<td><input data-i="'+i+'" data-k="quantity" aria-label="Quantity" type="number" inputmode="decimal" min="0.01" step="any" value="'+esc(it.quantity==null?"":it.quantity)+'"></td>'+
+          '<td><div class="price-editor"><input data-i="'+i+'" data-k="price" aria-label="Unit price" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(priceFor(it)==null?"":priceFor(it).toFixed(2))+'"><button type="button" class="price-icon-btn" data-copy-price="'+i+'" aria-label="Copy price from line '+(i+1)+'" title="Copy this price"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button><button type="button" class="price-icon-btn" data-paste-price="'+i+'" aria-label="Paste copied price into line '+(i+1)+'" title="Paste copied price" '+(priceClipboard===null?'disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="13" height="17" rx="2"></rect><rect x="9" y="2" width="7" height="5" rx="1"></rect><path d="M9 12h7M9 16h5"></path></svg></button></div></td>'+
+          '<td><button class="delete-line" data-remove="'+i+'" aria-label="Remove line" title="'+(it.purchaseOrderId?'Linked to PO; cannot remove':'Remove product from SO')+'" '+(it.purchaseOrderId?'disabled':'')+'>&times;</button></td>';
+        rows.appendChild(tr);
+      });
+      rows.querySelectorAll('input[data-k="quantity"],input[data-k="price"],input[data-k="offerName"]').forEach(function(el){el.addEventListener("input",function(){var item=items[Number(el.dataset.i)];if(!item)return;item[el.dataset.k]=(el.dataset.k==="offerName")?el.value:enteredNumber(el.value);summary();});});
+      rows.querySelectorAll('input[data-k="price"]').forEach(function(el){el.addEventListener("blur",function(){if(enteredNumber(el.value)!=null)el.value=enteredNumber(el.value).toFixed(2);});});
+      rows.querySelectorAll('select[data-k="supplierCode"]').forEach(function(el){el.addEventListener("change",function(){setLineSupplier(Number(el.dataset.i),el.value,el);});if(window.ProcurementSearchSelect)window.ProcurementSearchSelect.enhance(el,{label:"Supplier abbreviation",variant:"supplier"});});
+      rows.querySelectorAll('button[data-edit-brand]').forEach(function(el){el.addEventListener("click",function(){openLineBrand(Number(el.dataset.editBrand));});});
+      rows.querySelectorAll('button[data-edit-product-name]').forEach(function(el){el.addEventListener("click",function(){openLineProductName(Number(el.dataset.editProductName));});});
+      rows.querySelectorAll('button[data-copy-product-name]').forEach(function(el){el.addEventListener("click",function(){copyLineProductName(Number(el.dataset.copyProductName));});});
+      rows.querySelectorAll('button[data-copy-price]').forEach(function(el){el.addEventListener("click",function(){copyLinePrice(Number(el.dataset.copyPrice));});});
+      rows.querySelectorAll('button[data-paste-price]').forEach(function(el){el.addEventListener("click",function(){pasteLinePrice(Number(el.dataset.pastePrice));});});
+      rows.querySelectorAll('button[data-quick]').forEach(function(el){el.addEventListener("click",function(){openQuickProduct(Number(el.dataset.quick));});});
+      rows.querySelectorAll('button[data-public-line]').forEach(function(el){el.addEventListener("click",function(){choosePublicCandidate(Number(el.dataset.publicLine),Number(el.dataset.publicChoice));});});
+      rows.querySelectorAll('button[data-retry]').forEach(function(el){el.addEventListener("click",function(){retryLine(Number(el.dataset.retry));});});
+      rows.querySelectorAll('input[data-k="productSearch"]').forEach(function(el){var timer;el.addEventListener("input",function(){clearTimeout(timer);var it=items[Number(el.dataset.i)],q=clean(el.value);if(q.length<2)return;timer=setTimeout(function(){msg("matchMessage","Searching CRM products…");Promise.all([search({field:"UPC",value:q}),search({field:"SKU",value:q})]).then(function(groups){var found=uniqueProducts([].concat.apply([],groups));if(found.length)return found;return ZOHO.CRM.API.searchRecord({Entity:"Products",Type:"word",Query:q}).then(productList);}).then(function(found){if(!items.includes(it))return;it.candidates=uniqueProducts(found);it.product=it.candidates.length===1?it.candidates[0]:null;it.match=it.candidates.length===1?"matched":it.candidates.length?"ambiguous":"missing";msg("matchMessage",it.candidates.length>1?"Choose the correct product from the matches.":it.product?"Product selected.":"No products found. Try another name or UPC.");render();if(it.product){it.enrichmentDone=false;enrichSelected(it);}}).catch(function(){msg("matchMessage","Could not search Products in CRM. Please try again.");});},400);});});
+      rows.querySelectorAll('select[data-k="product"]').forEach(function(el){el.addEventListener("change",function(){var it=items[Number(el.dataset.i)];it.product=(it.candidates||[]).find(function(p){return String(p.id)===el.value;})||null;it.enrichmentDone=false;it.match=it.product?"matched":"ambiguous";render();enrichSelected(it);});if(window.ProcurementSearchSelect)window.ProcurementSearchSelect.enhance(el,{label:"CRM Product"});});
+      rows.querySelectorAll('button[data-remove]').forEach(function(el){el.addEventListener("click",function(){
+        var index=Number(el.dataset.remove),line=items[index];if(!line)return;
+        if(line.purchaseOrderId){msg("matchMessage","This item is linked to a Purchase Order and cannot be removed here.");return;}
+        items.splice(index,1);render();msg("matchMessage",savedSOId?"Item removed from this SO draft. Click Save SO Products to update CRM.":"Item removed from the widget draft. Click Fill Sales Order to apply changes to the open SO form.");
+      });});if(savedSOReadOnly)savedSOAccessUI(true);summary();
+    }
+    function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+    function recordLink(entity,id,label){var uiModule=entity==="Brands"?"CustomModule17":"Products";return '<a href="https://crm.zoho.com/crm/minmaxdeals/tab/'+uiModule+'/'+encodeURIComponent(String(id))+'" target="_blank" rel="noopener noreferrer" style="color:#1769e0;text-decoration:underline">'+esc(label)+'</a>';}
+    function summary(){
+      var progress=window.OrderPipeline.report(items),invalid=0,complete=0,total=0,totalQty=0;
+      for(var i=0;i<items.length;i++){
+        var it=items[i],issues=lineIssues(it,i),qty=enteredNumber(it.quantity),price=priceFor(it);
+        if(issues.length)invalid++;else complete++;
+        if(qty!=null&&qty>0){totalQty+=qty;if(price!=null&&price>0)total+=qty*price;}
+        var inputQty=rows.querySelector('input[data-k="quantity"][data-i="'+i+'"]');
+        var inputPrice=rows.querySelector('input[data-k="price"][data-i="'+i+'"]');
+        var inputOffer=rows.querySelector('input[data-k="offerName"][data-i="'+i+'"]');
+        var tr=inputQty?inputQty.closest("tr"):null;
+        if(tr){tr.classList.toggle("line-validation-error",issues.length>0);tr.title=issues.join("; ");
+          var note=tr.querySelector(".row-issues");if(note)note.textContent=issues.join(" · ");
+          var prod=tr.querySelector(".official-name-line");if(prod)prod.classList.toggle("product-missing",!it.product||!it.product.id||!clean(it.product.Product_Name));
+        }
+        if(inputQty){var badQty=qty==null||qty<=0;inputQty.classList.toggle("line-invalid",badQty);inputQty.setAttribute("aria-invalid",String(badQty));}
+        if(inputPrice){var badPrice=price==null||price<=0;inputPrice.classList.toggle("line-invalid",badPrice);inputPrice.setAttribute("aria-invalid",String(badPrice));}
+        if(inputOffer){var badOffer=!clean(offerNameFor(it));inputOffer.classList.toggle("line-invalid",badOffer);inputOffer.setAttribute("aria-invalid",String(badOffer));}
+      }
+      var ready=items.length>0&&invalid===0;
+      $("processedSummary").textContent="Complete: "+complete+" of "+items.length+" · Matched lines: "+progress.found+" · New products: "+progress.created+" · Requires correction: "+invalid;
+      $("totalQuantity").textContent="Total Quantity: "+totalQty.toLocaleString("en-US",{maximumFractionDigits:4});
+      $("orderTotal").textContent="Request total: $"+total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+      $("matchSummary").textContent=ready?"All lines validated.":invalid+" line(s) need correction. Red fields must be filled; duplicated lines require review.";
+      $("matchSummary").classList.toggle("validation-hint",invalid>0);
+      $("createBtn").disabled=!(crmReady&&ready)||enrichingSelection||!!(savedSOId&&(savedSOReadOnly||!savedSOReady||savedSOSaving));
+      saveDraft();
+    }
+    function showResult(error){
+      $("reviewPanel").hidden=false;$("processBox").hidden=false;
+      var report=window.OrderPipeline.report(items),text=readableError(error),title;
+      if(error){lastProcessingError={message:text,stage:error.stage||"processing",line:error.orderLine||null,sourceRow:error.sourceRow||null,upc:error.upc||""};}
+      if(error&&error.orderLine)text+=" (order line "+error.orderLine+(error.sourceRow?", Excel row "+error.sourceRow:"")+(error.upc?", UPC "+error.upc:"")+")";
+      if(error){
+        if(/temporarily unavailable|timed out|AI provider request failed|Failed to fetch|NetworkError/i.test(text))text="The product search service is temporarily unavailable.";
+        else if(/quota|limit reached/i.test(text))text="The product search limit has been reached.";
+        else if(/connection is unavailable|lookup is not connected/i.test(text))text="Product search is not connected. Contact your administrator.";
+        title="Processing stopped. "+text;
+      }else title=report.pending?"Processing paused.":report.ready===report.lines&&report.lines?"Products are ready to fill the order.":"Some products need your attention.";
+      var counts="Order lines: "+report.lines+" · Ready: "+report.ready+" · Found in CRM: "+report.found+" · New products created: "+report.created+" · Not processed: "+report.pending;
+      if(report.choose)counts+=" · Choose a product: "+report.choose;
+      if(report.notFound)counts+=" · Not found: "+report.notFound;
+      if(report.uncertain)counts+=" · Creation not confirmed: "+report.uncertain;
+      var retry=report.pending>0||!!(error&&items.some(function(it){return it.product&&!it.enrichmentDone;}));
+      $("resumeBtn").hidden=!retry;
+      var remaining=pipeline?Math.max(0,Math.ceil((pipeline.nextAttemptAt-Date.now())/1000)):0;
+      if(retry)title+=" "+(remaining?"Try Continue processing after "+new Date(pipeline.nextAttemptAt).toLocaleTimeString()+".":"Click Continue processing to retry the unfinished work.");
+      if(report.uncertain)title+=" Check the marked products in CRM before creating them again.";
+      msg("processingTitle",title);msg("processingCounts",counts);msg("matchMessage","");
+      $("reviewPanel").scrollIntoView({behavior:"smooth",block:"start"});
+    }
+    function extract(){
+      if($( "extractBtn" ).disabled)return;
+      if(!crmReady){showResult("Open this tool from its Zoho CRM button.");return;}
+      $("extractBtn").disabled=true;$("addLineBtn").disabled=true;
+      $("thinkingText").textContent="Reading the spreadsheet cells and checking the UPCs…";
+      $("thinkingOverlay").hidden=false;msg("sourceMessage","");
+      importAudits=[];lastProcessingError=null;
+      var files=Array.from(fileInput.files||[]);
+      if(!clean($( "sourceText" ).value)&&!files.length){finishProcessing(new Error("Paste order text or choose a file first."));return;}
+      var authentication=AI_SERVICE_URL?connectAI():Promise.resolve("");
+      new Promise(function(resolve){requestAnimationFrame(function(){setTimeout(resolve,0);});}).then(function(){
+        var typedText=clean($( "sourceText" ).value),imageFiles=files.filter(function(f){return f.type.startsWith("image/");});
+        if(imageFiles.length>4)throw new Error("Upload no more than four images at a time.");
+        return Promise.all([
+          Promise.all(files.filter(function(f){return !f.type.startsWith("image/");}).map(function(f){return readFile(f,!!AI_SERVICE_URL);})),
+          Promise.all(imageFiles.map(readImage)),authentication
+        ]).then(function(parts){
+          var filesRead=parts[0],images=parts[1],token=parts[2],direct=[],unstructured=[];
+          filesRead.forEach(function(result){
+            if(result.structured){direct=direct.concat(result.items);if(result.audit)importAudits.push(result.audit);}
+            else if(result.text)unstructured.push(result.text);
+          });
+          if(importAudits.length){
+            var scanned=importAudits.reduce(function(a,b){return{lines:a.lines+b.imported,qty:a.qty+b.quantity,amount:a.amount+b.amount,converted:a.converted+b.scientificConverted,problems:a.problems+b.problemRows};},{lines:0,qty:0,amount:0,converted:0,problems:0});
+            var formattedAmount=scanned.amount.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+            var summaryText="Spreadsheet read directly: "+scanned.lines+" source product rows retained · "+scanned.qty.toLocaleString("en-US")+" units · $"+formattedAmount+". Scientific UPCs expanded: "+scanned.converted+".";
+            if(scanned.problems)summaryText+=" "+scanned.problems+" row(s) have missing or invalid values, highlighted red.";
+            msg("sourceMessage",summaryText);
+            $("thinkingText").textContent=summaryText+" Checking CRM matches…";
+            if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("spreadsheet_parsed",{count:scanned.lines,status:"direct",stage:"excel_columns"});
+          }
+          if(filesRead.some(function(r){return r.structured&&!r.items.length;})&&!direct.length&&!typedText&&!unstructured.length&&!images.length)throw new Error("The spreadsheet has recognized order columns but no product rows with a positive Order quantity.");
+          var input=[typedText].concat(unstructured).filter(Boolean).join("\n\n");
+          if(input.length>120000)throw new Error("This request is too large. Upload fewer rows at a time.");
+          if(AI_SERVICE_URL&&(input||images.length)){
+            $("thinkingText").textContent="AI is reading unstructured text and images; spreadsheet UPCs are already preserved…";
+            return aiExtract(input,images,token).then(function(fromAI){return direct.concat(fromAI);});
+          }
+          if(!AI_SERVICE_URL&&input)return direct.concat(parseLines(input));
+          if(!direct.length)throw new Error("No product rows found. Check the file or paste the request text.");
+          return direct;
+        }).then(function(parsed){
+          if(parsed.length>100)throw new Error("Upload no more than 100 product lines at a time.");
+          return initPipeline().then(function(){
+            var incoming=parsed.map(function(it){it.sourceType="import";if(!it.offerName)it.offerName=clean(it.requestedName);return it;});
+            // Import MORE products without removing the ones already entered in this SO.
+            var existing=items.slice(),seen={};
+            existing.forEach(function(it){if(it.product&&it.product.id)seen["p:"+it.product.id]=true;if(it.identifier)seen["u:"+clean(it.identifier)]=true;});
+            var added=0,duplicates=0;
+            incoming.forEach(function(it){
+              var key=it.identifier?"u:"+clean(it.identifier):"n:"+norm(it.requestedName);
+              if(seen[key])duplicates++; // Keep the row visible; do not silently discard supplier lines.
+              if(existing.length>=100)throw new Error("Maximum 100 SO product lines. Remove some products before importing more.");
+              seen[key]=true;existing.push(it);added++;
+            });
+            items=existing;
+            msg("sourceMessage",(clean($( "sourceMessage" ).textContent)||"File read.")+" Added "+added+" of "+incoming.length+" extracted row(s)."+(duplicates?" "+duplicates+" duplicate(s) kept for review — remove/merge before Fill Sales Order.":""));
+            pipeline.nextAttemptAt=0;return pipeline.run(items);
+          });
+        });
+      }).then(function(){finishProcessing();}).catch(function(error){finishProcessing(error);});
+    }
+    async function loadSavedSO(){
+      if(!savedSOId)return;
+      savedSOReady=false;
+      msg("sourceMessage","Loading saved Sales Order from CRM...");
+      // v1.37: getRecord() in this CRM session omits inventory subform lines.
+      // Use independently verified COQL fallback through SavedOrderSync.
+      var order=await window.SavedOrderSync.getRecordWithProducts(ZOHO,savedSOId);
+      if(!Array.isArray(order.Ordered_Items))throw new Error("CRM did not return the Saved SO products after verification.");
+      var editable=true; // v1.44: saved SO product editing is independent of Order Status.
+      savedSORecord=order;
+      bridgeRows=order.Ordered_Items.map(function(r,index){
+        return {id:r.id,__ai_record_id:r.id,__ai_source_index:index,
+          Product_Name:r.Product_Name,Quantity:r.Quantity,List_Price:r.List_Price,
+          UPC:r.UPC,Brand:r.Brand,Offer_Product_Name:r.Offer_Product_Name,
+          Supplier:r.Supplier,Purchase_Order:r.Purchase_Order};
+      });
+      // Hydrate in EVERY status. Previously non-Requested orders returned early,
+      // leaving the permanent Loading Sales Order banner and an empty table.
+      savedSOAccessUI(!editable);
+      bridgeHydrated=false;
+      loadCurrentSORows();
+      savedSOReady=true;
+      loadedSavedSOId=savedSOId;
+      $("createBtn").textContent=editable?"Save SO Products":"View only";
+      $("createBtn").disabled=!editable;
+      var contextual=document.querySelector(".manager-context");
+      if(contextual)contextual.textContent="Saved Sales Order · "+clean(order.Subject||savedSOId)+" · "+clean(order.Status)+(editable?" · edits save directly to CRM":" · view only");
+      var hint=document.querySelector(".manager-footer .hint");
+      if(editable){
+        if(hint)hint.textContent="Add or remove items, edit quantities, prices, supplier and offer name. Save SO Products updates this Sales Order without changing its status. Linked POs are not updated automatically.";
+        msg("sourceMessage","Editing saved SO: "+clean(order.Subject||savedSOId)+". "+bridgeRows.length+" existing line(s) loaded.");
+        savedSOShowStatus("ok","Sales Order ready",bridgeRows.length+" existing product"+(bridgeRows.length===1?"":"s")+" loaded. You can edit them below.",false);
+      }else{
+        var reason="This Sales Order is "+clean(order.Status)+". Product changes are allowed only in Requested status.";
+        if(hint)hint.textContent=reason+" Existing SO products are displayed below without editing controls.";
+        msg("sourceMessage",reason);
+        msg("matchMessage",reason);
+        savedSOShowStatus("readonly","Sales Order: "+clean(order.Status),bridgeRows.length+" existing product"+(bridgeRows.length===1?"":"s")+" loaded · view only. Changes are allowed only in Requested status.",false);
+      }
+      if(bridgeRows.length){
+        // The large AI Import form is above the table. Show the actual SO lines immediately.
+        requestAnimationFrame(function(){
+          if($('reviewPanel')&&!$('reviewPanel').hidden){$('reviewPanel').scrollIntoView({behavior:'instant',block:'start'});}
+        });
+      }
+
+      summary();
+    }
+    // The supported popup action closes the widget and refreshes the detail page.
+    // Never call it until SavedOrderSync.apply() has read back and verified the SO.
+    async function closeAndRefreshSavedSO(){
+      var popup=window.ZOHO&&ZOHO.CRM&&ZOHO.CRM.UI&&ZOHO.CRM.UI.Popup;
+      if(!popup||typeof popup.closeReload!=="function")return false;
+      try{
+        return (await popup.closeReload())!==false;
+      }catch(error){
+        console.warn("AI Order Builder: Sales Order saved but automatic page refresh failed",error);
+        return false;
+      }
+    }
+    async function saveSavedSO(draft){
+      if(savedSOReadOnly){msg("matchMessage","This Sales Order is view only. Product changes are allowed only in Requested status.");return;}
+      if(savedSOSaving)return;
+      savedSOSaving=true;
+      $("createBtn").disabled=true;
+      msg("matchMessage","Saving changes…");
+      try {
+        if(!savedSOReady||!savedSORecord)throw new Error("Saved Sales Order is not ready; reload the widget.");
+        var result=await window.SavedOrderSync.apply(ZOHO,savedSOId,savedSORecord.Modified_Time,draft.Ordered_Items);
+        savedSORecord=result.record;
+        bridgeRows=result.record.Ordered_Items.map(function(r,index){return {
+          id:r.id,__ai_record_id:r.id,__ai_source_index:index,Product_Name:r.Product_Name,
+          Quantity:r.Quantity,List_Price:r.List_Price,UPC:r.UPC,Brand:r.Brand,
+          Offer_Product_Name:r.Offer_Product_Name,Supplier:r.Supplier,Purchase_Order:r.Purchase_Order
+        };});
+        bridgeHydrated=false;
+        loadCurrentSORows();
+        // A successful save does not imply a refreshed view. Ask CRM to reload
+        // the underlying Sales Order only after the verification above passed.
+        msg("matchMessage","Changes saved. Refreshing Sales Order…");
+        if(!(await closeAndRefreshSavedSO())){
+          msg("matchMessage","Changes saved. Please close this window and refresh the Sales Order to see the updated products.");
+        }
+      } catch(err) {
+        msg("matchMessage","Could not confirm the changes. Check the Sales Order before trying again: "+friendlySavedSOError(err));
+      } finally {savedSOSaving=false;summary();}
+    }
+    function createOrder(){if(savedSOId&&savedSOReadOnly){msg("matchMessage","This Sales Order is view only. Product changes are allowed only in Requested status.");return;}if($("createBtn").disabled)return;var invalid=items.filter(function(it,i){return lineIssues(it,i).length>0;});if(invalid.length){msg("matchMessage",invalid.length+" line(s) are incomplete. Complete all red fields before saving.");summary();return;}if(!savedSOId && (!nativeFormBridge||!window.$Client||typeof window.$Client.close!=="function")){msg("matchMessage","The AI button must be connected to the native form handoff. No empty Sales Order form was opened. Contact your CRM administrator.");return;}if(items.some(function(it){return it.supplierId&&!supplierCodeFor(it.supplierId)&&!clean(it.supplierFallbackName);})){msg("matchMessage","Cannot transfer supplier: a selected Supplier Code was not resolved in CRM. Reload supplier codes and try again.");return;}var data={ai_order_builder:"1.9",ai_order_builder_mode:bridgeMode||"append",Status:(savedSOId&&savedSORecord?clean(savedSORecord.Status):"Requested"),Ordered_Items:items.map(function(it){var product=it.product, row={Product_Name:{id:String(product.id),name:clean(product.Product_Name)},Quantity:num(it.quantity),List_Price:priceFor(it)};var upc=clean(product.UPC||it.identifier),brand=productBrand(product)||clean(it.requestedBrand),offer=offerNameFor(it).slice(0,255);if(upc)row.UPC=upc;if(brand)row.Brand=brand;if(offer)row.Offer_Product_Name=offer;if(it.supplierId)row.Supplier={id:String(it.supplierId),name:supplierCodeFor(it.supplierId)||clean(it.supplierFallbackName)};if(product.HS_Code)row.HS_Code=clean(product.HS_Code);if(product.Country_of_origin)row.Country_of_origin=clean(product.Country_of_origin);if(Number.isInteger(it.bridgeIndex)&&it.bridgeIndex>=0)row.__ai_source_index=it.bridgeIndex;if(it.bridgeRecordId)row.__ai_record_id=it.bridgeRecordId;return row;})};if(data.Ordered_Items.some(function(row){return !row.Product_Name.name;})){msg("matchMessage","A product name is missing. Match the product again before continuing.");return;}if(data.Ordered_Items.some(function(row){return !clean(row.Offer_Product_Name);})){msg("matchMessage","Fill halted: every SO line needs a name from the supplier offer.");return;}try{if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("fill_payload",{stage:"widget_to_client_script",count:data.Ordered_Items.length,message:"v1.30 sync payload includes the original source indexes, Offer_Product_Name and Supplier Code lookups."});}catch(ignore){}$("createBtn").disabled=true;if(savedSOId){saveSavedSO(data);return;}saveDraft();Promise.resolve(window.$Client.close(data)).catch(function(e){msg("matchMessage",e.message||"Could not transfer the products to Zoho.");summary();});}
+    function fillLookup(inputId,selectId,module,labelField,emptyLabel){var timer=null;$(inputId).addEventListener("input",function(){clearTimeout(timer);var query=clean($(inputId).value);if(query.length<2)return;timer=setTimeout(function(){ZOHO.CRM.API.searchRecord({Entity:module,Type:"word",Query:query}).then(function(r){var found=productList(r);var select=$(selectId);select.innerHTML='<option value="">'+emptyLabel+'</option>';found.forEach(function(rec){var label=clean(rec[labelField])||clean(rec.Full_Name)||clean(rec.Name);if(!rec.id||!label)return;var option=document.createElement("option");option.value=rec.id;option.textContent=label;select.appendChild(option);});if(!found.length)msg("matchMessage","No CRM "+module+" results for that search.");}).catch(function(){msg("matchMessage","Could not search CRM "+module+". Check your CRM access and try again.");});},300);});$(selectId).addEventListener("change",summary);}
+    // v1.24 catalog: browse by brand, sort by actual confirmed Sales Order quantity, select multiple.
+    function safeCriteria(value){return clean(value).replace(/([\(),:])/g,"\\$1");}
+    function crmResults(response){return productList(response).filter(function(v){return v&&v.id;});}
+    function fieldSearch(field,op,value){return ZOHO.CRM.API.searchRecord({Entity:"Products",Type:"criteria",Query:"("+field+":"+op+":"+safeCriteria(value)+")"}).then(crmResults);}
+    function sqlValue(value){return clean(value).replace(/\\/g,"\\\\").replace(/'/g,"\\'");}
+    // v1.42: The embedded widget COQL SDK may enforce 200 records per call
+    // even when REST API v8 supports 2,000. Page safely without truncating a brand.
+    async function coqlPaged(query,maxPages){
+      if(!ZOHO.CRM.API.coql)throw new Error("The CRM COQL API is not available in this widget session.");
+      var pageSize=200,all=[],pages=Math.max(1,Math.min(Number(maxPages)||500,500));
+      for(var page=0;page<pages;page++){
+        var result=await ZOHO.CRM.API.coql({select_query:query+" limit "+(page*pageSize)+", "+pageSize});
+        var body=result&&result.data&&!Array.isArray(result.data)?result.data:result;
+        if(body&&body.code==="NO_DATA")return all;
+        if(body&&body.code&&body.code!=="SUCCESS"){
+          throw new Error(body.message||body.code||"CRM COQL query failed");
+        }
+        var list=body&&Array.isArray(body.data)?body.data:[];
+        var info=body&&body.info||{};
+        all=all.concat(list);
+        if(!list.length||info.more_records===false||(info.more_records==null&&list.length<pageSize))return all;
+      }
+      throw new Error("This brand exceeds the maximum complete CRM query range ("+(pages*pageSize).toLocaleString("en-US")+" records). No results were silently omitted.");
+    }
+    function catalogProductInOrder(p){return items.some(function(it){return it.product&&String(it.product.id)===String(p.id);});}
+    function catalogRankSort(a,b){return (Number(b.confirmedQty)||0)-(Number(a.confirmedQty)||0)||clean(a.Product_Name).localeCompare(clean(b.Product_Name));}
+    function catalogSetProducts(products,ranked){
+      manualCatalogProducts=uniqueProducts(products||[]).sort(ranked?catalogRankSort:function(a,b){return clean(a.Product_Name).localeCompare(clean(b.Product_Name));});
+      manualCatalogIsRanked=!!ranked;manualCatalogPage=0;manualCatalogSelected.clear();renderCatalogResults();
+    }
+    function catalogFiltered(){
+      var typed=norm($("manualQuery").value);
+      if(!typed||!$("manualBrand").value)return manualCatalogProducts;
+      return manualCatalogProducts.filter(function(p){return norm(p.UPC).includes(typed)||norm(p.Product_Name).includes(typed);});
+    }
+    function renderCatalogResults(){
+      var el=$("manualResults"),filtered=catalogFiltered(),total=filtered.length,pages=Math.max(1,Math.ceil(total/MANUAL_CATALOG_PAGE_SIZE));
+      manualCatalogPage=Math.min(manualCatalogPage,pages-1);
+      var start=manualCatalogPage*MANUAL_CATALOG_PAGE_SIZE,shown=filtered.slice(start,start+MANUAL_CATALOG_PAGE_SIZE);
+      el.innerHTML="";
+      if(!shown.length){el.innerHTML='<tr><td colspan="6" class="catalog-empty">No products found. Try another UPC, name or brand.</td></tr>';}
+      shown.forEach(function(p){
+        var tr=document.createElement("tr"),inOrder=catalogProductInOrder(p),checked=manualCatalogSelected.has(String(p.id));
+        tr.className="catalog-result";
+        tr.innerHTML='<td><input class="catalog-check" type="checkbox" data-catalog-id="'+esc(p.id)+'" aria-label="Select '+esc(p.Product_Name)+'" '+(checked?"checked ":"")+(inOrder?"disabled":"")+'></td>'+
+          '<td class="catalog-upc">'+esc(p.UPC||"—")+'</td><td class="catalog-brand">'+esc(productBrand(p)||"—")+'</td>'+
+          '<td class="catalog-name" title="'+esc(p.Product_Name||"Unnamed product")+'">'+esc(p.Product_Name||"Unnamed product")+'</td>'+
+          '<td class="catalog-sales">'+(manualCatalogIsRanked?Number(p.confirmedQty||0).toLocaleString("en-US"):'<span class="muted" title="Select a brand to load sales statistics">—</span>')+'</td>'+
+          '<td class="catalog-actions"><button class="btn '+(inOrder?"added":"primary")+'" data-catalog-add="'+esc(p.id)+'" type="button" '+(inOrder?"disabled":"")+'>'+(inOrder?"Added":"+ Add")+'</button></td>';
+        el.appendChild(tr);
+      });
+      var selectedOnPage=shown.filter(function(p){return manualCatalogSelected.has(String(p.id));});
+      $("catalogSelectAll").disabled=!shown.some(function(p){return !catalogProductInOrder(p);});
+      $("catalogSelectAll").checked=shown.length>0&&shown.filter(function(p){return !catalogProductInOrder(p);}).every(function(p){return manualCatalogSelected.has(String(p.id));});
+      $("catalogSelectAll").indeterminate=selectedOnPage.length>0&&!$("catalogSelectAll").checked;
+      var availableSelected=manualCatalogProducts.filter(function(p){return manualCatalogSelected.has(String(p.id))&&!catalogProductInOrder(p);});
+      $("catalogAddSelected").disabled=!availableSelected.length;
+      $("catalogAddSelected").textContent="Add selected ("+availableSelected.length+")";
+      $("catalogCount").textContent=total.toLocaleString("en-US")+" product(s)"+(manualCatalogIsRanked?" · highest ordered qty first":"");
+      $("catalogPageInfo").textContent=total?"Showing "+(start+1)+"–"+Math.min(start+MANUAL_CATALOG_PAGE_SIZE,total)+" of "+total:"No results";
+      $("catalogPrevPage").disabled=manualCatalogPage<=0;
+      $("catalogNextPage").disabled=manualCatalogPage>=pages-1;
+      $("catalogRankingNote").textContent=manualCatalogIsRanked?"Sorted by units in confirmed CRM Sales Orders (Ordered / Shipped / Delivered). Requested and Cancelled are excluded.":$("manualBrand").value?"All products for this brand, alphabetically. Sales ranking may be unavailable.":"Select a brand to browse its products and available sales statistics.";
+      el.querySelectorAll('input[data-catalog-id]').forEach(function(input){input.addEventListener("change",function(){if(input.checked)manualCatalogSelected.add(input.dataset.catalogId);else manualCatalogSelected.delete(input.dataset.catalogId);renderCatalogResults();});});
+      el.querySelectorAll('button[data-catalog-add]').forEach(function(button){button.addEventListener("click",function(){var p=manualCatalogProducts.find(function(p){return String(p.id)===button.dataset.catalogAdd;});if(p)addManualProduct(p);});});
+    }
+    // v1.42: Always load the PRODUCTS first. Ranking is optional and can never
+    // hide or erase a successfully retrieved brand catalog.
+    async function loadBrandCatalog(brandId){
+      var record=managerBrandRecords.find(function(b){return String(b.id)===String(brandId);});
+      if(!record){msg("manualMessage","Choose a valid brand from CRM.");return;}
+      var cached=manualBrandCache.get(String(brandId));
+      if(cached){catalogSetProducts(cached.products,cached.ranked);msg("manualMessage",cached.products.length+" product(s) found for "+record.name+".");return;}
+      manualCatalogLoading=true;manualSearching=true;var token=++manualCatalogToken;
+      $("manualSearchBtn").disabled=true;
+      catalogSetProducts([],false);
+      $("manualResults").innerHTML='<tr><td colspan="6" class="catalog-empty">Loading CRM products for '+esc(record.name)+'...</td></tr>';
+      $("catalogCount").textContent="Loading products...";
+      msg("manualMessage","Loading all "+record.name+" products from CRM...");
+      try{
+        var name=sqlValue(record.name),id=sqlValue(record.id);
+        var condition="((Brand = '"+id+"') or (Brand_text = '"+name+"'))";
+        var productsQuery="select id, Product_Name, UPC, Brand, Brand_text, Unit_Price from Products where "+condition;
+        // A 200-record page is compatible with older embedded SDK versions.
+        // 500 pages cover the standard 100,000-row COQL pagination range.
+        var products=uniqueProducts(await coqlPaged(productsQuery,500));
+        if(token!==manualCatalogToken)return;
+        manualBrandCache.set(String(brandId),{products:products,ranked:false});
+        catalogSetProducts(products,false);
+        if(!products.length){msg("manualMessage","No Products in CRM are linked to "+record.name+". Check product Brand/Brand text.");return;}
+        msg("manualMessage",products.length+" product(s) for "+record.name+" loaded. Checking confirmed Sales Order quantities...");
+        // Sales ranking must be independent of product discovery: large aggregate
+        // queries or restricted subform access should not produce an empty list.
+        try{
+          var rankCondition="((Product_Name.Brand = '"+id+"') or (Product_Name.Brand_text = '"+name+"'))";
+          var rankingQuery="select Product_Name, SUM(Quantity) from Ordered_Items where (Parent_Id.Status in ('Ordered','Shipped','Delivered')) and "+rankCondition+" group by Product_Name";
+          var stats=await coqlPaged(rankingQuery,500);
+          if(token!==manualCatalogToken)return;
+          var byId=new Map();stats.forEach(function(row){if(row.Product_Name&&row.Product_Name.id)byId.set(String(row.Product_Name.id),num(row["SUM(Quantity)"]));});
+          products.forEach(function(p){p.confirmedQty=byId.get(String(p.id))||0;});
+          manualCatalogProducts.sort(catalogRankSort);
+          manualCatalogIsRanked=true;
+          manualBrandCache.set(String(brandId),{products:products,ranked:true});
+          // Do not reset product selections or page if the user is already working.
+          renderCatalogResults();
+          msg("manualMessage",products.length+" product(s) for "+record.name+", ranked by confirmed SO quantity.");
+        }catch(rankError){
+          if(token!==manualCatalogToken)return;
+          msg("manualMessage",products.length+" product(s) for "+record.name+" loaded. Sales ranking unavailable; all products are shown alphabetically.");
+          try{if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("catalog_rank_unavailable",{stage:"brand_catalog",error_code:String(rankError.code||rankError.message||"ranking_error").slice(0,100)});}catch(ignore){}
+        }
+      }catch(e){
+        if(token===manualCatalogToken){catalogSetProducts([],false);msg("manualMessage","Could not load the complete "+record.name+" product list: "+(e.message||String(e))+". Try again.");}
+      }finally{
+        if(token===manualCatalogToken){manualCatalogLoading=false;manualSearching=false;$("manualSearchBtn").disabled=false;}
+      }
+    }
+    function searchCatalogManual(){
+      if(manualSearching||manualCatalogLoading)return;
+      if(!crmReady){msg("manualMessage","Open the existing Create with AI button in Zoho CRM to search products.");return;}
+      if($("manualBrand").value){
+        var cached=manualBrandCache.get($("manualBrand").value);
+        if(cached){catalogSetProducts(cached.products,cached.ranked);msg("manualMessage",catalogFiltered().length+" matching product(s) within the selected brand.");return;}
+        loadBrandCatalog($("manualBrand").value);return;
+      }
+      var text=clean($("manualQuery").value);
+      if(!text){msg("manualMessage","Enter a UPC/product name or choose a brand.");return;}
+      // Enter on an exact CRM brand name must browse all of its products.
+      var matchingBrand=managerBrandRecords.find(function(b){return brandKey(b.name)===brandKey(text);});
+      if(matchingBrand){
+        $("manualQuery").value="";$("manualBrand").value=String(matchingBrand.id);
+        if(window.ProcurementSearchSelect)window.ProcurementSearchSelect.sync($("manualBrand"));
+        loadBrandCatalog(matchingBrand.id);return;
+      }
+      manualSearching=true;$("manualSearchBtn").disabled=true;msg("manualMessage","Searching CRM Products…");
+      var tasks=[];
+      if(/^[0-9]{8,14}$/.test(text))tasks.push(search({field:"UPC",value:text}).catch(function(){return [];}));
+      tasks.push(ZOHO.CRM.API.searchRecord({Entity:"Products",Type:"word",Query:text}).then(crmResults).catch(function(){return [];}));
+      if(text.length>2)tasks.push(fieldSearch("Product_Name","contains",text).catch(function(){return [];}));
+      Promise.all(tasks).then(function(groups){
+        var found=uniqueProducts([].concat.apply([],groups));
+        var key=norm(text);found=found.filter(function(p){return norm(p.UPC).includes(key)||norm(p.Product_Name).includes(key);});
+        catalogSetProducts(found.slice(0,200),false);
+        msg("manualMessage",manualCatalogProducts.length+" product(s) found by UPC or name. Select a brand to show sales rankings.");
+      }).catch(function(e){msg("manualMessage",e&&e.message||"Could not search CRM Products.");})
+        .finally(function(){manualSearching=false;$("manualSearchBtn").disabled=false;});
+    }
+    function addManualProduct(p,quiet){
+      if(items.length>=100){msg("manualMessage","Limit: 100 product lines per Sales Order.");return false;}
+      if(catalogProductInOrder(p)){if(!quiet)msg("manualMessage","This product is already in the Sales Order.");return false;}
+      items.push({identifier:clean(p.UPC),requestedName:clean(p.Product_Name),offerName:clean(p.Product_Name),quantity:1,price:p.Unit_Price==null?null:num(p.Unit_Price),product:p,match:"matched",candidates:[p],researchDone:true,enrichmentDone:true,writeState:"done"});
+      $("processBox").hidden=true;$("reviewPanel").hidden=false;render();
+      if(!quiet)msg("manualMessage","Added "+clean(p.Product_Name)+". You can edit offer name, supplier, quantity and price in Order products below.");
+      renderCatalogResults();return true;
+    }
+    function supplierOptions(selected){
+      var id=String(selected||"");return '<option value="">Choose code</option>'+managerSuppliers.slice().sort(function(a,b){return a.code.localeCompare(b.code);}).map(function(s){return'<option value="'+esc(s.id)+'" '+(id===String(s.id)?"selected":"")+' title="'+esc(s.vendor||s.code)+'">'+esc(s.code)+'</option>';}).join("");
+    }
+    function updateDatalists(){
+      var brandSelect=$("manualBrand"),selected=brandSelect.value;
+      brandSelect.innerHTML='<option value="">All brands</option>'+managerBrandRecords.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(b){return'<option value="'+esc(b.id)+'">'+esc(b.name)+'</option>';}).join("");
+      brandSelect.value=selected||"";
+      syncBrandPicker($("quickBrand"),$("quickBrand").value);syncBrandPicker($("editBrandSelect"),$("editBrandSelect").value);
+      var supplier=$("bulkSupplierCode"),old=supplier.value;supplier.innerHTML=supplierOptions(old);supplier.value=old||"";
+      if(window.ProcurementSearchSelect){window.ProcurementSearchSelect.sync(brandSelect);window.ProcurementSearchSelect.sync(supplier);}
+    }
+    async function loadManagerLists(){
+      if(listsLoaded)return Promise.resolve();if(managerListPromise)return managerListPromise;if(!crmReady)return Promise.reject(new Error("CRM not connected."));
+      supplierLoading=true;
+      managerListPromise=(async function(){try{
+        var suppliers=[],brands=[];
+        async function loadPages(module){var all=[];for(var page=1;page<=25;page++){var result=await ZOHO.CRM.API.getAllRecords({Entity:module,page:page,per_page:200}),batch=crmResults(result);all=all.concat(batch);if(batch.length<200)break;}return all;}
+        var result=await Promise.allSettled([loadPages("Supplier_Codes"),loadPages("Brands")]);
+        if(result[0].status==="fulfilled")suppliers=result[0].value;else msg("manualMessage","Supplier codes could not be loaded. Refresh and retry.");
+        if(result[1].status==="fulfilled")brands=result[1].value;else msg("manualMessage","Brand catalog could not be loaded. Refresh and retry.");
+        managerSuppliers=suppliers.map(function(s){return{id:String(s.id),code:clean(s.Name),vendor:clean(s.Vendor&&s.Vendor.name)};}).filter(function(s){return s.id&&s.code;});
+        managerBrandRecords=brands.map(function(b){return{id:String(b.id),name:clean(b.Name)};}).filter(function(b){return b.id&&b.name;});
+        managerBrands=managerBrandRecords.map(function(b){return b.name;});
+        listsLoaded=true;updateDatalists();render();
+      }catch(e){msg("manualMessage","Could not load brand / supplier selectors: "+readableError(e));throw e;}
+      finally{supplierLoading=false;managerListPromise=null;}})();return managerListPromise;
+    }
+    function findSupplierCode(text){var code=clean(text);if(!code)return null;var exact=managerSuppliers.filter(function(s){return String(s.id)===code||s.code.toLowerCase()===code.toLowerCase();});return exact.length===1?exact[0]:null;}
+    function setLineSupplier(index,code,input){
+      var it=items[index],value=clean(code);if(!it)return;
+      if(!value){it.supplierId="";summary();return;}
+      var found=findSupplierCode(value);if(!found){if(input)input.value=it.supplierId||"";msg("matchMessage","Choose a valid Supplier Code abbreviation from the dropdown.");return;}
+      it.supplierId=found.id;if(input)input.value=found.id;summary();
+    }
+    function openBulkSupplier(supplierId){
+      var supplier=managerSuppliers.find(function(s){return String(s.id)===String(supplierId);});if(!supplier){msg("matchMessage","Select a valid supplier code first.");return;}
+      bulkPending=supplier.id;var empty=items.filter(function(it){return !it.supplierId;}).length,different=items.filter(function(it){return it.supplierId&&String(it.supplierId)!==String(supplier.id);}).length;
+      $("supplierBulkMessage").textContent="Supplier code: "+supplier.code+(supplier.vendor?" ("+supplier.vendor+")":"")+". Empty supplier fields: "+empty+". Different suppliers: "+different+". Choose whether to fill blanks or replace every line.";
+      $("supplierBulkOverlay").hidden=false;
+    }
+    function applyBulkSupplier(overwrite){
+      if(!bulkPending)return;var changed=0;items.forEach(function(it){if(overwrite||!it.supplierId){if(String(it.supplierId||"")!==String(bulkPending)){it.supplierId=bulkPending;changed++;}}});
+      bulkPending=null;$("supplierBulkOverlay").hidden=true;render();msg("matchMessage",changed+" line(s) updated. Supplier codes will be sent into the current SO form with Fill Sales Order.");
+    }
+    function switchManagerMode(mode){
+      managerMode=mode==="manual"?"manual":"ai";
+      $("tabAI").classList.toggle("active",managerMode==="ai");$("tabManual").classList.toggle("active",managerMode==="manual");
+      $("manualSearchPanel").hidden=managerMode!=="manual";$("aiInputPanel").hidden=managerMode!=="ai";
+      if(managerMode==="manual"){$("reviewPanel").hidden=false;$("processBox").hidden=true;loadManagerLists();}
+      else if(!items.length){$("reviewPanel").hidden=true;}
+    }
+    $("tabAI").addEventListener("click",function(){switchManagerMode("ai");});
+    $("tabManual").addEventListener("click",function(){switchManagerMode("manual");});
+    $("manualSearchBtn").addEventListener("click",searchCatalogManual);
+    $("manualQuery").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();searchCatalogManual();}});
+    $("manualBrand").addEventListener("change",function(){
+      manualCatalogPage=0;manualCatalogSelected.clear();manualCatalogToken++;
+      if(this.value){$("manualQuery").value="";loadBrandCatalog(this.value);}
+      else {manualCatalogToken++;manualCatalogLoading=false;manualSearching=false;$("manualSearchBtn").disabled=false;}
+      if(!this.value&&clean($("manualQuery").value))searchCatalogManual();
+      else if(!this.value){catalogSetProducts([],false);msg("manualMessage","Choose a brand or search by UPC/product name.");}
+    });
+    $("catalogSelectAll").addEventListener("change",function(){
+      var visible=catalogFiltered().slice(manualCatalogPage*MANUAL_CATALOG_PAGE_SIZE,(manualCatalogPage+1)*MANUAL_CATALOG_PAGE_SIZE);
+      visible.forEach(function(p){if(catalogProductInOrder(p))return;if($("catalogSelectAll").checked)manualCatalogSelected.add(String(p.id));else manualCatalogSelected.delete(String(p.id));});
+      renderCatalogResults();
+    });
+    $("catalogAddSelected").addEventListener("click",function(){
+      var selected=manualCatalogProducts.filter(function(p){return manualCatalogSelected.has(String(p.id))&&!catalogProductInOrder(p);}),added=0;
+      selected.slice(0,Math.max(0,100-items.length)).forEach(function(p){if(addManualProduct(p,true))added++;});
+      manualCatalogSelected.clear();renderCatalogResults();
+      msg("manualMessage",added+" product(s) added to this Sales Order."+(selected.length>added?" Limit: 100 order lines.":""));
+    });
+    $("catalogPrevPage").addEventListener("click",function(){manualCatalogPage=Math.max(0,manualCatalogPage-1);renderCatalogResults();});
+    $("catalogNextPage").addEventListener("click",function(){manualCatalogPage++;renderCatalogResults();});
+    if(window.ProcurementSearchSelect){
+      window.ProcurementSearchSelect.enhance($("manualBrand"),{label:"Brand"});
+      window.ProcurementSearchSelect.enhance($("quickBrand"),{label:"CRM brand"});
+      window.ProcurementSearchSelect.enhance($("editBrandSelect"),{label:"CRM brand"});
+      window.ProcurementSearchSelect.enhance($("bulkSupplierCode"),{label:"Supplier abbreviation",variant:"supplier"});
+    }
+    $("bulkApplyBtn").addEventListener("click",function(){var supplier=findSupplierCode($("bulkSupplierCode").value);if(!supplier){msg("matchMessage","Select a valid supplier abbreviation from the dropdown.");return;}openBulkSupplier(supplier.id);});
+    $("supplierBulkCancel").addEventListener("click",function(){bulkPending=null;$("supplierBulkOverlay").hidden=true;});
+    $("supplierBulkEmpty").addEventListener("click",function(){applyBulkSupplier(false);});
+    $("supplierBulkOverwrite").addEventListener("click",function(){applyBulkSupplier(true);});
+    $("extractBtn").addEventListener("click",extract);$("addLineBtn").addEventListener("click",function(){items.push({identifier:"",requestedName:"",offerName:"",quantity:1,price:null,product:null,match:"missing",candidates:[]});render();rows.lastElementChild.querySelector('input[data-k="productSearch"]').focus();});$("createBtn").addEventListener("click",createOrder);
+    $("resumeBtn").addEventListener("click",resumeProcessing);$("pauseBtn").addEventListener("click",function(){if(pipeline)pipeline.pause();$("thinkingText").textContent="Finishing the current operation, then pausing…";});
+    $("quickSave").addEventListener("click",saveQuickProduct);$("quickCancel").addEventListener("click",function(){if(!quickBusy){$("quickProductOverlay").hidden=true;quickItem=null;}});
+    $("quickBrandNew").addEventListener("click",function(){openBrandCreator("quickBrand");});
+    $("editBrandNew").addEventListener("click",function(){openBrandCreator("editBrandSelect");});
+    $("editBrandSave").addEventListener("click",saveLineBrand);
+    $("editBrandCancel").addEventListener("click",function(){if(!lineBrandBusy){$("editBrandOverlay").hidden=true;lineBrandItem=null;}});
+    $("editProductNameSave").addEventListener("click",saveLineProductName);
+    $("editProductNameCancel").addEventListener("click",function(){if(lineProductNameBusy)return;$("editProductNameOverlay").hidden=true;lineProductNameItem=null;});
+    $("editProductNameInput").addEventListener("keydown",function(event){if(event.key==="Enter"){event.preventDefault();saveLineProductName();}if(event.key==="Escape"&&!lineProductNameBusy){$("editProductNameOverlay").hidden=true;lineProductNameItem=null;}});
+    $("createBrandSave").addEventListener("click",saveNewBrand);
+    $("createBrandCancel").addEventListener("click",closeBrandCreator);
+    $("createBrandName").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();saveNewBrand();}});
+    fileInput.addEventListener("change",function(){var files=Array.from(fileInput.files||[]);$("fileNames").innerHTML=files.map(function(f){return'<span class="image-chip">'+esc(f.name)+'</span>';}).join("");});
+
+    // Diagnostics are optional: a missing log asset cannot block the order builder.
+    try{
+      if(window.OrderDiagnostics){
+        var diagnosticLog=new window.OrderDiagnostics("1.42");
+        diagnosticLog.add("widget_loaded",{stage:"baseline_1.16"});
+        // Record only service status, time and request ID; never request/response bodies.
+        if(typeof window.fetch==="function"){
+          var diagnosticFetch=window.fetch;
+          window.fetch=function(input,options){
+            var url=String(typeof input==="string"?input:input&&input.url||""),tracked=url.indexOf(AI_SERVICE_URL+"/v1/")===0,start=Date.now();
+            return diagnosticFetch.apply(this,arguments).then(function(response){
+              if(tracked)try{diagnosticLog.add("service_response",{stage:url.split("/v1/")[1].split("?")[0],status:response.status,duration_ms:Date.now()-start,request_id:response.headers.get("X-Request-ID")||""});}catch(ignore){}
+              if(tracked)try{response.clone().json().then(function(data){try{diagnosticLog.add("service_result",{request_id:String(data.request_id||""),count:Array.isArray(data.items)?data.items.length:0,error_code:response.ok?"none":"http_"+response.status});if(Array.isArray(data.items))data.items.forEach(function(f){diagnosticLog.add("research_item",{stage:f.needs_selection?"choose_variant":f.verified?"verified":"unconfirmed",error_code:f.failure_code||"none",count:f.source_count||0});if(diagnosticLog.addSources)diagnosticLog.addSources(data.request_id,f.search_trace||[]);});}catch(ignore){}},function(){});}catch(ignore){}
+              return response;
+            },function(error){if(tracked)try{diagnosticLog.add("service_error",{error_code:"network_error",duration_ms:Date.now()-start});}catch(ignore){}throw error;});
+          };
+        }
+        $("extractBtn").addEventListener("click",function(){diagnosticLog.add("extract_clicked",{stage:crmReady?"crm_ready":"crm_not_ready",count:items.length});});
+        window.addEventListener("error",function(){diagnosticLog.add("javascript_error",{error_code:"runtime_error"});});
+        window.addEventListener("unhandledrejection",function(){diagnosticLog.add("promise_rejection",{error_code:"async_error"});});
+        $("downloadLogBtn").addEventListener("click",function(){
+          diagnosticLog.add("download",{count:items.length,stage:$("thinkingOverlay").hidden?"idle":"processing"});
+          var blob=new Blob([diagnosticLog.report(items,{imports:importAudits,lastError:lastProcessingError})],{type:"text/plain;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+          a.href=url;a.download="ai-order-builder-1.42-"+diagnosticLog.id+".txt";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+        });
+      }
+    }catch(logError){/* Logging must never prevent startup. */}
+
+    // 1.36: identify current saved record from documented PageLoad data plus
+    // defensive SDK/event wrappers. Never assume the last or newest CRM record.
+    function salesOrderIdFromValue(raw){
+      if(raw==null)return "";
+      if(Array.isArray(raw)){for(var a=0;a<raw.length&&a<5;a++){var q=salesOrderIdFromValue(raw[a]);if(q)return q;}return "";}
+      if(typeof raw==='object'){
+        return salesOrderIdFromValue(raw.EntityId||raw.EntityID||raw.RecordID||raw.RecordId||raw.recordId||raw.record_id||raw.id||raw.ID||"");
+      }
+      var value=clean(raw);
+      if(/^\d{12,20}$/.test(value))return value;
+      // Some SDK versions provide JSON-encoded arrays/objects instead of a JS object.
+      if(value.charAt(0)==='{'||value.charAt(0)==='['){try{return salesOrderIdFromValue(JSON.parse(value));}catch(ignore){}}
+      var match=value.match(/(?:\/tab\/SalesOrders\/|\/tab\/Sales_Orders\/|\/SalesOrders\/|\/Sales_Orders\/)(\d{12,20})(?:[/?#]|$)/i);
+      if(match)return match[1];
+      try{
+        var url=new URL(value);
+        var params=['so_id','sales_order_id','record_id','recordId','RecordID','EntityId'];
+        for(var b=0;b<params.length;b++){var fromParam=salesOrderIdFromValue(url.searchParams.get(params[b]));if(fromParam)return fromParam;}
+      }catch(ignore2){}
+      return "";
+    }
+    function getButtonRecordId(context){
+      // Non-recursive queue prevents stack overflow on cyclical browser SDK payloads.
+      var queue=[context],seen=[],steps=0;
+      while(queue.length&&steps++<45){
+        var cur=queue.shift();
+        if(cur==null)continue;
+        if(typeof cur==='string'){
+          var simple=salesOrderIdFromValue(cur);if(simple)return simple;
+          continue;
+        }
+        if(typeof cur!=='object'||seen.indexOf(cur)!==-1)continue;
+        seen.push(cur);
+        var candidates=[cur.EntityId,cur.EntityID,cur.entityId,cur.RecordID,cur.RecordId,cur.recordId,cur.record_id,cur.record_id__s];
+        for(var x=0;x<candidates.length;x++){var id=salesOrderIdFromValue(candidates[x]);if(id)return id;}
+        // A generic "id" is accepted only inside explicit record/data containers.
+        if(cur!==context&&cur.id){var direct=salesOrderIdFromValue(cur.id);if(direct)return direct;}
+        var children=['data','record','Record','context','Context','payload','Payload','params','arguments','selected_records','entity','value'];
+        if(Array.isArray(cur)){for(var v=0;v<Math.min(5,cur.length);v++)queue.push(cur[v]);}
+        else for(var y=0;y<children.length;y++){if(cur[children[y]]!=null)queue.push(cur[children[y]]);}
+      }
+      return "";
+    }
+    function getUrlRecordId(){
+      var sources=[];
+      try{sources.push(window.location.href);}catch(ignore){}
+      try{sources.push(document.referrer);}catch(ignore){}
+      for(var k=0;k<sources.length;k++){var id=salesOrderIdFromValue(sources[k]);if(id)return id;}
+      return "";
+    }
+    function contextSummary(data){
+      if(!data)return 'No PageLoad event';
+      if(typeof data==='string')return 'PageLoad text ('+Math.min(data.length,500)+' chars)';
+      if(typeof data!=='object')return 'PageLoad '+typeof data;
+      var keys=[];try{keys=Object.keys(data).slice(0,15);}catch(ignore){}
+      var nested=data.data&&typeof data.data==='object'?Object.keys(data.data).slice(0,12):[];
+      return 'PageLoad keys: '+keys.join(', ')+(nested.length?' · data: '+nested.join(', '):'');
+    }
+    function savedSOShowStatus(kind,title,detail,recovery){
+      var panel=$('savedSOStatusBanner');if(!panel)return;
+      panel.hidden=false;panel.dataset.kind=kind;
+      $('savedSOStatusTitle').textContent=title;
+      $('savedSOStatusText').textContent=detail;
+      $('savedSORecovery').hidden=!recovery;
+      $('savedSOContextHint').textContent="You can paste the Sales Order link above if needed.";
+      $('savedSORetryBtn').hidden=(kind==='ok'||kind==='readonly');
+    }
+    function maybeOpenSavedSO(){
+      if(!widgetStartupReady||!savedSOId||nativeFormBridge)return Promise.resolve();
+      if(savedSOReady&&loadedSavedSOId===savedSOId)return Promise.resolve();
+      if(savedSOLoadPromise)return savedSOLoadPromise;
+      $('createBtn').textContent='Save SO Products';
+      $('createBtn').disabled=true;
+      savedSOShowStatus('loading','Loading Sales Order','Loading existing products…',false);
+      msg('sourceMessage','Loading existing products…');
+      savedSOLoadPromise=(async function(){
+        if(ZOHO.CRM.UI&&typeof ZOHO.CRM.UI.Resize==='function'){
+          var w=Math.min(1500,Math.round((window.screen&&window.screen.availWidth||1600)*0.92));
+          var h=Math.min(830,Math.round((window.screen&&window.screen.availHeight||900)*0.87));
+          Promise.resolve(ZOHO.CRM.UI.Resize({width:String(w),height:String(h)})).catch(function(){});
+        }
+        await loadSavedSO();
+      })().catch(function(err){
+        savedSOReady=false;
+        $('createBtn').disabled=true;
+        var reason=friendlySavedSOError(err);
+        savedSOShowStatus('error','Could not load products',reason,true);
+        msg('sourceMessage',reason);
+        msg('matchMessage','Existing SO products were NOT loaded. Do not save changes to an empty draft.');
+      }).finally(function(){savedSOLoadPromise=null;});
+      return savedSOLoadPromise;
+    }
+    function acceptSavedSOId(id,origin){
+      if(!id||nativeFormBridge)return;
+      if(savedSOId===id&&(savedSOReady||savedSOLoadPromise))return;
+      savedSOId=id;savedSOReady=false;loadedSavedSOId='';
+      lastSavedSOContext+=' · linked from '+origin;
+      maybeOpenSavedSO();
+    }
+    function maybeShowMissingContext(){
+      if(nativeFormBridge||savedSOId||!widgetStartupReady)return;
+      var fromUrl=getUrlRecordId();
+      if(fromUrl){acceptSavedSOId(fromUrl,'CRM URL');return;}
+      // The button is a view widget, not a create-form bridge. No record ID means
+      // no safe fetch: expose a clear recovery path rather than an empty order.
+      $('createBtn').disabled=true;
+      savedSOShowStatus('error','Sales Order is not linked',
+        'Zoho did not supply the record ID to this widget. Existing products cannot be shown.',true);
+      msg('sourceMessage','Saved SO record ID was not received. Use the Sales Order URL in the connection bar above.');
+    }
+    $('savedSORetryBtn').addEventListener('click',function(){
+      if(savedSOId){savedSOReady=false;loadedSavedSOId='';maybeOpenSavedSO();}
+      else maybeShowMissingContext();
+    });
+    $('savedSOLinkBtn').addEventListener('click',function(){
+      var input=$('savedSOUrlInput').value,id=salesOrderIdFromValue(input);
+      if(!id){savedSOShowStatus('error','Invalid Sales Order link','Paste the full link to a saved SO from Zoho CRM.',true);return;}
+      // Do not trust a user-entered ID until loadSavedSO() verifies exact ID/status.
+      acceptSavedSOId(id,'pasted CRM URL');
+    });
+    if(window.ZOHO&&ZOHO.embeddedApp){
+      ZOHO.embeddedApp.on('PageLoad',function(context){
+        pageLoadSeen=true;pageLoadCounter++;
+        lastSavedSOContext=contextSummary(context);
+        var data=context&&context.data&&typeof context.data==='object'?context.data:context||{};
+        var isBridge=!!(data&&data.ai_order_builder_bridge==='1.9');
+        if(isBridge){
+          nativeFormBridge=true;
+          $('savedSOStatusBanner').hidden=true;
+          bridgeMode=data.ai_order_builder_mode==='sync_1.30'?'sync_1.30':'append';
+          bridgeRows=Array.isArray(data.existing_rows)?data.existing_rows:[];
+          if(pipeline)loadCurrentSORows();
+        }else{
+          var id=getButtonRecordId(context)||getUrlRecordId();
+          if(id)acceptSavedSOId(id,'PageLoad');
+        }
+        crmReady=true;summary();
+      });
+      ZOHO.embeddedApp.init().then(function(initContext){
+        crmReady=true;summary();
+        // Some Zoho builds resolve init() with the context instead of emitting
+        // a separate PageLoad event. The documented event remains primary.
+        var fromInit=getButtonRecordId(initContext);
+        if(fromInit)acceptSavedSOId(fromInit,'SDK init');
+        return initPipeline().then(function(){
+          widgetStartupReady=true;
+          if(savedSOId)return maybeOpenSavedSO();
+          if(nativeFormBridge)loadCurrentSORows();
+          else maybeShowMissingContext();
+        }).then(function(){
+          return loadManagerLists().catch(function(e){
+            msg('manualMessage','Could not refresh brand/supplier options: '+readableError(e));
+          });
+        });
+      }).catch(function(e){
+        msg('sourceMessage','AI Builder startup failed: '+readableError(e));
+        savedSOShowStatus('error','AI Builder could not start',readableError(e),true);
+      });
+    }else{msg('matchMessage','Preview mode: CRM actions are disabled until opened inside Zoho CRM.');}
+  })();
+  </script>
+</body>
+</html>

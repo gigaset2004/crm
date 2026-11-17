@@ -1,0 +1,17 @@
+{
+  "locale": ["en"],
+  "service": "CRM",
+  "storage": false,
+  "whiteListedDomains": [],
+  "modules": {
+    "widgets": [
+      {
+        "location": "webtab",
+        "name": "Procurement Workspace",
+        "url": "/app/index.html"
+      }
+    ]
+  },
+  "config": [],
+  "connectors": []
+}

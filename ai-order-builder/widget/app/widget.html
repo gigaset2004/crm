@@ -151,6 +151,7 @@
     .saved-so-banner{border:1px solid #b3cbea;background:#edf4ff;border-radius:8px;padding:11px 14px;margin:0 0 13px;font-size:13px;display:flex;align-items:center;gap:11px;flex-wrap:wrap}
     .saved-so-banner[data-kind="error"]{background:#fff6eb;border-color:#f5c990;color:#734b18}
     .saved-so-banner[data-kind="ok"]{background:#eef8f2;border-color:#a8d4b8;color:#225d3a}
+    .saved-so-banner[data-kind="readonly"]{background:#f3f5f8;border-color:#cfd5df;color:#344054}
     .saved-so-banner b{font-weight:700}.saved-so-banner .btn{padding:6px 9px;font-size:12px}
     .saved-so-recovery{flex-basis:100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .saved-so-recovery input{width:min(460px,100%);min-width:150px;min-height:34px;border:1px solid #cbd5e1;border-radius:6px;padding:6px 9px}
@@ -215,7 +216,7 @@
       </div>
     </div>
     <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
-  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.42</strong></footer>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.44</strong></footer>
   <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Check the details, then create the product in CRM.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
   <div class="overlay" id="editBrandOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editBrandTitle"><div class="dialog-card"><h2 id="editBrandTitle">Change product brand</h2><p id="editBrandDescription">Choose the correct brand linked to this product.</p><div class="brand-picker"><select id="editBrandSelect" aria-label="Select CRM brand"><option value="">Choose a CRM brand</option></select><button id="editBrandNew" class="btn" type="button">+ New brand</button></div><p id="editBrandMessage" class="message" role="status"></p><div class="quick-actions"><button id="editBrandCancel" class="btn" type="button">Cancel</button><button id="editBrandSave" class="btn primary" type="button">Save brand</button></div></div></div>
   <div class="overlay" id="editProductNameOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editProductNameTitle"><div class="dialog-card"><h2 id="editProductNameTitle">Edit official CRM product name</h2><p id="editProductNameDescription">Changes the linked Products record for all CRM users. Does not change the supplier offer name in this order.</p><label class="manual-field">Official Product Name<input id="editProductNameInput" autocomplete="off" maxlength="255" placeholder="Official product name"></label><p class="name-edit-hint">The UPC and Product ID remain unchanged. The supplier offer name is saved separately.</p><p class="message" id="editProductNameMessage" role="status"></p><div class="quick-actions"><button id="editProductNameCancel" class="btn" type="button">Cancel</button><button id="editProductNameSave" class="btn primary" type="button">Save to CRM Products</button></div></div></div>
@@ -233,7 +234,7 @@
     var items=[], fileInput=document.getElementById("fileInput"), rows=document.getElementById("rows"), crmReady=false, aiSession="", aiSessionExpires=0, aiConnectionPromise=null;
     var AI_SERVICE_URL="https://ai-order-builder-ai-67003629024.us-east1.run.app", pipeline=null, nativeFormBridge=false, enrichingSelection=false;
     var bridgeMode="",bridgeRows=null,bridgeHydrated=false,bridgeOriginalCount=0;
-    var savedSOId="",savedSORecord=null,savedSOReady=false,savedSOSaving=false;
+    var savedSOId="",savedSORecord=null,savedSOReady=false,savedSOSaving=false,savedSOReadOnly=false;
     var widgetStartupReady=false,savedSOLoadPromise=null,loadedSavedSOId="";
     var pageLoadSeen=false,pageLoadCounter=0,lastSavedSOContext="waiting for PageLoad";
     var brandCache=new Map();
@@ -282,6 +283,26 @@
     function tidyName(name,brand){var s=clean(name).replace(/\s*[—–]\s*/g," ").replace(/[“”]/g,'"');var aliases=canonicalBrand(brand)==="Gucci"?["Gucci Beauty","Gucci Make Up","Gucci"]:[clean(brand)];aliases.filter(Boolean).some(function(b){if(brandKey(s.slice(0,b.length))===brandKey(b)&&/^[\s:|,-]/.test(s.slice(b.length))){s=clean(s.slice(b.length).replace(/^[\s:|,-]+/,""));return true;}return false;});return s;}
     function offerNameFor(it){return clean(it.offerName)||clean(it.requestedName)||clean(it.product&&it.product.Product_Name);}
     function supplierCodeFor(id){var rec=managerSuppliers.find(function(s){return String(s.id)===String(id||"");});return rec?rec.code:"";}
+    // v1.44: Saved SO products can be edited in every order status.
+    // Keep the existing UI helper for compatibility; loadSavedSO always
+    // passes false so status never locks the editor.
+    function savedSOAccessUI(readOnly){
+      savedSOReadOnly=!!readOnly;
+      var locked=!!(savedSOId&&savedSOReadOnly&&!nativeFormBridge);
+      ["tabAI","tabManual"].forEach(function(id){$(id).hidden=locked;$(id).disabled=locked;});
+      $("addLineBtn").hidden=locked;$("addLineBtn").disabled=locked;
+      var bulk=$("bulkSupplierCode").closest(".bulk-controls");if(bulk)bulk.hidden=locked;
+      $("bulkSupplierCode").disabled=locked;$("bulkApplyBtn").disabled=locked;
+      $("sourceText").disabled=locked;$("fileInput").disabled=locked;$("extractBtn").disabled=locked;
+      if(locked){
+        $("aiInputPanel").hidden=true;$("manualSearchPanel").hidden=true;
+        $("reviewPanel").hidden=false;
+        rows.querySelectorAll("input,select,button").forEach(function(el){el.disabled=true;});
+      }else{
+        $("aiInputPanel").hidden=managerMode!=="ai";
+        $("manualSearchPanel").hidden=managerMode!=="manual";
+      }
+    }
     function loadCurrentSORows(){
       // The Client Script passes a snapshot of the CURRENT unsaved SO rows to this widget.
       // Ignore any previous session draft — current form fields are authoritative.
@@ -307,7 +328,7 @@
       $("reviewPanel").hidden=false;
       $("processBox").hidden=true;
       render();
-      msg("matchMessage",current.length+" existing SO product line(s) loaded. Add, edit or remove products here, then Fill Sales Order.");
+      msg("matchMessage",savedSOReadOnly?current.length+" existing SO product line(s) loaded for viewing only. Changes are allowed only in Requested status.":current.length+" existing SO product line(s) loaded. Add, edit or remove products here, then Fill Sales Order.");
       if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("so_rows_loaded",{count:current.length,stage:"sync_1.30"});
     }
     function productBrand(p){return clean(p&&p.Brand&&p.Brand.name)||clean(p&&p.Brand_text)||"";}
@@ -582,7 +603,7 @@
         var index=Number(el.dataset.remove),line=items[index];if(!line)return;
         if(line.purchaseOrderId){msg("matchMessage","This item is linked to a Purchase Order and cannot be removed here.");return;}
         items.splice(index,1);render();msg("matchMessage",savedSOId?"Item removed from this SO draft. Click Save SO Products to update CRM.":"Item removed from the widget draft. Click Fill Sales Order to apply changes to the open SO form.");
-      });});summary();
+      });});if(savedSOReadOnly)savedSOAccessUI(true);summary();
     }
     function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
     function recordLink(entity,id,label){var uiModule=entity==="Brands"?"CustomModule17":"Products";return '<a href="https://crm.zoho.com/crm/minmaxdeals/tab/'+uiModule+'/'+encodeURIComponent(String(id))+'" target="_blank" rel="noopener noreferrer" style="color:#1769e0;text-decoration:underline">'+esc(label)+'</a>';}
@@ -610,7 +631,7 @@
       $("orderTotal").textContent="Request total: $"+total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
       $("matchSummary").textContent=ready?"All lines validated.":invalid+" line(s) need correction. Red fields must be filled; duplicated lines require review.";
       $("matchSummary").classList.toggle("validation-hint",invalid>0);
-      $("createBtn").disabled=!(crmReady&&ready)||enrichingSelection||!!(savedSOId&&(!savedSOReady||savedSOSaving));
+      $("createBtn").disabled=!(crmReady&&ready)||enrichingSelection||!!(savedSOId&&(savedSOReadOnly||!savedSOReady||savedSOSaving));
       saveDraft();
     }
     function showResult(error){
@@ -705,12 +726,8 @@
       // v1.37: getRecord() in this CRM session omits inventory subform lines.
       // Use independently verified COQL fallback through SavedOrderSync.
       var order=await window.SavedOrderSync.getRecordWithProducts(ZOHO,savedSOId);
-      if(!window.SavedOrderSync||!window.SavedOrderSync.requestAllowed(order.Status)){
-        msg("sourceMessage","This Sales Order is "+clean(order.Status)+". Product changes are allowed only in Requested status.");
-        $("createBtn").disabled=true;
-        return;
-      }
       if(!Array.isArray(order.Ordered_Items))throw new Error("CRM did not return the Saved SO products after verification.");
+      var editable=true; // v1.44: saved SO product editing is independent of Order Status.
       savedSORecord=order;
       bridgeRows=order.Ordered_Items.map(function(r,index){
         return {id:r.id,__ai_record_id:r.id,__ai_source_index:index,
@@ -718,18 +735,29 @@
           UPC:r.UPC,Brand:r.Brand,Offer_Product_Name:r.Offer_Product_Name,
           Supplier:r.Supplier,Purchase_Order:r.Purchase_Order};
       });
+      // Hydrate in EVERY status. Previously non-Requested orders returned early,
+      // leaving the permanent Loading Sales Order banner and an empty table.
+      savedSOAccessUI(!editable);
       bridgeHydrated=false;
       loadCurrentSORows();
       savedSOReady=true;
       loadedSavedSOId=savedSOId;
-      $("createBtn").textContent="Save SO Products";
-      $("createBtn").disabled=false;
+      $("createBtn").textContent=editable?"Save SO Products":"View only";
+      $("createBtn").disabled=!editable;
       var contextual=document.querySelector(".manager-context");
-      if(contextual)contextual.textContent="Saved Sales Order · "+clean(order.Subject||savedSOId)+" · Requested · edits save directly to CRM";
+      if(contextual)contextual.textContent="Saved Sales Order · "+clean(order.Subject||savedSOId)+" · "+clean(order.Status)+(editable?" · edits save directly to CRM":" · view only");
       var hint=document.querySelector(".manager-footer .hint");
-      if(hint)hint.textContent="Add or remove items, edit quantities, prices, supplier and offer name. Save SO Products updates this saved Requested order.";
-      msg("sourceMessage","Editing saved SO: "+clean(order.Subject||savedSOId)+". "+bridgeRows.length+" existing line(s) loaded.");
-      savedSOShowStatus("ok","Sales Order ready",bridgeRows.length+" existing product"+(bridgeRows.length===1?"":"s")+" loaded. You can edit them below.",false);
+      if(editable){
+        if(hint)hint.textContent="Add or remove items, edit quantities, prices, supplier and offer name. Save SO Products updates this Sales Order without changing its status. Linked POs are not updated automatically.";
+        msg("sourceMessage","Editing saved SO: "+clean(order.Subject||savedSOId)+". "+bridgeRows.length+" existing line(s) loaded.");
+        savedSOShowStatus("ok","Sales Order ready",bridgeRows.length+" existing product"+(bridgeRows.length===1?"":"s")+" loaded. You can edit them below.",false);
+      }else{
+        var reason="This Sales Order is "+clean(order.Status)+". Product changes are allowed only in Requested status.";
+        if(hint)hint.textContent=reason+" Existing SO products are displayed below without editing controls.";
+        msg("sourceMessage",reason);
+        msg("matchMessage",reason);
+        savedSOShowStatus("readonly","Sales Order: "+clean(order.Status),bridgeRows.length+" existing product"+(bridgeRows.length===1?"":"s")+" loaded · view only. Changes are allowed only in Requested status.",false);
+      }
       if(bridgeRows.length){
         // The large AI Import form is above the table. Show the actual SO lines immediately.
         requestAnimationFrame(function(){
@@ -752,6 +780,7 @@
       }
     }
     async function saveSavedSO(draft){
+      if(savedSOReadOnly){msg("matchMessage","This Sales Order is view only. Product changes are allowed only in Requested status.");return;}
       if(savedSOSaving)return;
       savedSOSaving=true;
       $("createBtn").disabled=true;
@@ -777,7 +806,7 @@
         msg("matchMessage","Could not confirm the changes. Check the Sales Order before trying again: "+friendlySavedSOError(err));
       } finally {savedSOSaving=false;summary();}
     }
-    function createOrder(){if($("createBtn").disabled)return;var invalid=items.filter(function(it,i){return lineIssues(it,i).length>0;});if(invalid.length){msg("matchMessage",invalid.length+" line(s) are incomplete. Complete all red fields before saving.");summary();return;}if(!savedSOId && (!nativeFormBridge||!window.$Client||typeof window.$Client.close!=="function")){msg("matchMessage","The AI button must be connected to the native form handoff. No empty Sales Order form was opened. Contact your CRM administrator.");return;}if(items.some(function(it){return it.supplierId&&!supplierCodeFor(it.supplierId)&&!clean(it.supplierFallbackName);})){msg("matchMessage","Cannot transfer supplier: a selected Supplier Code was not resolved in CRM. Reload supplier codes and try again.");return;}var data={ai_order_builder:"1.9",ai_order_builder_mode:bridgeMode||"append",Status:"Requested",Ordered_Items:items.map(function(it){var product=it.product, row={Product_Name:{id:String(product.id),name:clean(product.Product_Name)},Quantity:num(it.quantity),List_Price:priceFor(it)};var upc=clean(product.UPC||it.identifier),brand=productBrand(product)||clean(it.requestedBrand),offer=offerNameFor(it).slice(0,255);if(upc)row.UPC=upc;if(brand)row.Brand=brand;if(offer)row.Offer_Product_Name=offer;if(it.supplierId)row.Supplier={id:String(it.supplierId),name:supplierCodeFor(it.supplierId)||clean(it.supplierFallbackName)};if(product.HS_Code)row.HS_Code=clean(product.HS_Code);if(product.Country_of_origin)row.Country_of_origin=clean(product.Country_of_origin);if(Number.isInteger(it.bridgeIndex)&&it.bridgeIndex>=0)row.__ai_source_index=it.bridgeIndex;if(it.bridgeRecordId)row.__ai_record_id=it.bridgeRecordId;return row;})};if(data.Ordered_Items.some(function(row){return !row.Product_Name.name;})){msg("matchMessage","A product name is missing. Match the product again before continuing.");return;}if(data.Ordered_Items.some(function(row){return !clean(row.Offer_Product_Name);})){msg("matchMessage","Fill halted: every SO line needs a name from the supplier offer.");return;}try{if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("fill_payload",{stage:"widget_to_client_script",count:data.Ordered_Items.length,message:"v1.30 sync payload includes the original source indexes, Offer_Product_Name and Supplier Code lookups."});}catch(ignore){}$("createBtn").disabled=true;if(savedSOId){saveSavedSO(data);return;}saveDraft();Promise.resolve(window.$Client.close(data)).catch(function(e){msg("matchMessage",e.message||"Could not transfer the products to Zoho.");summary();});}
+    function createOrder(){if(savedSOId&&savedSOReadOnly){msg("matchMessage","This Sales Order is view only. Product changes are allowed only in Requested status.");return;}if($("createBtn").disabled)return;var invalid=items.filter(function(it,i){return lineIssues(it,i).length>0;});if(invalid.length){msg("matchMessage",invalid.length+" line(s) are incomplete. Complete all red fields before saving.");summary();return;}if(!savedSOId && (!nativeFormBridge||!window.$Client||typeof window.$Client.close!=="function")){msg("matchMessage","The AI button must be connected to the native form handoff. No empty Sales Order form was opened. Contact your CRM administrator.");return;}if(items.some(function(it){return it.supplierId&&!supplierCodeFor(it.supplierId)&&!clean(it.supplierFallbackName);})){msg("matchMessage","Cannot transfer supplier: a selected Supplier Code was not resolved in CRM. Reload supplier codes and try again.");return;}var data={ai_order_builder:"1.9",ai_order_builder_mode:bridgeMode||"append",Status:(savedSOId&&savedSORecord?clean(savedSORecord.Status):"Requested"),Ordered_Items:items.map(function(it){var product=it.product, row={Product_Name:{id:String(product.id),name:clean(product.Product_Name)},Quantity:num(it.quantity),List_Price:priceFor(it)};var upc=clean(product.UPC||it.identifier),brand=productBrand(product)||clean(it.requestedBrand),offer=offerNameFor(it).slice(0,255);if(upc)row.UPC=upc;if(brand)row.Brand=brand;if(offer)row.Offer_Product_Name=offer;if(it.supplierId)row.Supplier={id:String(it.supplierId),name:supplierCodeFor(it.supplierId)||clean(it.supplierFallbackName)};if(product.HS_Code)row.HS_Code=clean(product.HS_Code);if(product.Country_of_origin)row.Country_of_origin=clean(product.Country_of_origin);if(Number.isInteger(it.bridgeIndex)&&it.bridgeIndex>=0)row.__ai_source_index=it.bridgeIndex;if(it.bridgeRecordId)row.__ai_record_id=it.bridgeRecordId;return row;})};if(data.Ordered_Items.some(function(row){return !row.Product_Name.name;})){msg("matchMessage","A product name is missing. Match the product again before continuing.");return;}if(data.Ordered_Items.some(function(row){return !clean(row.Offer_Product_Name);})){msg("matchMessage","Fill halted: every SO line needs a name from the supplier offer.");return;}try{if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("fill_payload",{stage:"widget_to_client_script",count:data.Ordered_Items.length,message:"v1.30 sync payload includes the original source indexes, Offer_Product_Name and Supplier Code lookups."});}catch(ignore){}$("createBtn").disabled=true;if(savedSOId){saveSavedSO(data);return;}saveDraft();Promise.resolve(window.$Client.close(data)).catch(function(e){msg("matchMessage",e.message||"Could not transfer the products to Zoho.");summary();});}
     function fillLookup(inputId,selectId,module,labelField,emptyLabel){var timer=null;$(inputId).addEventListener("input",function(){clearTimeout(timer);var query=clean($(inputId).value);if(query.length<2)return;timer=setTimeout(function(){ZOHO.CRM.API.searchRecord({Entity:module,Type:"word",Query:query}).then(function(r){var found=productList(r);var select=$(selectId);select.innerHTML='<option value="">'+emptyLabel+'</option>';found.forEach(function(rec){var label=clean(rec[labelField])||clean(rec.Full_Name)||clean(rec.Name);if(!rec.id||!label)return;var option=document.createElement("option");option.value=rec.id;option.textContent=label;select.appendChild(option);});if(!found.length)msg("matchMessage","No CRM "+module+" results for that search.");}).catch(function(){msg("matchMessage","Could not search CRM "+module+". Check your CRM access and try again.");});},300);});$(selectId).addEventListener("change",summary);}
     // v1.24 catalog: browse by brand, sort by actual confirmed Sales Order quantity, select multiple.
     function safeCriteria(value){return clean(value).replace(/([\(),:])/g,"\\$1");}
@@ -1127,7 +1156,7 @@
       $('savedSOStatusText').textContent=detail;
       $('savedSORecovery').hidden=!recovery;
       $('savedSOContextHint').textContent="You can paste the Sales Order link above if needed.";
-      $('savedSORetryBtn').hidden=(kind==='ok');
+      $('savedSORetryBtn').hidden=(kind==='ok'||kind==='readonly');
     }
     function maybeOpenSavedSO(){
       if(!widgetStartupReady||!savedSOId||nativeFormBridge)return Promise.resolve();
