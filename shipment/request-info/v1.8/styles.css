@@ -1,0 +1,147 @@
+:root{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#233042;background:#fff;font-synthesis:none}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}.shell{height:100dvh;min-height:0;width:100%;display:flex;flex-direction:column;padding:6px 10px 4px;gap:5px;overflow:hidden}.topbar,.heading,.top-right,.toolbar,.bottom,.pagination,.buttons{display:flex;align-items:center;gap:7px}.topbar{justify-content:space-between;flex:none;min-height:27px}.heading{min-width:0;white-space:nowrap;overflow:hidden}.heading h1{font-size:16px;font-weight:700;margin:0;flex:none}.dot{color:#8293a8}.shipment-name{font-size:12px;font-weight:500;color:#65758a;overflow:hidden;text-overflow:ellipsis}.top-right{flex:none}.pill{background:#ecf2fa;color:#3565a0;font-size:11px;padding:3px 7px;border-radius:12px;font-weight:600}.toolbar{gap:8px;flex:none;min-height:20px;border-bottom:1px solid #e8edf4;padding-bottom:4px;white-space:nowrap}.title-small{font-size:12px;font-weight:700}.muted{color:#6b798e;font-size:11px}.all-check{font-size:11px;color:#4d6077;display:flex;gap:3px;align-items:center;white-space:nowrap;cursor:pointer}.all-check:first-of-type{margin-left:auto}input[type=checkbox]{width:15px;height:15px;accent-color:#2772c6;margin:0;flex:none;cursor:pointer}button{font:inherit;cursor:pointer;white-space:nowrap;border:1px solid #2772c6;border-radius:5px;color:#fff;background:#2772c6;padding:6px 9px;font-size:11.5px}button.secondary{background:#fff;color:#2772c6}button:hover:not(:disabled){filter:brightness(.95)}button:disabled{opacity:.45;cursor:not-allowed}.list-wrap{min-height:0;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;background:#f7f9fc;border:1px solid #e2e8f1;border-radius:7px;overscroll-behavior:contain}.po-list{display:flex;flex-direction:column;gap:5px;padding:5px}.po-card{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;border:1px solid #e1e6ee;background:#fff;border-radius:6px;padding:7px 10px;min-width:0}.po-top{display:flex;align-items:center;min-width:0;gap:7px;white-space:nowrap}.po-number,.supplier-link{color:#2473c4;text-decoration:none;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.po-number:hover,.supplier-link:hover{text-decoration:underline}.supplier-link{font-weight:500}.supplier-name{color:#44556e;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.arrow{color:#9ba8b5}.details{grid-column:2;grid-row:1/3;display:flex;align-items:center;gap:9px;justify-content:flex-end}.option{display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap;color:#3b4b60;cursor:pointer}.po-meta{display:flex;min-width:0;gap:7px;align-items:center;overflow:hidden}.recipient{font-size:11.5px;color:#637085;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.recipient.warn{color:#b44b20;font-weight:600}.tag{border-radius:4px;padding:2px 6px;font-size:10px;font-weight:600;white-space:nowrap}.tag.ready{background:#e2f5e7;color:#247143}.tag.sent{background:#dff1e5;color:#1e6c3b}.tag.missing{background:#fff0d7;color:#966016}.tag.partial{background:#fff0d7;color:#966016}.bottom{flex:none;min-height:35px;width:100%;justify-content:space-between;gap:6px;border-top:1px solid #e8edf4;padding-top:5px;background:#fff;white-space:nowrap}.pagination,.buttons{gap:5px;min-width:0}.pagination span{font-size:11px;color:#6b798e}.version{font-size:11px;color:#5e7087;flex:none}.notice{flex:none;border-radius:5px;padding:5px 8px;font-size:11px;background:#edf5ff;color:#245784;border:1px solid #d5e5fb}.notice.error{background:#fff2f1;color:#9a2e29;border-color:#f3d0ca}.notice.success{background:#eaf8ef;color:#207041;border-color:#ceead6}.notice[hidden]{display:none}.empty{text-align:center;padding:20px;color:#687a90;font-size:12px}dialog{width:min(680px,95vw);max-height:85vh;border:1px solid #cbd7e6;border-radius:10px;padding:15px;color:#233042;box-shadow:0 15px 70px #25364a33}dialog::backdrop{background:#17253777}.dialog-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.email-preview{border:1px solid #e2e8f1;padding:10px;margin-bottom:10px;border-radius:6px;white-space:pre-wrap;font-size:12px;line-height:1.45}.preview-subject{font-weight:700;margin-bottom:5px}@media(max-width:650px){.shell{padding:5px 7px 4px}.po-card{padding:6px 7px;gap:3px 6px}.details{gap:6px}.option{font-size:11px}.toolbar{gap:5px}.toolbar .muted{display:none}.bottom{gap:4px}.bottom button{padding:5px 6px;font-size:10.5px}.pagination{gap:3px}.heading h1{font-size:14px}.version{font-size:10px}}@media(max-width:480px){.toolbar{flex-wrap:wrap}.po-card{grid-template-columns:1fr}.details{grid-column:1;grid-row:auto;justify-content:flex-start}.po-meta{grid-column:1}.bottom{flex-wrap:wrap}.buttons{order:2;width:100%;justify-content:flex-end}.version{margin-left:auto}.list-wrap{flex:1}}
+
+/* v1.2 — Assign PO typography and per-PO pickup location; fixed footer. */
+:root { font-size: 14px; }
+.shell { gap: 4px; padding: 5px 8px 4px; }
+.topbar { min-height: 29px; }
+.heading h1 { font-size: 16px; line-height: 1.1; }
+.shipment-name { font-size: 12px; }
+.title-small { font-size: 12.5px; }
+.toolbar { min-height: 25px; padding-bottom: 3px; }
+.toolbar .muted,.all-check { font-size: 12px; }
+.pill { font-size: 11.5px; }
+.list-wrap { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.po-list { gap: 4px; padding: 4px; }
+.po-card {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  grid-template-rows: auto auto auto;
+  column-gap: 10px;
+  row-gap: 1px;
+  min-width: 0;
+  padding: 4px 9px;
+  align-items: center;
+}
+.po-top { grid-column: 1; grid-row: 1; min-width: 0; gap: 6px; line-height: 1.12; }
+.po-number { font-size: 14.5px; font-weight: 700; }
+.supplier-link { font-size: 13px; font-weight: 500; }
+.po-meta { grid-column: 1; grid-row: 2; gap: 7px; line-height: 1.1; }
+.recipient { font-size: 12px; }
+.po-pickup { grid-column: 1; grid-row: 3; min-width: 0; display: flex; align-items: center; gap: 5px; line-height: 1.15; }
+.pickup-label { color: #66778d; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.pickup-kind { font-size: 10.5px; font-weight: 600; border-radius: 4px; line-height: 1.12; padding: 2px 5px; border: 1px solid transparent; white-space: nowrap; }
+.pickup-kind-warehouse { color: #286348; background: #e6f3e9; border-color: #d3e8da; }
+.pickup-kind-custom { color: #865700; background: #fff2c7; border-color: #f2db99; }
+.pickup-kind-unset { color: #6b7584; background: #eef1f4; border-color: #e1e6ec; }
+.pickup-value { min-width: 0; font-size: 12.5px; color: #233042; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.details { grid-column: 2; grid-row: 1 / 4; gap: 10px; align-self: center; }
+.option { font-size: 12.5px; gap: 4px; }
+.tag { font-size: 10.5px; }
+.bottom { flex: 0 0 auto; min-height: 35px; padding-top: 4px; gap: 5px; }
+.bottom button { font-size: 12px; padding: 5px 8px; }
+.pagination span,.version { font-size: 11.5px; }
+@media(max-width: 650px) {
+  .shell { padding: 5px 7px 4px; }
+  .po-card { padding: 4px 7px; gap: 1px 6px; }
+  .po-number { font-size: 14px; }
+  .supplier-link { font-size: 12.5px; }
+  .details { gap: 6px; }
+  .option { font-size: 12px; }
+  .bottom button { font-size: 11px; padding: 5px 6px; }
+  .heading h1 { font-size: 15px; }
+}
+@media(max-width: 480px) {
+  .toolbar { flex-wrap: wrap; }
+  .po-card { grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto auto auto; }
+  .po-top { grid-column: 1; grid-row: 1; }
+  .po-meta { grid-column: 1; grid-row: 2; }
+  .po-pickup { grid-column: 1; grid-row: 3; }
+  .details { grid-column: 1; grid-row: 4; justify-content: flex-start; gap: 12px; padding-top: 2px; }
+  .bottom { flex-wrap: wrap; }
+  .buttons { order: 2; width: 100%; justify-content: flex-end; }
+  .version { margin-left: auto; }
+}
+/* Keep five full-size PO cards visible in a short Zoho Blueprint window:
+   email/status move to the right below the request checkboxes, avoiding a third row. */
+@media(min-width:481px) {
+  .po-card { grid-template-rows:auto auto; row-gap:2px; }
+  .po-top { grid-column:1;grid-row:1; }
+  .po-pickup { grid-column:1;grid-row:2; }
+  .details { grid-column:2;grid-row:1;justify-content:flex-end; }
+  .po-meta { grid-column:2;grid-row:2;justify-content:flex-end; }
+  .recipient { max-width:160px; }
+}
+
+/* Request Info v1.3: match the readable two-column Assign PO cards.
+   Keep five PO per page and pin the single command bar inside Blueprint. */
+.shell{height:100dvh;max-height:100dvh;overflow:hidden;padding:6px 9px 4px;gap:4px}
+.topbar{min-height:31px}
+.heading h1{font-size:17px}
+.toolbar{min-height:26px}
+.list-wrap{background:#f8fafd;border-color:#e1e6ee}
+.po-list{gap:4px;padding:4px}
+.po-card{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  grid-template-rows:auto auto;grid-template-areas:"identity details" "pickup details";
+  gap:2px 9px;padding:6px 10px;min-height:54px;
+  border:1px solid #e1e6ed;border-radius:6px;background:#fff;
+  box-shadow:0 1px 2px rgba(30,45,65,.03);
+}
+.po-identity{grid-area:identity;display:flex;flex-direction:column;gap:2px;min-width:0}
+.po-number{font-size:14.5px;line-height:1.15;font-weight:700;display:block;color:#176ab5}
+.supplier-link{font-size:12.5px;line-height:1.1;color:#176ab5;display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.po-pickup{grid-area:pickup;display:flex;align-items:center;gap:5px;min-width:0;line-height:1.15;margin-top:1px}
+.pickup-label{font-size:11.5px}
+.pickup-kind{font-size:10.5px}
+.pickup-value{font-size:12px}
+.details{grid-area:details;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:5px;min-width:195px}
+.option{font-size:12.5px;line-height:1.1;gap:6px;color:#3a4c64}
+.details input[type=checkbox]{width:16px;height:16px}
+.sent-indicator{align-self:flex-end;font-size:10.5px;font-weight:700;background:#e4f5ea;border-radius:4px;color:#1e7445;padding:2px 5px}
+.bottom{flex:0 0 auto;min-height:34px;padding-top:4px;position:relative;z-index:1}
+.bottom button{font-size:12px;min-height:28px;padding:5px 9px}
+#complete{font-weight:600}
+.version{font-size:11.5px;color:#48617c;white-space:nowrap;display:block}
+.notice:not([hidden]){position:absolute;bottom:43px;left:8px;right:8px;z-index:5;box-shadow:0 4px 12px #1e293b1b;max-height:60px;overflow:auto;font-size:12px}
+@media(max-height:420px){
+  .shell{padding:4px 7px 3px;gap:3px}
+  .topbar{min-height:27px}.toolbar{min-height:21px;padding-bottom:2px}
+  .po-list{gap:3px;padding:3px}.po-card{padding:2px 8px;min-height:49px;row-gap:0}
+  .po-identity{gap:0}.details{gap:4px}.po-number{line-height:1.06}.supplier-link{line-height:1.04}.po-pickup{line-height:1.06;margin-top:0}
+  .bottom{min-height:32px;padding-top:3px}
+}
+@media(max-width:650px){
+  .po-card{grid-template-columns:minmax(0,1fr) auto;gap:2px 7px}
+  .details{min-width:168px}.option{font-size:11.5px}
+  .po-number{font-size:14px}.supplier-link{font-size:12px}
+  .bottom button{font-size:11px;padding:5px 7px}
+}
+@media(max-width:480px){
+  .po-card{grid-template-columns:1fr;grid-template-rows:auto auto auto;grid-template-areas:"identity" "pickup" "details";min-height:0}
+  .details{flex-direction:row;gap:12px;justify-content:flex-start;min-width:0;align-items:center;padding-top:2px}
+  .toolbar{flex-wrap:wrap}
+  .bottom{flex-wrap:nowrap;gap:3px}
+  .buttons{order:0;width:auto;justify-content:flex-end;margin-left:auto}
+  .pagination{gap:3px}
+  .bottom button{font-size:10.5px;padding:4px 5px}
+  .pagination span{font-size:10px}
+  .version{font-size:10px;margin-left:0}
+}
+
+/* v1.4 — in-widget editable message, no new popup, footer remains pinned. */
+.editor-panel { display:flex; flex-direction:column; gap:7px; height:100%; min-height:0; padding:8px; background:#f8fafd; }
+.editor-panel[hidden], .po-list[hidden] { display:none; }
+.editor-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex:0 0 auto; }
+.editor-head strong { font-size:14px; color:#20334b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.editor-buttons { display:flex; align-items:center; gap:6px; }
+.editor-buttons button { font-size:11.5px; padding:5px 7px; }
+#messageBody { display:block; flex:1 1 auto; resize:none; width:100%; min-height:0; border:1px solid #bacce0; border-radius:6px; background:#fff; font-family:Arial,Helvetica,sans-serif; font-size:13.5px; line-height:1.46; padding:9px 11px; color:#233042; }
+#messageBody:focus { outline:2px solid #aac9ed; outline-offset:0; }
+.editor-hint { flex:0 0 auto; font-size:11px; color:#66788c; }
+.supplier-row { display:flex; gap:8px; align-items:baseline; min-width:0; }
+.supplier-row .supplier-link { flex:0 1 auto; }
+.edit-message { flex:0 0 auto; font-size:11px; padding:0; border:0; background:transparent; color:#236db9; text-decoration:underline; text-underline-offset:2px; }
+.edit-message:disabled { color:#8895a4; text-decoration:none; opacity:.6; }
+@media(max-width:480px) { .editor-panel{padding:5px}.editor-head strong{font-size:12px}.editor-buttons button{font-size:10px;padding:4px 5px}#messageBody{font-size:13px} }
+
+.reload-shipment-link { color: #155bb1; text-decoration: underline; font-weight: 700; white-space: nowrap; }

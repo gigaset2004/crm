@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Assign PO to Shipment — Blueprint v1.17</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://live.zwidgets.com/js-sdk/1.5/ZohoEmbededAppSDK.min.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body data-mode="blueprint">
+  <main class="shell">
+    <header class="head topbar">
+      <div class="headline">
+        <h1>Assign PO</h1>
+        <span class="headline-divider" aria-hidden="true">·</span>
+        <span id="shipmentLabel" class="muted" title="Shipment">Connecting to Shipment...</span>
+      </div>
+      <details class="panel linked-panel" id="linkedDisclosure">
+        <summary class="linked-summary">
+          <span>Already linked <span class="count" id="linkedCount">0</span></span>
+          <span class="muted linked-hint">Show / remove linked POs</span>
+        </summary>
+        <div id="linkedList" class="linked-list muted">Loading...</div>
+      </details>
+      <div class="controls top-controls">
+        <label for="search" class="sr-only">Search Purchase Orders</label>
+        <input id="search" type="search" autocomplete="off" placeholder="Find PO" aria-label="Search PO number">
+        <button id="refresh" class="secondary" type="button">Refresh</button>
+        <button id="doSearch" type="button" class="secondary">Search</button>
+      </div>
+    </header>
+
+    <section class="panel po-selector">
+      <div class="selector-toolbar">
+        <div class="selector-title">
+          <h2>Select Purchase Orders</h2>
+          <span class="muted" id="pageInfo"></span>
+        </div>
+        <label class="select-all-label" for="selectAll">
+          <input type="checkbox" id="selectAll" aria-label="Select all shown Purchase Orders">
+          <span>Select all</span>
+        </label>
+      </div>
+      <div class="table-wrap" role="region" aria-label="Purchase Orders">
+        <div id="poRows" class="po-list"><div class="no-data muted">Loading...</div></div>
+      </div>
+    </section>
+
+    <div id="message" role="status" aria-live="polite" class="message" hidden></div>
+
+    <footer class="command-bar" aria-label="Purchase Order actions">
+      <div class="pager">
+        <button id="prev" type="button" class="secondary">Previous</button>
+        <span id="pageText" class="muted">Page 1</span>
+        <button id="next" type="button" class="secondary">Next</button>
+      </div>
+      <div class="action">
+        <span class="sr-only" id="selectedCount">0 selected</span>
+        <button id="add" type="button" disabled>Add Selected</button>
+      </div>
+      <section id="blueprintActions" class="blueprint-actions" hidden>
+        <span id="proceedHelp" class="sr-only">Link at least one Purchase Order to finish Assign PO.</span>
+        <button type="button" id="proceed" aria-describedby="proceedHelp" disabled>Complete Assign PO</button>
+      </section>
+      <div class="widget-footer"><strong title="Widget version v1.17">v1.17</strong></div>
+    </footer>
+  </main>
+</body>
+</html>

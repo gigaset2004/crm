@@ -1,0 +1,999 @@
+:root { font-family: Arial, Helvetica, sans-serif; color: #233042; background: #fff; font-size: 13px; }
+* {box-sizing: border-box}
+body {margin:0}
+.shell {padding:20px;max-width:1120px;margin:auto}
+.head,.panel-head,.footer,.controls,.action,.pager {display:flex;align-items:center;gap:10px}
+.head,.panel-head,.footer {justify-content:space-between}
+.head {margin-bottom:14px}
+h1 {font-size:21px;line-height:1.2;margin:0 0 5px}
+h2 {font-size:15px;margin:0}
+.panel {border:1px solid #e0e5eb;border-radius:9px;margin:12px 0;padding:14px}
+.panel-head {margin-bottom:12px}
+.count {font-size:12px;background:#edf2fa;color:#3664a5;padding:2px 7px;border-radius:12px}
+.muted,.hint {color:#667387;font-size:12px}
+.linked-list {display:grid;gap:8px}
+.linked-item {display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f7f9fc;border:1px solid #e9edf4;border-radius:6px;padding:9px 12px}
+.linked-item a, td a {color:#2473c4;text-decoration:none}
+.linked-item a:hover, td a:hover {text-decoration:underline}
+.linked-details {color:#637184;font-size:12px;margin-top:4px}
+.controls {margin-bottom:12px}
+input[type=search] {font:inherit;border:1px solid #c9d2df;padding:10px 12px;border-radius:6px;flex:1;outline-offset:2px;min-width:0}
+input[type=checkbox] {width:15px;height:15px;accent-color:#256ec5;cursor:pointer}
+button {font:inherit;cursor:pointer;border:1px solid #2772c6;border-radius:6px;background:#2772c6;color:#fff;padding:8px 12px;white-space:nowrap}
+button:hover:not(:disabled) {filter:brightness(.95)}
+button.secondary {background:#fff;color:#2772c6}
+button:disabled {opacity:.48;cursor:not-allowed}
+.table-wrap {overflow:auto;border:1px solid #e1e6ef;border-radius:6px}
+table {width:100%;border-collapse:collapse;min-width:630px}
+th {text-align:left;background:#f5f7fa;font-weight:600;font-size:12px;color:#526074}
+tr + tr {border-top:1px solid #e6ebf1}
+th,td {padding:10px 12px}
+td.num,th.num {text-align:right;white-space:nowrap}
+td.no-data {text-align:center;padding:22px}
+tr.linked {opacity:.6}
+.status {display:inline-block;background:#e8eef7;color:#24313c;border-radius:5px;padding:4px 9px;font-size:11px;font-weight:600;white-space:nowrap}
+.status.cancelled {background:#fceced;color:#ad3642}
+.footer {flex-wrap:wrap;margin-top:12px}
+.pager,.action {gap:8px}
+.message {margin-top:12px;padding:11px 13px;border-radius:6px;border:1px solid #c8dbf3;background:#f1f7ff;color:#28558b}
+.message.error {background:#fff3f2;border-color:#f3cecb;color:#9b3532}
+.message.success {background:#edf8f1;border-color:#bee1c9;color:#237341}
+.hint {margin:12px 0 0}
+.sr-only {position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+@media(max-width:620px){.shell{padding:11px}.panel{padding:10px}.head h1{font-size:18px}.controls{gap:5px}.footer{align-items:stretch;flex-direction:column}.action,.pager{justify-content:space-between}}
+
+/* Blueprint mode has its own completion action and must not permit skipping PO selection. */
+.blueprint-actions {display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:14px 0;padding:13px 15px;border:1px solid #cbd6e4;border-radius:8px;background:#f7faff}
+.blueprint-actions[hidden] {display:none}
+.blueprint-actions .muted {line-height:1.45}
+.blueprint-actions button {padding:11px 18px;font-weight:600}
+@media(max-width:620px){.blueprint-actions{align-items:stretch;flex-direction:column}.blueprint-actions button{width:100%}}
+
+/* Larger usable canvas on Blueprint transitions (outer modal is owned by Zoho). */
+html,body {min-height:100%;width:100%}
+.shell {width:100%;max-width:1160px;min-height:690px;padding:24px 28px 28px}
+.table-wrap {min-height:330px;max-height:440px;overflow:auto}
+.table-wrap thead {position:sticky;top:0;z-index:1}
+@media(max-width:680px){.shell{min-height:0;padding:12px}.table-wrap{min-height:260px;max-height:48vh}}
+
+/* v1.5: compact non-scrolling layout for Zoho's fixed-size Blueprint popup.
+   The outer popup belongs to CRM; SDK UI.Resize is requested separately. */
+html, body { width:100%; min-height:0; height:auto; margin:0; }
+.shell { width:100%; max-width:1480px; min-height:0; height:auto; padding:7px 10px 5px; }
+.head { margin-bottom:5px; min-height:27px; }
+h1 { font-size:16px; line-height:1.15; margin:0 0 2px; }
+h2 { font-size:12px; }
+.muted, .hint { font-size:10.5px; }
+button { font-size:11px; padding:5px 9px; border-radius:5px; }
+.panel { padding:6px 8px; margin:5px 0; border-radius:6px; }
+.panel-head { margin-bottom:5px; }
+.controls { margin-bottom:5px; gap:5px; }
+input[type=search] { font-size:11px; padding:5px 7px; height:28px; }
+input[type=checkbox] { width:13px; height:13px; }
+.table-wrap { min-height:0; max-height:none; overflow-x:auto; overflow-y:visible; }
+table { min-width:530px; font-size:11px; }
+tr { height:25px; }
+th, td { padding:3px 5px; line-height:1.2; }
+th { font-size:10px; }
+.status { padding:2px 5px; font-size:10px; border-radius:3px; }
+.footer { margin-top:5px; gap:4px; }
+.pager, .action { gap:5px; }
+.blueprint-actions { margin:5px 0 3px; padding:5px 7px; gap:7px; border-radius:5px; }
+.blueprint-actions .muted { font-size:10.5px; line-height:1.2; }
+.blueprint-actions button { padding:6px 9px; font-size:11px; }
+.count { font-size:10px; padding:1px 5px; }
+.linked-panel { padding:0; }
+.linked-summary { cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:5px 9px; font-size:11.5px; font-weight:600; gap:10px; list-style:none; }
+.linked-summary::-webkit-details-marker { display:none; }
+.linked-summary::before { content:'▸'; color:#507198; margin-right:3px; }
+.linked-panel[open] .linked-summary::before { content:'▾'; }
+.linked-summary>span:first-child { margin-right:auto; }
+.linked-hint { font-weight:400; font-size:10px; }
+.linked-list { margin:0 7px 7px; display:grid; gap:4px; }
+.linked-item { padding:4px 7px; font-size:11px; }
+.linked-item button { padding:3px 7px; }
+.message { padding:5px 7px; margin-top:5px; font-size:11px; }
+.widget-footer { display:flex; justify-content:space-between; align-items:center; gap:10px;
+  font-size:10px; line-height:1.3; color:#667387; padding:4px 0 2px;
+  position:sticky; bottom:0; z-index:4; background:#fff; border-top:1px solid #edf0f4; }
+.widget-footer strong { flex:none; color:#48627c; font-variant-numeric:tabular-nums; }
+@media (min-height:650px) { .shell { padding:12px 18px 10px; }
+  h1 { font-size:19px; } .panel { padding:10px 12px; margin:10px 0; }
+  th,td { padding:8px 10px; } tr { height:36px; }
+  .controls {margin-bottom:10px;} input[type=search]{height:36px;}
+  .blueprint-actions { padding:10px 12px; margin:10px 0 7px; }
+  .linked-summary { padding:8px 11px; } .linked-list { margin:0 10px 10px; }
+  .footer { margin-top:10px; } .head{ margin-bottom:12px; }
+}
+@media (max-width:620px){ .shell {padding:6px 8px 4px;}
+  .panel{padding:5px 6px;margin:4px 0;} .linked-panel{padding:0;}
+  .head h1{font-size:16px;} .controls{gap:4px;}
+  .footer {flex-direction:row; align-items:center;} .pager,.action {justify-content:space-between;}
+  .blueprint-actions { flex-direction:row; align-items:center; padding:4px 6px; }
+  .blueprint-actions button{width:auto;}
+}
+
+/* v1.6 - scroll Purchase Order rows only; pin both action bars at all sizes.
+   Blueprint modal viewport is provided by Zoho and may be only ~380px tall. */
+html,body {height:100%; min-height:0; overflow:hidden;}
+body[data-mode="blueprint"] .shell {
+  display:flex; flex-direction:column; gap:4px;
+  height:100vh; height:100dvh; min-height:0; max-height:100dvh;
+  overflow:hidden; padding:7px 10px 5px;
+}
+body[data-mode="blueprint"] .head,
+body[data-mode="blueprint"] .linked-panel,
+body[data-mode="blueprint"] .blueprint-actions,
+body[data-mode="blueprint"] .widget-footer { flex:none; margin:0; }
+body[data-mode="blueprint"] .linked-panel[open] .linked-list {
+  max-height:80px; overflow-y:auto; overscroll-behavior:contain;
+}
+body[data-mode="blueprint"] .po-selector {
+  flex:1 1 auto; min-height:0; display:flex; flex-direction:column;
+  padding:6px 8px; margin:0; overflow:hidden;
+}
+body[data-mode="blueprint"] .po-selector .panel-head,
+body[data-mode="blueprint"] .po-selector .controls,
+body[data-mode="blueprint"] .po-selector .footer { flex:0 0 auto; }
+body[data-mode="blueprint"] .po-selector .table-wrap {
+  flex:1 1 auto; min-height:54px; max-height:none;
+  overflow-y:auto; overflow-x:auto; overscroll-behavior:contain;
+}
+body[data-mode="blueprint"] .po-selector .table-wrap thead {position:sticky;top:0;z-index:2;}
+body[data-mode="blueprint"] .po-selector .footer {
+  display:flex; flex-direction:row; align-items:center; justify-content:space-between;
+  flex-wrap:nowrap; gap:5px; margin-top:5px; padding-top:5px;
+  border-top:1px solid #e6ebf1; background:#fff;
+}
+body[data-mode="blueprint"] .po-selector .pager,
+body[data-mode="blueprint"] .po-selector .action {
+  display:flex; align-items:center; flex-direction:row; flex-wrap:nowrap; white-space:nowrap;
+}
+body[data-mode="blueprint"] .blueprint-actions {
+  display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center;
+  justify-content:space-between; gap:6px; padding:5px 7px;
+}
+body[data-mode="blueprint"] .blueprint-actions[hidden] {display:none;}
+body[data-mode="blueprint"] .blueprint-actions .muted { flex:1; min-width:0; }
+body[data-mode="blueprint"] .blueprint-actions button { flex:none; width:auto; }
+body[data-mode="blueprint"] .widget-footer {
+  position:static; min-height:19px; padding:2px 0 0;
+  white-space:normal; font-size:10px;
+}
+body[data-mode="blueprint"] .message:not([hidden]) {
+  flex:0 0 auto; margin:0; max-height:44px; overflow:auto;
+}
+@media (min-height:650px){
+  body[data-mode="blueprint"] .shell{padding:12px 18px 10px;gap:8px;}
+  body[data-mode="blueprint"] .po-selector{padding:10px 12px;}
+  body[data-mode="blueprint"] .blueprint-actions{padding:10px 12px;}
+}
+
+/* v1.7 - Keep the entire widget within Zoho's short Blueprint modal.
+   Only the PO table scrolls; the Add Selected and Complete Assign PO buttons
+   remain outside its scroll region. The host sometimes ignores UI.Resize. */
+body[data-mode="blueprint"] .shell {
+  height: min(350px, 100dvh);
+  max-height: min(350px, 100dvh);
+  min-height: 0;
+  padding: 7px 10px 5px;
+  gap: 4px;
+  overflow: hidden;
+}
+body[data-mode="blueprint"] .head {min-height:25px;margin:0;}
+body[data-mode="blueprint"] .po-selector {flex:1 1 auto;min-height:0;overflow:hidden;}
+body[data-mode="blueprint"] .po-selector .table-wrap {
+  flex:1 1 auto;
+  min-height:42px;
+  overflow-x:auto;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+body[data-mode="blueprint"] .po-selector .footer {flex:none;margin-top:4px;padding-top:4px;}
+body[data-mode="blueprint"] .blueprint-actions {
+  position:relative;z-index:5;flex:none;
+  min-height:39px;margin:0;padding:5px 7px;
+  background:#f7faff;
+}
+body[data-mode="blueprint"] .widget-footer {display:none;}
+body[data-mode="blueprint"] .pickup-location {
+  min-width:155px;
+  max-width:290px;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  line-height:1.3;
+}
+body[data-mode="blueprint"] table {min-width:570px;}
+body[data-mode="blueprint"] .po-selector .table-wrap thead {
+  position:sticky;top:0;background:#f5f7fa;z-index:3;
+}
+@media (max-width:620px) {
+  body[data-mode="blueprint"] .shell {padding:5px 7px 4px;gap:3px;}
+  body[data-mode="blueprint"] table {min-width:550px;}
+  body[data-mode="blueprint"] .blueprint-actions .muted {font-size:10px;}
+  body[data-mode="blueprint"] .blueprint-actions button {padding:6px 8px;}
+}
+
+/* v1.8 — CRM-size readable type, tall Blueprint canvas, pinned actions.
+   Zoho controls the outer modal; SDK requests 1380 x 720. If Zoho refuses,
+   table keeps its own scrollbar and action buttons remain accessible. */
+:root {font-size:14px;}
+body[data-mode="blueprint"] .shell {
+  height:100vh;height:100dvh;max-height:100dvh;min-height:0;
+  padding:16px 20px 12px;gap:10px;max-width:none;font-size:14px;
+}
+body[data-mode="blueprint"] .head {min-height:40px; margin:0;}
+body[data-mode="blueprint"] h1 {font-size:21px;line-height:1.25;margin-bottom:4px;}
+body[data-mode="blueprint"] h2 {font-size:15px;}
+body[data-mode="blueprint"] .muted,
+body[data-mode="blueprint"] .hint,
+body[data-mode="blueprint"] .linked-hint {font-size:12.5px;line-height:1.4;}
+body[data-mode="blueprint"] button {font-size:14px;padding:9px 13px;border-radius:6px;}
+body[data-mode="blueprint"] .panel {padding:12px 14px;border-radius:9px;}
+body[data-mode="blueprint"] .linked-panel {padding:0;}
+body[data-mode="blueprint"] .linked-summary {font-size:14px;padding:11px 14px;}
+body[data-mode="blueprint"] .linked-item {font-size:14px;padding:10px 12px;}
+body[data-mode="blueprint"] .linked-details {font-size:12px;}
+body[data-mode="blueprint"] .linked-panel[open] .linked-list {max-height:128px;}
+body[data-mode="blueprint"] .count {font-size:12px;padding:2px 7px;}
+body[data-mode="blueprint"] .po-selector {flex:1 1 auto;min-height:0;padding:12px 14px;margin:0;}
+body[data-mode="blueprint"] .po-selector .panel-head {margin-bottom:10px;}
+body[data-mode="blueprint"] .po-selector .controls {margin-bottom:10px;gap:8px;}
+body[data-mode="blueprint"] input[type=search] {font-size:14px;min-height:38px;height:38px;padding:8px 11px;}
+body[data-mode="blueprint"] input[type=checkbox] {width:17px;height:17px;}
+body[data-mode="blueprint"] table {min-width:1175px;font-size:14px;}
+body[data-mode="blueprint"] th {font-size:13px;line-height:1.25;white-space:nowrap;}
+body[data-mode="blueprint"] th,body[data-mode="blueprint"] td {padding:11px 12px;line-height:1.35;}
+body[data-mode="blueprint"] tbody tr {height:48px;}
+body[data-mode="blueprint"] .status {font-size:12.5px;padding:5px 10px;border-radius:5px;font-weight:600;}
+body[data-mode="blueprint"] .pickup-location {min-width:185px;max-width:280px;font-size:14px;}
+body[data-mode="blueprint"] .po-owner {min-width:125px;}
+body[data-mode="blueprint"] .created-date {min-width:115px;white-space:nowrap;}
+body[data-mode="blueprint"] .po-selector .footer {margin-top:8px;padding-top:9px;gap:10px;}
+body[data-mode="blueprint"] .po-selector .footer .pager,
+body[data-mode="blueprint"] .po-selector .footer .action {gap:9px;}
+body[data-mode="blueprint"] .blueprint-actions {
+  position:relative;z-index:5;flex:none;min-height:60px;
+  margin:0;padding:11px 13px;gap:10px;border-radius:8px;
+}
+body[data-mode="blueprint"] .blueprint-actions .muted {font-size:13px;}
+body[data-mode="blueprint"] .blueprint-actions button {font-size:14px;padding:11px 17px;}
+body[data-mode="blueprint"] .message {font-size:13px;padding:9px 12px;}
+body[data-mode="blueprint"] .message:not([hidden]) {max-height:66px;}
+@media (max-width:1050px) {
+  body[data-mode="blueprint"] .shell {padding:12px 13px 9px;gap:7px;}
+  body[data-mode="blueprint"] .po-selector {padding:9px 11px;}
+  body[data-mode="blueprint"] table {min-width:0;width:100%;display:block;}
+  body[data-mode="blueprint"] thead {display:none;}
+  body[data-mode="blueprint"] tbody {display:block;}
+  body[data-mode="blueprint"] tbody tr:not(.empty-row) {
+    display:grid;grid-template-columns:26px minmax(0,1.45fr) minmax(0,1fr) minmax(0,.9fr);
+    grid-template-areas:
+      "check po po created"
+      "check supplier status accounting"
+      "check pickup pickup owner";
+    align-items:center;gap:3px 10px;height:auto;
+    padding:10px 12px;border-bottom:1px solid #e4e9f0;
+  }
+  body[data-mode="blueprint"] tbody td {min-width:0!important;max-width:none;padding:2px 0;line-height:1.35;}
+  body[data-mode="blueprint"] tbody td:first-child {grid-area:check;align-self:center;}
+  body[data-mode="blueprint"] tbody td:nth-child(2) {grid-area:po;font-weight:600;}
+  body[data-mode="blueprint"] tbody td:nth-child(3) {grid-area:supplier;}
+  body[data-mode="blueprint"] tbody td:nth-child(4) {grid-area:status;}
+  body[data-mode="blueprint"] tbody td:nth-child(5) {grid-area:accounting;}
+  body[data-mode="blueprint"] tbody td:nth-child(6) {grid-area:pickup;overflow-wrap:anywhere;}
+  body[data-mode="blueprint"] tbody td:nth-child(7) {grid-area:owner;overflow-wrap:anywhere;}
+  body[data-mode="blueprint"] tbody td:nth-child(8) {grid-area:created;white-space:normal;}
+  body[data-mode="blueprint"] tbody td[data-label]::before {
+    content:attr(data-label) ": ";font-size:11px;color:#637184;font-weight:500;
+  }
+  body[data-mode="blueprint"] tbody td:nth-child(2)::before {display:none;}
+  body[data-mode="blueprint"] tbody td:nth-child(4)::before,
+  body[data-mode="blueprint"] tbody td:nth-child(5)::before {display:block;}
+  body[data-mode="blueprint"] tbody tr:has(.no-data) {display:block;}
+  body[data-mode="blueprint"] tbody .no-data {display:block;text-align:center;padding:20px;}
+}
+@media (max-width:600px) {
+  body[data-mode="blueprint"] .shell {padding:8px 8px 5px;gap:5px;}
+  body[data-mode="blueprint"] h1 {font-size:18px;}
+  body[data-mode="blueprint"] .head {min-height:33px;}
+  body[data-mode="blueprint"] .po-selector {padding:8px;}
+  body[data-mode="blueprint"] tbody tr:not(.empty-row) {
+    grid-template-columns:26px minmax(0,1fr) minmax(0,1fr);
+    grid-template-areas:
+      "check po po"
+      "check supplier supplier"
+      "check pickup pickup"
+      "check status accounting"
+      "check owner created";
+    gap:6px 8px;padding:10px 7px;
+  }
+  body[data-mode="blueprint"] .po-selector .footer {gap:6px;flex-wrap:wrap;}
+  body[data-mode="blueprint"] .blueprint-actions {min-height:58px;padding:9px;}
+  body[data-mode="blueprint"] .blueprint-actions .muted {font-size:12px;}
+  body[data-mode="blueprint"] .blueprint-actions button {font-size:13px;padding:9px 11px;}
+  body[data-mode="blueprint"] button {font-size:13px;padding:7px 9px;}
+}
+
+
+/* v1.9: Expanded Blueprint dialog content. CRM owns the actual modal;
+   UI.Resize requests 96% screen width x 89% screen height (max 1600x850).
+   When host does not honor resize, PO table alone scrolls and action bar stays in view. */
+body[data-mode="blueprint"] .shell {
+  width:100%;max-width:none;
+  height:100vh;height:100dvh;max-height:100dvh;
+  min-height:0;display:flex;flex-direction:column;
+  padding:22px 26px 16px;gap:14px;
+  overflow:hidden;
+}
+body[data-mode="blueprint"] .head {min-height:46px;flex:0 0 auto;}
+body[data-mode="blueprint"] h1 {font-size:24px;line-height:1.28;}
+body[data-mode="blueprint"] .po-selector {
+  flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+  padding:17px 18px;margin:0;overflow:hidden;
+}
+body[data-mode="blueprint"] .po-selector .panel-head {flex:0 0 auto;margin-bottom:14px;}
+body[data-mode="blueprint"] .po-selector .controls {flex:0 0 auto;margin-bottom:14px;}
+body[data-mode="blueprint"] .po-selector .table-wrap {
+  flex:1 1 auto;min-height:56px;max-height:none;
+  overflow:auto;overscroll-behavior:contain;
+}
+body[data-mode="blueprint"] .po-selector .table-wrap thead {
+  position:sticky;top:0;z-index:3;
+}
+body[data-mode="blueprint"] .po-selector .footer {
+  flex:0 0 auto;margin-top:12px;padding-top:12px;
+}
+body[data-mode="blueprint"] .linked-summary {font-size:15px;padding:13px 15px;}
+body[data-mode="blueprint"] .linked-panel[open] .linked-list {max-height:190px;overflow:auto;}
+body[data-mode="blueprint"] h2 {font-size:17px;}
+body[data-mode="blueprint"] input[type=search] {font-size:15px;height:43px;padding:10px 13px;}
+body[data-mode="blueprint"] input[type=checkbox] {width:18px;height:18px;}
+body[data-mode="blueprint"] table {min-width:1250px;font-size:15px;}
+body[data-mode="blueprint"] th {font-size:13.5px;}
+body[data-mode="blueprint"] th,body[data-mode="blueprint"] td {padding:13px 15px;line-height:1.4;}
+body[data-mode="blueprint"] tbody tr {height:56px;}
+body[data-mode="blueprint"] .status {font-size:13px;padding:5px 10px;}
+body[data-mode="blueprint"] .pickup-location {min-width:210px;max-width:330px;font-size:15px;}
+body[data-mode="blueprint"] button {font-size:15px;padding:10px 15px;}
+body[data-mode="blueprint"] .blueprint-actions {
+  flex:0 0 auto;min-height:68px;
+  padding:14px 16px;margin:0;gap:15px;
+}
+body[data-mode="blueprint"] .blueprint-actions button {font-size:15px;padding:13px 19px;}
+body[data-mode="blueprint"] .blueprint-actions .muted {font-size:14px;}
+@media (max-width:1050px) {
+  body[data-mode="blueprint"] .shell {padding:11px 12px 8px;gap:7px;}
+  body[data-mode="blueprint"] .head {min-height:34px;}
+  body[data-mode="blueprint"] h1 {font-size:19px;}
+  body[data-mode="blueprint"] .po-selector {padding:9px 10px;}
+  body[data-mode="blueprint"] .po-selector .panel-head,
+  body[data-mode="blueprint"] .po-selector .controls {margin-bottom:7px;}
+  body[data-mode="blueprint"] .po-selector .footer {margin-top:6px;padding-top:6px;}
+  body[data-mode="blueprint"] .po-selector .table-wrap {min-height:42px;}
+  body[data-mode="blueprint"] .linked-summary {padding:8px 10px;font-size:14px;}
+  body[data-mode="blueprint"] .blueprint-actions {min-height:49px;padding:8px 11px;}
+  body[data-mode="blueprint"] .blueprint-actions button {font-size:14px;padding:9px 12px;}
+  body[data-mode="blueprint"] .blueprint-actions .muted {font-size:12px;}
+  body[data-mode="blueprint"] .po-selector tbody tr:not(.empty-row) {height:auto;padding:9px 10px;}
+  body[data-mode="blueprint"] .po-selector tbody td {padding:3px 0;}
+  body[data-mode="blueprint"] .po-selector table {min-width:0;}
+}
+@media (max-height:490px) {
+  body[data-mode="blueprint"] .shell {padding:5px 8px 4px;gap:4px;}
+  body[data-mode="blueprint"] .head {min-height:26px;}
+  body[data-mode="blueprint"] h1 {font-size:17px;}
+  body[data-mode="blueprint"] .linked-summary {padding:4px 8px;font-size:12px;}
+  body[data-mode="blueprint"] .po-selector {padding:6px 8px;}
+  body[data-mode="blueprint"] h2 {font-size:13px;}
+  body[data-mode="blueprint"] .po-selector .panel-head,
+  body[data-mode="blueprint"] .po-selector .controls {margin-bottom:4px;}
+  body[data-mode="blueprint"] input[type=search] {height:29px;font-size:12px;padding:5px 8px;}
+  body[data-mode="blueprint"] button {font-size:12px;padding:5px 8px;}
+  body[data-mode="blueprint"] .po-selector .footer {margin-top:3px;padding-top:4px;}
+  body[data-mode="blueprint"] .blueprint-actions {min-height:36px;padding:4px 8px;}
+  body[data-mode="blueprint"] .blueprint-actions button {padding:7px 10px;font-size:12px;}
+}
+
+/* -------------------------------------------------------------------------
+   v1.10 -- Compact, readable cards for Zoho Blueprint fixed-size dialogs.
+   Applied after v1.9 rules. Does not change PO link/Blueprint functionality.
+   All important actions and version remain visible at ~710 x 385 px.
+   ------------------------------------------------------------------------- */
+body[data-mode="blueprint"] {
+  --ui-border:#e2e8ef;
+  --ui-muted:#64748b;
+}
+body[data-mode="blueprint"] .shell {
+  width:100%;max-width:none;
+  height:100vh;height:100dvh;max-height:100dvh;
+  min-height:0;margin:0;padding:6px 9px 4px;gap:5px;
+  display:flex;flex-direction:column;overflow:hidden;
+  font-size:14px;
+}
+body[data-mode="blueprint"] .head {
+  flex:0 0 auto;min-height:31px;margin:0;gap:8px;
+}
+body[data-mode="blueprint"] h1 {font-size:17px;line-height:1.18;margin:0 0 2px;font-weight:700;}
+body[data-mode="blueprint"] #shipmentLabel {
+  font-size:11.5px;line-height:1.2;max-width:80ch;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+body[data-mode="blueprint"] button {font-size:13px;padding:6px 10px;line-height:1.25;}
+body[data-mode="blueprint"] .head #refresh {padding:5px 10px;min-height:30px;}
+body[data-mode="blueprint"] .linked-panel {
+  flex:0 0 auto;margin:0;padding:0;position:relative;z-index:9;
+  border:1px solid var(--ui-border);border-radius:6px;
+}
+body[data-mode="blueprint"] .linked-summary {
+  padding:5px 10px;min-height:28px;font-size:13px;line-height:1.1;
+}
+body[data-mode="blueprint"] .linked-hint {font-size:11px;}
+body[data-mode="blueprint"] .count {font-size:11px;padding:1px 6px;}
+body[data-mode="blueprint"] .linked-panel[open] .linked-list {
+  position:absolute;top:100%;left:0;right:0;z-index:10;
+  margin:2px 0 0;padding:7px;max-height:min(170px,48dvh);
+  overflow-y:auto;background:#fff;border:1px solid var(--ui-border);
+  border-radius:7px;box-shadow:0 12px 24px rgba(15,23,42,.14);
+}
+body[data-mode="blueprint"] .linked-item {font-size:13px;padding:6px 9px;}
+body[data-mode="blueprint"] .po-selector {
+  flex:1 1 auto;min-height:0;overflow:hidden;
+  display:flex;flex-direction:column;
+  margin:0;padding:7px 9px 6px;
+  border:1px solid var(--ui-border);border-radius:8px;
+}
+body[data-mode="blueprint"] .selector-toolbar {
+  flex:0 0 auto;display:grid;
+  grid-template-columns:auto minmax(100px,1fr) auto;
+  align-items:center;gap:8px;margin-bottom:6px;
+}
+body[data-mode="blueprint"] .selector-title {
+  display:flex;flex-direction:column;min-width:140px;gap:1px;
+}
+body[data-mode="blueprint"] .selector-title h2 {
+  font-size:13.5px;line-height:1.18;white-space:nowrap;
+}
+body[data-mode="blueprint"] .selector-title #pageInfo {font-size:11px;line-height:1.15;}
+body[data-mode="blueprint"] .controls {margin:0;display:flex;gap:5px;min-width:0;}
+body[data-mode="blueprint"] .controls input[type=search] {
+  min-width:0;width:100%;height:31px;min-height:31px;
+  padding:5px 9px;font-size:13px;
+}
+body[data-mode="blueprint"] .controls button {min-height:31px;padding:5px 11px;}
+body[data-mode="blueprint"] .select-all-label {
+  display:inline-flex;gap:5px;align-items:center;white-space:nowrap;
+  cursor:pointer;font-size:12.5px;color:#45556a;
+}
+body[data-mode="blueprint"] input[type=checkbox] {
+  width:18px;height:18px;min-width:18px;accent-color:#2875c7;
+}
+body[data-mode="blueprint"] .po-selector .table-wrap {
+  flex:1 1 auto;min-height:45px;max-height:none;
+  overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+  background:#f8fafd;border:1px solid var(--ui-border);
+  border-radius:6px;
+}
+body[data-mode="blueprint"] .po-list {display:flex;flex-direction:column;gap:5px;padding:5px;}
+body[data-mode="blueprint"] .po-card {
+  flex:0 0 auto;
+  display:grid;grid-template-columns:21px minmax(0,1.08fr) minmax(0,1fr);
+  grid-template-areas:'check identity badges' 'check pickup meta';
+  align-items:start;column-gap:10px;row-gap:5px;
+  min-width:0;padding:8px 9px;
+  background:#fff;border:1px solid #e1e6ed;border-radius:6px;
+  box-shadow:0 1px 2px rgba(30,45,65,.025);
+}
+body[data-mode="blueprint"] .po-card.linked {opacity:.66;}
+body[data-mode="blueprint"] .po-card-check {grid-area:check;align-self:center;display:flex;}
+body[data-mode="blueprint"] .po-card-identity {grid-area:identity;min-width:0;}
+body[data-mode="blueprint"] .po-card-title {
+  display:flex;flex-wrap:wrap;align-items:center;gap:5px;
+  font-size:14px;font-weight:700;line-height:1.2;overflow-wrap:anywhere;
+}
+body[data-mode="blueprint"] .po-card-title a,
+body[data-mode="blueprint"] .linked-item a {color:#176ab5;text-decoration:none;}
+body[data-mode="blueprint"] .po-card-title a:hover {text-decoration:underline;}
+body[data-mode="blueprint"] .po-card-supplier {
+  margin-top:3px;font-size:12.5px;color:#56657a;line-height:1.18;
+  overflow-wrap:anywhere;
+}
+body[data-mode="blueprint"] .po-card .linked-details {
+  font-size:10px;color:#33724d;padding:1px 4px;background:#e9f6ed;border-radius:3px;
+}
+body[data-mode="blueprint"] .po-card-badges {
+  grid-area:badges;display:flex;flex-wrap:wrap;align-items:center;
+  gap:5px 10px;min-width:0;
+}
+body[data-mode="blueprint"] .po-card-badge-field {
+  display:inline-flex;align-items:center;gap:4px;min-width:0;
+}
+body[data-mode="blueprint"] .po-card-label {
+  flex:none;font-size:10.5px;font-weight:600;line-height:1.3;color:var(--ui-muted);
+}
+body[data-mode="blueprint"] .status {
+  font-size:11.5px;font-weight:600;line-height:1.2;
+  padding:3px 7px;border-radius:4px;white-space:nowrap;
+}
+body[data-mode="blueprint"] .po-card-pickup {
+  grid-area:pickup;display:flex;gap:5px;align-items:baseline;min-width:0;
+  line-height:1.25;font-size:12.5px;
+}
+body[data-mode="blueprint"] .po-pickup-value {overflow-wrap:anywhere;min-width:0;}
+body[data-mode="blueprint"] .po-card-meta {
+  grid-area:meta;display:flex;flex-wrap:wrap;gap:4px 12px;
+  min-width:0;font-size:12px;line-height:1.25;
+}
+body[data-mode="blueprint"] .po-card-meta-item {display:inline-flex;gap:4px;align-items:baseline;min-width:0;overflow-wrap:anywhere;}
+body[data-mode="blueprint"] .no-data {
+  padding:22px 10px;text-align:center;font-size:13px;
+}
+body[data-mode="blueprint"] .po-selector .footer {
+  flex:0 0 auto;display:flex;flex-direction:row;align-items:center;
+  justify-content:space-between;flex-wrap:nowrap;gap:5px;
+  margin:5px 0 0;padding:5px 0 0;
+  border-top:1px solid var(--ui-border);
+}
+body[data-mode="blueprint"] .po-selector .pager,
+body[data-mode="blueprint"] .po-selector .action {
+  display:flex;flex-direction:row;align-items:center;gap:6px;
+  white-space:nowrap;flex-wrap:nowrap;
+}
+body[data-mode="blueprint"] .pager .muted,
+body[data-mode="blueprint"] #selectedCount {font-size:12px;}
+body[data-mode="blueprint"] .footer button {min-height:29px;padding:5px 10px;}
+body[data-mode="blueprint"] #add {font-weight:600;}
+body[data-mode="blueprint"] .blueprint-actions {
+  position:relative;z-index:5;flex:0 0 auto;
+  display:flex;flex-direction:row;align-items:center;justify-content:space-between;
+  flex-wrap:nowrap;min-height:39px;
+  margin:0;padding:5px 9px;gap:7px;
+  border-radius:7px;
+}
+body[data-mode="blueprint"] .blueprint-actions .muted {
+  flex:1 1 auto;min-width:0;font-size:12px;line-height:1.2;
+}
+body[data-mode="blueprint"] .blueprint-actions button {
+  flex:0 0 auto;width:auto;font-size:13px;padding:7px 12px;font-weight:600;
+}
+body[data-mode="blueprint"] .blueprint-actions[hidden] {display:none;}
+body[data-mode="blueprint"] .message:not([hidden]) {
+  flex:0 1 auto;min-height:0;max-height:52px;overflow-y:auto;
+  margin:0;padding:5px 8px;font-size:12px;line-height:1.3;
+}
+body[data-mode="blueprint"] .widget-footer {
+  flex:0 0 auto;display:flex!important;justify-content:space-between;
+  align-items:center;gap:8px;margin:0;padding:0 1px;
+  border:0;background:#fff;color:#7b8798;
+  font-size:10px;line-height:13px;
+}
+body[data-mode="blueprint"] .widget-footer strong {
+  display:inline!important;opacity:1;color:#364c68;
+  font-size:11px;line-height:13px;font-weight:700;
+}
+@media (max-height:500px) {
+  body[data-mode="blueprint"] .shell {padding:4px 7px 3px;gap:4px;}
+  body[data-mode="blueprint"] .head {min-height:28px;}
+  body[data-mode="blueprint"] .linked-summary {min-height:25px;padding:3px 8px;}
+  body[data-mode="blueprint"] .po-selector {padding:6px 8px 4px;}
+  body[data-mode="blueprint"] .selector-toolbar {margin-bottom:4px;}
+  body[data-mode="blueprint"] .po-selector .footer {margin-top:4px;padding-top:4px;}
+  body[data-mode="blueprint"] .blueprint-actions {min-height:36px;padding:4px 8px;}
+  body[data-mode="blueprint"] .widget-footer span {display:none;}
+  body[data-mode="blueprint"] .widget-footer {justify-content:flex-end;}
+}
+@media (max-width:620px) {
+  body[data-mode="blueprint"] .selector-toolbar {
+    grid-template-columns:minmax(0,1fr) auto;gap:5px 8px;
+  }
+  body[data-mode="blueprint"] .selector-title {grid-column:1;grid-row:1;}
+  body[data-mode="blueprint"] .select-all-label {grid-column:2;grid-row:1;}
+  body[data-mode="blueprint"] .controls {grid-column:1 / -1;grid-row:2;}
+  body[data-mode="blueprint"] .po-card {
+    grid-template-columns:21px minmax(0,1fr);
+    grid-template-areas:'check identity' 'check badges' 'check pickup' 'check meta';
+    row-gap:4px;
+  }
+  body[data-mode="blueprint"] .po-card-meta {gap:4px 10px;}
+  body[data-mode="blueprint"] .po-card-pickup {flex-wrap:wrap;gap:2px 5px;}
+  body[data-mode="blueprint"] .po-selector .footer {flex-wrap:nowrap;}
+  body[data-mode="blueprint"] .po-selector .pager,
+  body[data-mode="blueprint"] .po-selector .action {gap:3px;}
+  body[data-mode="blueprint"] .footer button {font-size:12px;padding:5px 7px;}
+  body[data-mode="blueprint"] #selectedCount {font-size:11px;}
+}
+@media (max-width:430px) {
+  body[data-mode="blueprint"] .blueprint-actions .muted {
+    font-size:11px;
+  }
+  body[data-mode="blueprint"] .blueprint-actions button {font-size:12px;padding:7px 8px;}
+  body[data-mode="blueprint"] .linked-hint {display:none;}
+  body[data-mode="blueprint"] .po-card-badges {gap:4px 7px;}
+  body[data-mode="blueprint"] .po-card-label {font-size:10px;}
+}
+@media (min-height:600px) {
+  body[data-mode="blueprint"] .shell {padding:12px 16px 8px;gap:9px;}
+  body[data-mode="blueprint"] h1 {font-size:20px;}
+  body[data-mode="blueprint"] .head {min-height:40px;}
+  body[data-mode="blueprint"] .linked-summary {min-height:37px;padding:9px 12px;}
+  body[data-mode="blueprint"] .po-selector {padding:12px 13px 10px;}
+  body[data-mode="blueprint"] .selector-toolbar {margin-bottom:10px;}
+  body[data-mode="blueprint"] .controls input[type=search],
+  body[data-mode="blueprint"] .controls button {height:37px;min-height:37px;}
+  body[data-mode="blueprint"] .po-list {gap:8px;padding:9px;}
+  body[data-mode="blueprint"] .po-card {padding:12px 13px;row-gap:9px;}
+  body[data-mode="blueprint"] .po-card-title {font-size:15px;}
+  body[data-mode="blueprint"] .po-card-supplier {font-size:13px;}
+  body[data-mode="blueprint"] .po-card-pickup {font-size:13px;}
+  body[data-mode="blueprint"] .po-card-meta {font-size:13px;}
+  body[data-mode="blueprint"] .po-selector .footer {margin-top:8px;padding-top:8px;}
+  body[data-mode="blueprint"] .blueprint-actions {padding:9px 12px;min-height:50px;}
+}
+
+/* v1.11: compact header and search; supplier link and pickup classifications.
+   The outer Blueprint dialog is managed by Zoho CRM; this keeps both action
+   buttons within a short viewport and scrolls only the PO card list. */
+body[data-mode="blueprint"] .shell {
+  height:min(100dvh, 365px);max-height:min(100dvh, 365px);
+  min-height:0;overflow:hidden;
+}
+body[data-mode="blueprint"] .head {
+  min-height:29px;flex-shrink:0;
+}
+body[data-mode="blueprint"] .headline {
+  display:flex;align-items:center;min-width:0;overflow:hidden;
+  gap:8px;white-space:nowrap;
+}
+body[data-mode="blueprint"] .headline h1 {
+  margin:0;white-space:nowrap;flex:none;font-size:16px;
+}
+body[data-mode="blueprint"] .headline-divider {
+  font-size:16px;line-height:1;color:#a5afbb;flex:none;
+}
+body[data-mode="blueprint"] .head #shipmentLabel {
+  display:block;min-width:0;max-width:none;overflow:hidden;
+  white-space:nowrap;text-overflow:ellipsis;
+  font-size:12px;line-height:1.2;
+}
+body[data-mode="blueprint"] .head #refresh {flex-shrink:0;}
+body[data-mode="blueprint"] .utility-bar {
+  display:flex;flex:0 0 auto;align-items:center;gap:6px;
+  min-width:0;position:relative;z-index:12;
+}
+body[data-mode="blueprint"] .utility-bar .linked-panel {
+  flex:0 0 auto;min-width:0;margin:0;position:relative;z-index:13;
+}
+body[data-mode="blueprint"] .utility-bar .linked-summary {
+  min-height:30px;padding:5px 9px;white-space:nowrap;
+  gap:3px;line-height:1.2;
+}
+body[data-mode="blueprint"] .utility-bar .linked-hint {display:none;}
+body[data-mode="blueprint"] .utility-bar .linked-panel[open] .linked-list {
+  left:0;right:auto;width:min(360px, calc(100vw - 20px));
+  max-height:min(165px, 42dvh);
+}
+body[data-mode="blueprint"] .utility-bar .controls {
+  flex:1 1 auto;display:flex;align-items:center;gap:5px;
+  min-width:0;margin:0;
+}
+body[data-mode="blueprint"] .utility-bar .controls input[type=search] {
+  flex:1 1 auto;width:auto;min-width:0;height:30px;min-height:30px;
+  font-size:12.5px;padding:5px 8px;
+}
+body[data-mode="blueprint"] .utility-bar .controls button {
+  flex:0 0 auto;min-height:30px;padding:5px 10px;
+}
+body[data-mode="blueprint"] .selector-toolbar {
+  display:flex;align-items:center;justify-content:space-between;
+  flex:0 0 auto;min-width:0;gap:6px;margin-bottom:5px;
+}
+body[data-mode="blueprint"] .selector-title {
+  display:flex;flex-direction:row;align-items:baseline;
+  gap:8px;min-width:0;
+}
+body[data-mode="blueprint"] .selector-title h2 {
+  flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-size:12.5px;
+}
+body[data-mode="blueprint"] .selector-title #pageInfo {
+  flex:0 0 auto;white-space:nowrap;font-size:10.5px;
+}
+body[data-mode="blueprint"] .select-all-label {flex:0 0 auto;}
+body[data-mode="blueprint"] .po-selector {min-height:0;}
+body[data-mode="blueprint"] .po-selector .table-wrap {
+  flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;
+  overscroll-behavior:contain;
+}
+body[data-mode="blueprint"] .po-card-supplier a {
+  color:#176ab5;text-decoration:none;
+}
+body[data-mode="blueprint"] .po-card-supplier a:hover,
+body[data-mode="blueprint"] .po-card-supplier a:focus-visible {
+  text-decoration:underline;
+}
+body[data-mode="blueprint"] .po-card-pickup {
+  gap:5px;align-items:baseline;flex-wrap:wrap;
+}
+body[data-mode="blueprint"] .pickup-kind {
+  display:inline-flex;align-items:center;flex:0 0 auto;
+  font-size:10px;line-height:1.15;font-weight:600;
+  padding:2px 5px;border-radius:4px;white-space:nowrap;
+}
+body[data-mode="blueprint"] .pickup-kind-warehouse {
+  color:#286348;background:#e6f3e9;border:1px solid #d3e8da;
+}
+body[data-mode="blueprint"] .pickup-kind-custom {
+  color:#865700;background:#fff2c7;border:1px solid #f2db99;
+}
+body[data-mode="blueprint"] .pickup-kind-unset {
+  color:#6b7584;background:#eef1f4;border:1px solid #e1e6ec;
+}
+body[data-mode="blueprint"] .po-pickup-value {overflow-wrap:anywhere;}
+body[data-mode="blueprint"] .blueprint-actions,
+body[data-mode="blueprint"] .widget-footer,
+body[data-mode="blueprint"] .po-selector .footer {
+  flex-shrink:0;
+}
+@media (min-height:600px) {
+  body[data-mode="blueprint"] .shell {
+    height:100dvh;max-height:100dvh;
+  }
+}
+@media (max-width:430px) {
+  body[data-mode="blueprint"] .headline {gap:4px;}
+  body[data-mode="blueprint"] .headline h1 {font-size:14px;}
+  body[data-mode="blueprint"] .utility-bar .linked-summary {padding:5px 6px;font-size:11.5px;}
+  body[data-mode="blueprint"] .utility-bar .controls button {padding:5px 7px;font-size:11.5px;}
+  body[data-mode="blueprint"] .utility-bar .controls input[type=search] {font-size:12px;}
+  body[data-mode="blueprint"] .selector-title {gap:4px;}
+  body[data-mode="blueprint"] .selector-title h2 {font-size:11.5px;}
+  body[data-mode="blueprint"] .selector-title #pageInfo {font-size:10px;}
+  body[data-mode="blueprint"] .select-all-label {font-size:11px;}
+}
+@media (max-width:350px) {
+  body[data-mode="blueprint"] #selectedCount {display:none;}
+}
+
+/* v1.12 — one compact toolbar above the PO list, one persistent action row below.
+   All CRM linking, search, pagination, and Blueprint handlers remain unchanged. */
+body[data-mode="blueprint"] .shell {
+  position:relative;
+  height:min(365px,100dvh);
+  max-height:min(365px,100dvh);
+  overflow:hidden;
+  min-height:0;
+  padding:5px 7px 5px;
+  gap:4px;
+}
+body[data-mode="blueprint"] .head.topbar {
+  display:flex; flex-direction:row; flex-wrap:nowrap;
+  align-items:center;justify-content:space-between;
+  flex:0 0 auto;min-width:0;min-height:29px;
+  padding:0;gap:6px;margin:0;overflow:visible;
+}
+body[data-mode="blueprint"] .topbar .headline {
+  display:flex;align-items:center;gap:5px;
+  min-width:105px;flex:1 1 auto;overflow:hidden;
+  white-space:nowrap;
+}
+body[data-mode="blueprint"] .topbar .headline h1 {
+  font-size:15px;line-height:1.15;margin:0;flex:none;
+}
+body[data-mode="blueprint"] .topbar .headline-divider {font-size:13px;}
+body[data-mode="blueprint"] .topbar #shipmentLabel {
+  font-size:11.5px;max-width:none;min-width:0;flex:1 1 auto;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+body[data-mode="blueprint"] .topbar .linked-panel {
+  flex:0 0 auto;min-width:0;margin:0;padding:0;
+  position:relative;z-index:13;border-radius:5px;
+}
+body[data-mode="blueprint"] .topbar .linked-summary {
+  min-height:28px;line-height:1.1;font-size:12px;
+  padding:5px 7px;gap:2px;white-space:nowrap;
+}
+body[data-mode="blueprint"] .topbar .linked-hint {display:none;}
+body[data-mode="blueprint"] .topbar .count {
+  font-size:10px;padding:1px 4px;
+}
+body[data-mode="blueprint"] .topbar .linked-panel[open] .linked-list {
+  position:absolute;left:auto;right:0;top:100%;
+  width:min(340px,calc(100vw - 16px));
+  max-height:min(165px,42dvh);margin-top:3px;
+  background:white;overflow:auto;z-index:20;
+}
+body[data-mode="blueprint"] .topbar .controls {
+  display:flex;align-items:center;flex:0 1 248px;
+  min-width:192px;width:auto;gap:4px;margin:0;
+}
+body[data-mode="blueprint"] .topbar .controls input[type=search] {
+  flex:1 1 auto;width:108px;min-width:42px;
+  height:28px;min-height:28px;
+  font-size:11.5px;line-height:1.1;padding:4px 7px;
+}
+body[data-mode="blueprint"] .topbar .controls button,
+body[data-mode="blueprint"] .topbar #refresh {
+  flex:none;font-size:11.5px;line-height:1.1;
+  min-height:28px;height:28px;padding:4px 8px;
+  white-space:nowrap;
+}
+body[data-mode="blueprint"] .po-selector {
+  flex:1 1 auto;min-height:0;min-width:0;
+  display:flex;flex-direction:column;
+  margin:0;padding:5px 7px 5px;overflow:hidden;
+}
+body[data-mode="blueprint"] .selector-toolbar {
+  flex:0 0 auto;display:flex;align-items:center;
+  justify-content:space-between;min-width:0;gap:6px;margin-bottom:3px;
+}
+body[data-mode="blueprint"] .selector-title {gap:6px;display:flex;flex-direction:row;align-items:baseline;min-width:0;}
+body[data-mode="blueprint"] .selector-title h2 {
+  font-size:12px;line-height:1.1;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+}
+body[data-mode="blueprint"] .selector-title #pageInfo {font-size:10px;line-height:1.1;}
+body[data-mode="blueprint"] .select-all-label {font-size:11px;gap:4px;}
+body[data-mode="blueprint"] .select-all-label input[type=checkbox] {width:15px;height:15px;min-width:15px;}
+body[data-mode="blueprint"] .po-selector .table-wrap {
+  flex:1 1 auto;min-width:0;min-height:0;
+  overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+}
+body[data-mode="blueprint"] .po-list {gap:4px;padding:4px;}
+body[data-mode="blueprint"] .po-card {padding:7px 9px;row-gap:4px;}
+body[data-mode="blueprint"] .command-bar {
+  position:relative;z-index:11;
+  display:flex;flex:0 0 auto;align-items:center;
+  justify-content:space-between;flex-wrap:nowrap;
+  box-sizing:border-box;min-width:0;min-height:36px;
+  gap:6px;padding:4px 2px;
+  border-top:1px solid #e4eaf0;background:white;
+}
+body[data-mode="blueprint"] .command-bar .pager,
+body[data-mode="blueprint"] .command-bar .action {
+  display:flex;flex-direction:row;align-items:center;
+  gap:4px;white-space:nowrap;flex-wrap:nowrap;flex:0 0 auto;
+}
+body[data-mode="blueprint"] .command-bar .action {margin-left:auto;}
+body[data-mode="blueprint"] .command-bar #pageText {
+  min-width:38px;text-align:center;line-height:1.1;
+  font-size:11.5px;white-space:nowrap;
+}
+body[data-mode="blueprint"] .command-bar button {
+  min-height:28px;min-width:0;height:28px;
+  padding:5px 8px;border-radius:5px;
+  font-size:12px;line-height:1.05;white-space:nowrap;
+}
+body[data-mode="blueprint"] .command-bar #add {font-weight:600;}
+body[data-mode="blueprint"] .command-bar .blueprint-actions {
+  display:flex;flex:0 0 auto;min-width:0;min-height:0;
+  justify-content:flex-start;align-items:center;
+  position:static;z-index:auto;gap:0;
+  margin:0;padding:0;border:0;
+  border-radius:0;background:transparent;
+}
+body[data-mode="blueprint"] .command-bar .blueprint-actions[hidden] {display:none;}
+body[data-mode="blueprint"] .command-bar #proceed {
+  flex:0 0 auto;width:auto;min-width:0;height:28px;
+  min-height:28px;padding:5px 9px;
+  font-size:12px;line-height:1.05;font-weight:600;
+}
+body[data-mode="blueprint"] .command-bar #proceedHelp {
+  position:absolute!important;width:1px!important;height:1px!important;
+  padding:0!important;margin:-1px!important;overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;white-space:nowrap!important;
+  border:0!important;
+}
+body[data-mode="blueprint"] .command-bar .widget-footer {
+  position:static;display:flex!important;flex:0 0 auto;
+  justify-content:flex-end;align-items:center;
+  padding:0;margin:0;min-width:0;border:0;
+  line-height:1.1;background:transparent;
+}
+body[data-mode="blueprint"] .command-bar .widget-footer strong {
+  font-size:11px;line-height:1.1;white-space:nowrap;
+  color:#49617c;font-weight:700;
+}
+body[data-mode="blueprint"] .message:not([hidden]) {
+  position:absolute;left:8px;right:8px;bottom:45px;z-index:30;
+  margin:0;padding:6px 8px;max-height:min(72px,24dvh);
+  overflow:auto;box-shadow:0 4px 13px #1e293b16;
+  font-size:12px;line-height:1.25;
+}
+@media (max-width:620px) {
+  body[data-mode="blueprint"] .topbar {gap:4px;}
+  body[data-mode="blueprint"] .topbar .headline {min-width:80px;gap:3px;}
+  body[data-mode="blueprint"] .topbar .headline h1 {font-size:13px;}
+  body[data-mode="blueprint"] .topbar #shipmentLabel {font-size:10.5px;}
+  body[data-mode="blueprint"] .topbar .linked-summary {font-size:11px;padding:4px 5px;}
+  body[data-mode="blueprint"] .topbar .controls {min-width:174px;flex-basis:200px;gap:3px;}
+  body[data-mode="blueprint"] .topbar .controls button,
+  body[data-mode="blueprint"] .topbar #refresh {font-size:10.5px;padding:4px 6px;}
+  body[data-mode="blueprint"] .topbar .controls input[type=search] {font-size:10.5px;padding:4px 5px;}
+  body[data-mode="blueprint"] .command-bar {gap:3px;padding:4px 0;}
+  body[data-mode="blueprint"] .command-bar .pager,
+  body[data-mode="blueprint"] .command-bar .action {gap:3px;}
+  body[data-mode="blueprint"] .command-bar button,
+  body[data-mode="blueprint"] .command-bar #proceed {padding:5px 6px;font-size:11px;}
+  body[data-mode="blueprint"] .command-bar #pageText {font-size:10.5px;min-width:34px;}
+  body[data-mode="blueprint"] .command-bar .widget-footer strong {font-size:10px;}
+}
+@media (max-width:480px) {
+  body[data-mode="blueprint"] .head.topbar {flex-wrap:wrap;gap:3px 5px;}
+  body[data-mode="blueprint"] .topbar .headline {flex:1 1 auto;min-width:100px;}
+  body[data-mode="blueprint"] .topbar .linked-panel {flex:0 0 auto;}
+  body[data-mode="blueprint"] .topbar .controls {flex:1 1 100%;min-width:0;}
+  body[data-mode="blueprint"] .topbar .controls input[type=search] {flex:1 1 auto;}
+  body[data-mode="blueprint"] .command-bar button,
+  body[data-mode="blueprint"] .command-bar #proceed {padding:5px 4px;font-size:10px;}
+  body[data-mode="blueprint"] .command-bar {gap:2px;}
+  body[data-mode="blueprint"] .command-bar #pageText {min-width:32px;font-size:10px;}
+}
+@media (max-width:375px) {
+  body[data-mode="blueprint"] .command-bar {flex-wrap:wrap;justify-content:space-between;row-gap:3px;}
+  body[data-mode="blueprint"] .command-bar .pager {flex:1 1 auto;}
+  body[data-mode="blueprint"] .command-bar .action {margin-left:auto;}
+  body[data-mode="blueprint"] .command-bar .widget-footer {margin-left:2px;}
+}
+@media (min-height:600px) {
+  body[data-mode="blueprint"] .shell {
+    height:100dvh;max-height:100dvh;
+    padding:9px 13px 8px;gap:7px;
+  }
+  body[data-mode="blueprint"] .po-selector {padding:9px 11px 9px;}
+  body[data-mode="blueprint"] .selector-toolbar {margin-bottom:5px;}
+  body[data-mode="blueprint"] .command-bar {min-height:39px;padding:5px 2px;}
+}
+/* v1.14: Five readable PO cards in a short Blueprint popup.
+   Keep v1.12 font sizes, badges and actions. Only tighten whitespace. */
+@media (min-width:621px) and (max-height:500px) {
+  body[data-mode="blueprint"] .shell {
+    height:100dvh;max-height:100dvh;
+    padding-top:3px;padding-bottom:3px;gap:3px;
+  }
+  body[data-mode="blueprint"] .po-selector {padding-top:3px;padding-bottom:3px;}
+  body[data-mode="blueprint"] .selector-toolbar {margin-bottom:1px;}
+  body[data-mode="blueprint"] .po-list {gap:2px;padding:2px;}
+  body[data-mode="blueprint"] .po-card {padding:1px 8px;row-gap:0;}
+  body[data-mode="blueprint"] .po-card-title {line-height:1.1;}
+  body[data-mode="blueprint"] .po-card-supplier {margin-top:0;line-height:1.1;}
+  body[data-mode="blueprint"] .po-card-pickup {
+    line-height:1.1;flex-wrap:nowrap;overflow:hidden;min-width:0;
+  }
+  body[data-mode="blueprint"] .po-card-meta {line-height:1.1;}
+  body[data-mode="blueprint"] .po-pickup-value {
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+}
+
+
+/* v1.15: Content-sized selector in a tall Zoho Blueprint popup.
+   v1.14 stretched .shell to 100dvh and .po-selector / .table-wrap to
+   flex-grow:1, producing an empty gray area below the fifth PO card.
+   Do not modify card typography, spacing, search, or business logic.
+   If actual viewport is shorter than the five cards, shrink ONLY the
+   list's scroll region; the command bar always remains visible. */
+@media (min-width:621px) and (min-height:501px) {
+  body[data-mode="blueprint"] .shell {
+    height:auto;
+    min-height:0;
+    max-height:calc(100dvh - 8px);
+    gap:4px;
+    overflow:hidden;
+  }
+  body[data-mode="blueprint"] .po-selector {
+    flex:0 1 auto;
+    min-height:0;
+    padding-bottom:3px;
+  }
+  body[data-mode="blueprint"] .po-selector .table-wrap {
+    flex:0 1 auto;
+    height:auto;
+    min-height:0;
+    max-height:none;
+    overflow-x:hidden;
+    overflow-y:auto;
+  }
+  body[data-mode="blueprint"] .command-bar {
+    flex:0 0 auto;
+  }
+}
