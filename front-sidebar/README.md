@@ -36,3 +36,7 @@ The pre-release SHA-256 manifest confirmed exact server parity for the five pree
 - An OAuth reconnection is required once to add `ZohoCRM.settings.transitions.read` to the existing scope. Until reconnected, buttons fall back to opening the CRM record.
 - Build `af955ff1-ec34-4db3-a4ac-b25141357a26` passed Node/PHP/publisher tests. Production deployment succeeded via Cloud Run publisher with assets then PHP/index. Live index verified Version 2.0.3, JS/CSS match GitHub and anonymous Blueprint endpoint denies access.
 - **No real CRM Blueprint transition was executed during testing.** An authenticated in-Front acceptance test is still needed to confirm the new Zoho scope and metadata response in this organization.
+
+## Version 2.0.4 — Wise noreply exact-address exclusion (2026-11-18)
+
+`noreply@wise.com` is excluded from Front sidebar participants (all From/To/CC/BCC and historical recipients), server-side full conversation roster, CRM lookup, and Lead/Contact creation. Comparisons are case-insensitive and trim whitespace. Other Wise addresses such as `support@wise.com` remain eligible. The cached server participant roster key advances to `front-participants-v2` so previously cached Wise noreply entries cannot reappear. Existing CRM records or Front messages are not modified.
