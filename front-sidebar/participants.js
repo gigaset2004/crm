@@ -17,7 +17,7 @@ export function mergeParticipants(recipients, messages = []) {
     const email = String(recipient.handle || '').trim().toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
       if (['minmaxdeals.com','exporters.sg'].includes(email.split('@')[1])) return;
-      if (email === '3249bln_kq4g6ke@mails5.zohocrm.com') return;
+      if (email === '3249bln_kq4g6ke@mails5.zohocrm.com' || email === 'noreply@wise.com') return;
     if (!people.has(email)) people.set(email, {email, name: recipient.name || '', roles: []});
     const person = people.get(email);
     if (!person.name && recipient.name) person.name = recipient.name;
