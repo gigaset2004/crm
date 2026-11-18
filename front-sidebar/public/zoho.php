@@ -102,7 +102,7 @@ function frontParticipants(string $id, bool $refresh): array {
                     $handle=strtolower(trim((string)($person['handle']??'')));
                     if(!$handle)continue;
                     $email=filter_var($handle,FILTER_VALIDATE_EMAIL)!==false;
-                    if($email&&(in_array(substr(strrchr($handle,'@'),1),['minmaxdeals.com','exporters.sg'],true)||$handle==='3249bln_kq4g6ke@mails5.zohocrm.com'))continue;
+                    if($email&&(in_array(substr(strrchr($handle,'@'),1),['minmaxdeals.com','exporters.sg'],true)||in_array($handle,['3249bln_kq4g6ke@mails5.zohocrm.com','noreply@wise.com'],true)))continue;
                     $type=$email?'email':'phone';
                     if(!$email&&!preg_match('/^(?:whatsapp:)?[+0-9\s().-]{8,30}$/Di',$handle))continue;
                     $people[$type.':'.$handle]=['type'=>$type,'handle'=>$handle,'name'=>(string)($person['name']??'')];
@@ -507,7 +507,7 @@ try {
         $phone=preg_replace('/\D/','',(string)($input['phone']??''));if(strpos($phone,'00')===0)$phone=substr($phone,2);
         if($phone!==''&&!preg_match('/^[0-9]{8,15}$/D',$phone))respond(['error'=>'A valid phone number is required.'],400);
         if(($email!==''||$phone==='')&&(!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($email)>254))respond(['error'=>'A valid email address is required.'],400);
-        if($email!==''&&in_array(substr(strrchr($email,'@'),1),['minmaxdeals.com','exporters.sg'],true))respond(['error'=>'Email addresses from this domain are excluded from processing.'],400);
+        if($email==='noreply@wise.com'||($email!==''&&in_array(substr(strrchr($email,'@'),1),['minmaxdeals.com','exporters.sg'],true)))respond(['error'=>'Email address excluded from processing.'],400);
         if($phone!==''){
             $mobileDigits=preg_replace('/\D/','',$mobile);if(strpos($mobileDigits,'00')===0)$mobileDigits=substr($mobileDigits,2);
             if($mobileDigits!==$phone)respond(['error'=>'Mobile must match the WhatsApp number.'],400);
@@ -556,7 +556,7 @@ respond(['ok'=>true,'id'=>(string)($entry['details']['id']??''),'module'=>$input
     if (strpos($phone,'00')===0) $phone=substr($phone,2);
     if ($phone!=='' && !preg_match('/^[0-9]{8,15}$/D',$phone)) respond(['error'=>'A valid phone number is required.'],400);
     if ($phone==='' && (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254)) respond(['error'=>'A valid email address is required.'], 400);
-    if ($email!=='' && in_array(substr(strrchr($email, '@'), 1),['minmaxdeals.com','exporters.sg'],true)) respond(['email'=>$email,'records'=>[],'skipped'=>true]);
+    if ($email==='noreply@wise.com' || ($email!=='' && in_array(substr(strrchr($email, '@'), 1),['minmaxdeals.com','exporters.sg'],true))) respond(['email'=>$email,'records'=>[],'skipped'=>true]);
     // Limit repeated searches without exposing a shared CRM connection.
     if (($session['lookup_window'] ?? 0) < time()-60) { $session['lookup_window'] = time(); $session['lookup_count'] = 0; }
     if (($session['lookup_count'] ?? 0) >= 120) respond(['error'=>'Too many requests. Refresh the panel in a minute.'], 429);
