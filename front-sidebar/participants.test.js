@@ -17,3 +17,6 @@ assert.deepEqual(mergeParticipants([e(' Alerts@EXPORTERS.SG ')],[{from:e('notify
 assert.deepEqual(mergeParticipants([e('valid@notexporters.sg'),e('exporters.sg@example.com')]).map(p=>p.email),['valid@notexporters.sg','exporters.sg@example.com']);
 console.log('Participant checks passed: deduplication, historical participants, From/To/CC/BCC, email filtering.');
 assert.deepEqual(mergeParticipants([e('3249BLN_KQ4G6KE@MAILS5.ZOHOCRM.COM')],[{cc:[e('3249bln_kq4g6ke@mails5.zohocrm.com'),e('customer@example.com')]}]).map(p=>p.email),['customer@example.com']);
+
+assert.deepEqual(mergeParticipants([e(' NoReply@WISE.COM ')],[{from:e('noreply@wise.com'),to:[e('supplier@example.com')]}]).map(p=>p.email),['supplier@example.com']);
+assert.deepEqual(mergeParticipants([e('billing@wise.com'),e('noreply@wise.com'),e('noreply@notwise.com')]).map(p=>p.email),['billing@wise.com','noreply@notwise.com']);

@@ -36,3 +36,9 @@ The pre-release SHA-256 manifest confirmed exact server parity for the five pree
 - An OAuth reconnection is required once to add `ZohoCRM.settings.transitions.read` to the existing scope. Until reconnected, buttons fall back to opening the CRM record.
 - Build `af955ff1-ec34-4db3-a4ac-b25141357a26` passed Node/PHP/publisher tests. Production deployment succeeded via Cloud Run publisher with assets then PHP/index. Live index verified Version 2.0.3, JS/CSS match GitHub and anonymous Blueprint endpoint denies access.
 - **No real CRM Blueprint transition was executed during testing.** An authenticated in-Front acceptance test is still needed to confirm the new Zoho scope and metadata response in this organization.
+
+## Version 2.0.4 — Wise sender exclusion (2026-11-18)
+
+- Exactly `noreply@wise.com` is excluded (case-insensitive) in SDK participant collection, server historical-recipient filtering, CRM lookup, and creation. Other `@wise.com` senders remain eligible.
+- Validated via Cloud Build `2e2cdd39-ee54-4190-8e46-296f78302dcc` (Node/PHP/publisher tests), then deployed through the existing Cloud Run SFTP publisher in two stages (frontend, then PHP/index).
+- Live frontend matches the repository and displays Version 2.0.4. No Zoho data were changed. Historical participant caches expire on their existing 120-second schedule; reload the Front sidebar to see the new filters immediately.
