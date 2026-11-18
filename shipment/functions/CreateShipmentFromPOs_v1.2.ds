@@ -1,0 +1,258 @@
+string button.CreateShipmentFromPOs(String poIds)
+{
+info "[CreateShipmentFromPOs] START selected=" + ifnull(poIds,"");
+rawIds = ifnull(poIds,"").toString().trim();
+if(rawIds == "")
+{
+	return "Select at least one Purchase Order.";
+}
+selectedIds = rawIds.toList("|||");
+uniqueIds = List();
+for each  rawId in selectedIds
+{
+	poId = ifnull(rawId,"").toString().trim();
+	if(poId != "" && !uniqueIds.contains(poId))
+	{
+		uniqueIds.add(poId);
+	}
+}
+if(uniqueIds.isEmpty())
+{
+	return "No Purchase Order IDs received.";
+}
+if(uniqueIds.size() > 50)
+{
+	return "Select a maximum of 50 Purchase Orders at a time.";
+}
+validIds = List();
+poDetails = Map();
+skipped = List();
+firstSubject = "";
+for each  poId in uniqueIds
+{
+	po = zoho.crm.getRecordById("Purchase_Orders",poId.toLong());
+	if(po == null || po.isEmpty() || po.get("id") == null)
+	{
+		skipped.add(poId + " (not found)");
+		continue;
+	}
+	poStatus = ifnull(po.get("Status"),"").toString();
+	if(poStatus == "Cancelled" || poStatus == "Canceled")
+	{
+		skipped.add(ifnull(po.get("Subject"),poId).toString() + " (canceled)");
+		continue;
+	}
+	if(firstSubject == "")
+	{
+		firstSubject = ifnull(po.get("Subject"),poId).toString();
+	}
+	validIds.add(poId);
+	poDetails.put(poId,po);
+}
+if(validIds.isEmpty())
+{
+	return "Shipment not created. No valid Purchase Orders selected. " + skipped.toString(", ");
+}
+nameBase = "Shipment " + zoho.currenttime.toString("yyMMdd-HHmm");
+if(firstSubject != "")
+{
+	nameBase = nameBase + " - " + firstSubject;
+}
+if(nameBase.length() > 120)
+{
+	nameBase = nameBase.left(120);
+}
+shipMap = Map();
+shipMap.put("Name",nameBase);
+shipMap.put("Shipment_Status","New");
+shipMap.put("POs_IDs",validIds.toString("|"));
+noTriggers = Map();
+noTriggers.put("trigger",List());
+shipResp = zoho.crm.createRecord("Shipments",shipMap,noTriggers);
+if(shipResp == null || shipResp.get("id") == null)
+{
+	info "[CreateShipmentFromPOs] ERROR creating shipment: " + shipResp;
+	return "Shipment could not be created. Check execution logs.";
+}
+shipId = shipResp.get("id").toString();
+info "[CreateShipmentFromPOs] Created Shipment " + shipId;
+linkedIds = List();
+linkFailures = List();
+poUpdateFailures = List();
+for each  poId in validIds
+{
+	linkMap = Map();
+	linkMap.put("Shipment",{"id":shipId});
+	linkMap.put("Purchase_Order",{"id":poId});
+	linkResp = zoho.crm.createRecord("Shipment_PO_Links",linkMap,noTriggers);
+	if(linkResp != null && linkResp.get("id") != null)
+	{
+		linkedIds.add(poId);
+		po = poDetails.get(poId);
+		currentShipIds = ifnull(po.get("Shipments_IDs"),"").toString().replaceAll(",","|");
+		shipIdsList = List();
+		if(currentShipIds != "")
+		{
+			for each  existingId in currentShipIds.toList("|")
+			{
+				existingId = ifnull(existingId,"").toString().trim();
+				if(existingId != "" && !shipIdsList.contains(existingId))
+				{
+					shipIdsList.add(existingId);
+				}
+			}
+		}
+		if(!shipIdsList.contains(shipId))
+		{
+			shipIdsList.add(shipId);
+			poUpdateMap = Map();
+			poUpdateMap.put("Shipments_IDs",shipIdsList.toString("|"));
+			poResp = zoho.crm.updateRecord("Purchase_Orders",poId.toLong(),poUpdateMap,noTriggers);
+			poVerified = zoho.crm.getRecordById("Purchase_Orders",poId.toLong());
+			actualShipIds = ifnull(poVerified.get("Shipments_IDs"),"").toString();
+			if(!actualShipIds.toList("|").contains(shipId))
+			{
+				info "[CreateShipmentFromPOs] WARN PO technical field not verified: " + poId + " " + poResp;
+				poUpdateFailures.add(poId);
+			}
+		}
+	}
+	else
+	{
+		info "[CreateShipmentFromPOs] ERROR link PO " + poId + ": " + linkResp;
+		linkFailures.add(poId);
+	}
+}
+// Keep legacy POs_IDs aligned with successfully linked records.
+if(linkedIds.size() != validIds.size())
+{
+	syncMap = Map();
+	syncMap.put("POs_IDs",linkedIds.toString("|"));
+	syncResp = zoho.crm.updateRecord("Shipments",shipId.toLong(),syncMap,noTriggers);
+	if(syncResp == null || ifnull(syncResp.get("code"),"") != "SUCCESS")
+	{
+		info "[CreateShipmentFromPOs] WARN syncing POs_IDs: " + syncResp;
+	}
+}
+// Product sync v1.2: Populate existing Shipped_Products from successfully linked PO items.
+// Keep official name as a Product lookup and preserve Offer Product Name separately.
+productRows = List();
+productWarnings = List();
+productStatusNotice = "";
+for each  linkedPoId in linkedIds
+{
+	linkedPO = poDetails.get(linkedPoId);
+	if(linkedPO == null)
+	{
+		productWarnings.add(linkedPoId + ": PO details not available");
+		continue;
+	}
+	items = linkedPO.get("Purchase_Items");
+	if(items == null || items.isEmpty())
+	{
+		productWarnings.add(ifnull(linkedPO.get("Subject"),linkedPoId).toString() + ": no Purchase Items");
+		continue;
+	}
+	for each  poItem in items
+	{
+		itemLookup = poItem.get("Product_Name");
+		if(itemLookup == null || itemLookup.get("id") == null || poItem.get("id") == null)
+		{
+			productWarnings.add(ifnull(linkedPO.get("Subject"),linkedPoId).toString() + ": product or line ID missing");
+			continue;
+		}
+		planQuantity = ifnull(poItem.get("Quantity"),0);
+		if(planQuantity < 0)
+		{
+			productWarnings.add(ifnull(linkedPO.get("Subject"),linkedPoId).toString() + ": negative quantity");
+			continue;
+		}
+		shipProduct = Map();
+		shipProduct.put("Product",{"id":itemLookup.get("id").toString()});
+		shipProduct.put("Purchase_Order",{"id":linkedPoId});
+		shipProduct.put("Plan_Qty",planQuantity.toLong());
+		// Source_PO_Item_ID is intentionally not written: the technical column is hidden from Shipment layout.
+		offerName = ifnull(poItem.get("Offer_Product_Name"),"").toString().trim();
+		if(offerName != "")
+		{
+			shipProduct.put("Offer_Product_Name",offerName);
+		}
+		itemUPC = ifnull(poItem.get("UPC"),"").toString().trim();
+		if(itemUPC != "")
+		{
+			shipProduct.put("UPC",itemUPC);
+		}
+		itemBrand = ifnull(poItem.get("Brand"),"").toString().trim();
+		if(itemBrand != "")
+		{
+			shipProduct.put("Brand",itemBrand);
+		}
+		productRows.add(shipProduct);
+	}
+}
+syncedProducts = 0;
+if(productRows.size() > 100)
+{
+	productWarnings.add("Shipped Products subform supports 100 rows maximum. No rows were added; split the Shipment or use a Shipment Items module.");
+}
+else if(!productRows.isEmpty())
+{
+	currentBatch = List();
+	for each  productRow in productRows
+	{
+		currentBatch.add(productRow);
+		if(currentBatch.size() == 50)
+		{
+			productMap = Map();
+			productMap.put("Shipped_Products",currentBatch);
+			productResp = zoho.crm.updateRecord("Shipments",shipId.toLong(),productMap,noTriggers);
+			if(productResp != null && ifnull(productResp.get("code"),"").toString() == "SUCCESS")
+			{
+				syncedProducts = syncedProducts + currentBatch.size();
+			}
+			else
+			{
+				productWarnings.add("Product batch update failed: " + productResp);
+			}
+			currentBatch = List();
+		}
+	}
+	if(!currentBatch.isEmpty())
+	{
+		productMap = Map();
+		productMap.put("Shipped_Products",currentBatch);
+		productResp = zoho.crm.updateRecord("Shipments",shipId.toLong(),productMap,noTriggers);
+		if(productResp != null && ifnull(productResp.get("code"),"").toString() == "SUCCESS")
+		{
+			syncedProducts = syncedProducts + currentBatch.size();
+		}
+		else
+		{
+			productWarnings.add("Final product batch update failed: " + productResp);
+		}
+	}
+}
+productStatusNotice = " Product lines saved: " + syncedProducts.toString() + " of " + productRows.size().toString() + ".";
+if(!productWarnings.isEmpty())
+{
+	info "[CreateShipmentFromPOs] PRODUCT SYNC WARNINGS: " + productWarnings;
+	productStatusNotice = productStatusNotice + " Product issues: " + productWarnings.toString(" | ");
+}
+url = "https://crm.zoho.com/crm/minmaxdeals/tab/CustomModule11/" + shipId;
+result = "Shipment created: " + nameBase + ". Linked " + linkedIds.size().toString() + " of " + uniqueIds.size().toString() + " Purchase Orders." + productStatusNotice + " " + url;
+if(!skipped.isEmpty())
+{
+	result = result + ". Skipped: " + skipped.toString(", ");
+}
+if(!linkFailures.isEmpty())
+{
+	result = result + ". Failed links: " + linkFailures.toString(", ");
+}
+if(!poUpdateFailures.isEmpty())
+{
+	result = result + ". Technical ID sync needs review for PO: " + poUpdateFailures.toString(", ");
+}
+info "[CreateShipmentFromPOs] DONE " + result;
+openUrl(url,"same window");
+return result;
+}
