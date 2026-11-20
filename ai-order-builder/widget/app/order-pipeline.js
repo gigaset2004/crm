@@ -82,6 +82,7 @@
       for(var i=0;i<this.items.length;i++){
         if(this.paused)break;
         var item=this.items[i],identity=key(item);
+        if(this.options.prepareItem)this.options.prepareItem(item);
         if(!item.requestedBrand&&/\bgucci\b/i.test(item.requestedName||""))item.requestedBrand="Gucci";
         if(item.product&&item.match==="matched"){
           if(this.options.linkMissingBrand){try{await this.options.linkMissingBrand(item);}catch(e){item.note="Brand lookup update failed: "+errorDetails(e);}}
@@ -113,11 +114,27 @@
             self.items.forEach(function(other){if(other!==current&&key(other)===key(current))copyMatch(other,current);});self.notify(current.note);continue;
           }
           if(!fact||!fact.verified){current.research=fact||null;current.researchDone=true;current.note="Product not confirmed. Search again or create the product below.";this.items.forEach(function(other){if(other!==current&&key(other)===key(current))copyMatch(other,current);});this.notify(current.note);continue;}
-          // Verified UPC alone does not verify the official manufacturer's product title.
+          // First research may only have a retailer URL. Retry a manufacturer-first
+          // worldwide search and use only a verified, matching-UPC official result.
           var manufacturerSource=officialNameSource(fact,current.requestedBrand||fact.brand);
+          if(!manufacturerSource&&this.options.researchOfficialRetry){
+            try{
+              var moreFacts=await this.options.researchOfficialRetry([{
+                identifier:current.identifier,requestedName:current.requestedName,
+                requestedBrand:current.requestedBrand||fact.brand,brand:fact.brand
+              }]);
+              var alternative=Array.isArray(moreFacts)?moreFacts[0]:null;
+              if(alternative&&alternative.verified&&String(alternative.upc||"")===String(current.identifier||"")){
+                var officialCandidate=officialNameSource(alternative,current.requestedBrand||alternative.brand);
+                if(officialCandidate){fact=alternative;manufacturerSource=officialCandidate;}
+              }
+            }catch(researchError){
+              current.note="Additional official-site lookup failed: "+errorDetails(researchError);
+            }
+          }
           if(!manufacturerSource){
             current.research=fact;current.match="missing";current.researchDone=true;
-            current.note="Official manufacturer product name not confirmed. Product NOT created. Verify the manufacturer's official page in any market, then use Create product.";
+            current.note="Official product title not confirmed after two internet searches. Product was not created to prevent an incorrect catalog entry. Search again when an official source becomes available.";
             this.items.forEach(function(other){if(other!==current&&key(other)===key(current))copyMatch(other,current);});this.notify(current.note);continue;
           }
           fact.official_product_name_source=manufacturerSource;

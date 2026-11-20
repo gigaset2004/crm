@@ -237,7 +237,7 @@
       </div>
     </div>
     <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
-  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.47</strong></footer>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.48</strong></footer>
   <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Use the official product name from the manufacturer website (any country). The original Excel title stays in Offer Product Name.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:#344054"><input id="quickOfficialConfirmed" type="checkbox" style="width:16px;height:16px;flex:none"> I verified the name on the manufacturer’s official website (not the offer).</label><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
   <div class="overlay" id="editBrandOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editBrandTitle"><div class="dialog-card"><h2 id="editBrandTitle">Change product brand</h2><p id="editBrandDescription">Choose the correct brand linked to this product.</p><div class="brand-picker"><select id="editBrandSelect" aria-label="Select CRM brand"><option value="">Choose a CRM brand</option></select><button id="editBrandNew" class="btn" type="button">+ New brand</button></div><p id="editBrandMessage" class="message" role="status"></p><div class="quick-actions"><button id="editBrandCancel" class="btn" type="button">Cancel</button><button id="editBrandSave" class="btn primary" type="button">Save brand</button></div></div></div>
   <div class="overlay" id="editProductNameOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editProductNameTitle"><div class="dialog-card"><h2 id="editProductNameTitle">Edit official CRM product name</h2><p id="editProductNameDescription">Changes the linked Products record for all CRM users. Does not change the supplier offer name in this order.</p><label class="manual-field">Official Product Name<input id="editProductNameInput" autocomplete="off" maxlength="255" placeholder="Official product name"></label><p class="name-edit-hint">The UPC and Product ID remain unchanged. The supplier offer name is saved separately.</p><p class="message" id="editProductNameMessage" role="status"></p><div class="quick-actions"><button id="editProductNameCancel" class="btn" type="button">Cancel</button><button id="editProductNameSave" class="btn primary" type="button">Save to CRM Products</button></div></div></div>
@@ -446,10 +446,52 @@
       });
     }
     function readImage(file){return new Promise(function(resolve,reject){var r=new FileReader();r.onerror=function(){reject(new Error("Could not read image "+file.name));};r.onload=function(){var value=String(r.result||""),comma=value.indexOf(",");resolve({mime_type:file.type,data:comma>=0?value.slice(comma+1):""});};r.readAsDataURL(file);});}
-    function connectAI(){if(!AI_SERVICE_URL)return Promise.resolve("");if(aiSession&&Date.now()<aiSessionExpires-30000)return Promise.resolve(aiSession);if(aiConnectionPromise)return aiConnectionPromise;aiConnectionPromise=new Promise(function(resolve,reject){var popup=window.open(AI_SERVICE_URL+"/auth/start","zohoAiOrderBuilderAuth","width=600,height=720,resizable=yes,scrollbars=yes");if(!popup){reject(new Error("Allow the Zoho sign-in window to open, then try again."));return;}var timeout=setTimeout(function(){finish(new Error("Zoho sign-in timed out. Please try again."));},180000),closed=setInterval(function(){if(popup.closed)finish(new Error("Zoho sign-in window was closed. Click Extract and match to connect and try again."));},750);function finish(error,token){clearTimeout(timeout);clearInterval(closed);window.removeEventListener("message",onMessage);if(error)reject(error);else resolve(token);}function onMessage(e){if(e.origin!==AI_SERVICE_URL||e.source!==popup||!e.data||e.data.type!=="AI_ORDER_BUILDER_AUTH"||typeof e.data.token!=="string")return;aiSession=e.data.token;aiSessionExpires=Date.now()+14*60*1000;$("aiStatus").textContent="AI is connected.";finish(null,aiSession);}window.addEventListener("message",onMessage);});return aiConnectionPromise.then(function(token){aiConnectionPromise=null;return token;},function(error){aiConnectionPromise=null;throw error;});}
-    function aiExtract(text,images,token){if(!text&&!images.length)return Promise.reject(new Error("Paste order text or choose a file first."));return fetch(AI_SERVICE_URL+"/v1/extract",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({text:text,images:images})}).then(function(r){if(r.status===401){aiSession="";aiSessionExpires=0;}return r.json().then(function(data){if(!r.ok)throw new Error(readableError(data.error||data.message||"AI extraction failed."));return data;});}).then(function(data){if(!Array.isArray(data.items))throw new Error("AI returned no order lines.");return requestContext(data.items.map(function(x){return{identifier:clean(x.identifier),requestedName:clean(x.product_name),quantity:enteredNumber(x.quantity),price:enteredNumber(x.unit_price),offerName:clean(x.product_name),product:null,match:"pending"};}),text);});}
+    // v1.48: Keep a short-lived AI authorization token across widget reopenings
+    // in the same browser tab. No bearer token in persistent localStorage.
+    var AI_SESSION_KEY="ai-order-builder:ai-session:v1";
+    function restoreAISession(){
+      try{
+        var saved=JSON.parse(window.sessionStorage.getItem(AI_SESSION_KEY)||"null");
+        if(saved&&typeof saved.token==="string"&&Number(saved.expires)>Date.now()+30000){
+          aiSession=saved.token;aiSessionExpires=Number(saved.expires);return true;
+        }
+      }catch(e){}
+      return false;
+    }
+    function rememberAISession(token){
+      aiSession=token;aiSessionExpires=Date.now()+14*60*1000;
+      try{window.sessionStorage.setItem(AI_SESSION_KEY,JSON.stringify({token:token,expires:aiSessionExpires}));}catch(e){}
+    }
+    function clearAISession(){
+      aiSession="";aiSessionExpires=0;
+      try{window.sessionStorage.removeItem(AI_SESSION_KEY);}catch(e){}
+    }
+    function connectAI(){if(!AI_SERVICE_URL)return Promise.resolve("");if(!aiSession)restoreAISession();if(aiSession&&Date.now()<aiSessionExpires-30000)return Promise.resolve(aiSession);if(aiConnectionPromise)return aiConnectionPromise;aiConnectionPromise=new Promise(function(resolve,reject){var popup=window.open(AI_SERVICE_URL+"/auth/start","zohoAiOrderBuilderAuth","width=600,height=720,resizable=yes,scrollbars=yes");if(!popup){reject(new Error("Allow the Zoho sign-in window to open, then try again."));return;}var timeout=setTimeout(function(){finish(new Error("Zoho sign-in timed out. Please try again."));},180000),closed=setInterval(function(){if(popup.closed)finish(new Error("Zoho sign-in window was closed. Click Extract and match to connect and try again."));},750);function finish(error,token){clearTimeout(timeout);clearInterval(closed);window.removeEventListener("message",onMessage);if(error)reject(error);else resolve(token);}function onMessage(e){if(e.origin!==AI_SERVICE_URL||e.source!==popup||!e.data||e.data.type!=="AI_ORDER_BUILDER_AUTH"||typeof e.data.token!=="string")return;rememberAISession(e.data.token);$("aiStatus").textContent="AI is connected.";finish(null,aiSession);}window.addEventListener("message",onMessage);});return aiConnectionPromise.then(function(token){aiConnectionPromise=null;return token;},function(error){aiConnectionPromise=null;throw error;});}
+    function aiExtract(text,images,token){if(!text&&!images.length)return Promise.reject(new Error("Paste order text or choose a file first."));return fetch(AI_SERVICE_URL+"/v1/extract",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({text:text,images:images})}).then(function(r){if(r.status===401){clearAISession();}return r.json().then(function(data){if(!r.ok)throw new Error(readableError(data.error||data.message||"AI extraction failed."));return data;});}).then(function(data){if(!Array.isArray(data.items))throw new Error("AI returned no order lines.");return requestContext(data.items.map(function(x){return{identifier:clean(x.identifier),requestedName:clean(x.product_name),quantity:enteredNumber(x.quantity),price:enteredNumber(x.unit_price),offerName:clean(x.product_name),product:null,match:"pending"};}),text);});}
     function productList(r){return r&&r.data? r.data : Array.isArray(r)?r:[];}
-    function researchProducts(products){return fetch(AI_SERVICE_URL+"/v1/research",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+aiSession},body:JSON.stringify({products:products})}).then(function(r){return r.json().then(function(data){if(!r.ok){if(r.status===401){aiSession="";aiSessionExpires=0;}var e=new Error(readableError(data.error||data.message||"Product lookup failed. Resume processing to try again."));e.retryAfter=data.retry_after||0;throw e;}return data.items;});});}
+    // Prefer longest known CRM brand at start of the supplier title.
+    function inferBrandForItem(it){
+      if(!it||clean(it.requestedBrand))return;
+      var name=clean(it.requestedName),key=brandKey(name);
+      if(!name)return;
+      var found=managerBrandRecords.filter(function(b){
+        var k=brandKey(b.name);
+        return k.length>=4&&key.indexOf(k)===0;
+      }).sort(function(a,b){return b.name.length-a.name.length;})[0];
+      if(found){it.requestedBrand=found.name;it.selectedBrandId=found.id;return;}
+      if(/^cle\s+de\s+peau(?:\s+beaute)?\b/i.test(name))it.requestedBrand="Clé de Peau Beauté";
+      else if(/^kiehl(?:'|’)?s\b/i.test(name))it.requestedBrand="Kiehl's";
+    }
+    function researchProducts(products){return fetch(AI_SERVICE_URL+"/v1/research",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+aiSession},body:JSON.stringify({products:products})}).then(function(r){return r.json().then(function(data){if(!r.ok){if(r.status===401){clearAISession();}var e=new Error(readableError(data.error||data.message||"Product lookup failed. Resume processing to try again."));e.retryAfter=data.retry_after||0;throw e;}return data.items;});});}
+    // Second independent manufacturer-first search with original UPC unchanged.
+    function researchOfficialRetry(inputs){
+      return researchProducts(inputs.map(function(it,i){
+        var brand=clean(it.brand)||clean(it.requestedBrand);
+        return {key:String(i),identifier:clean(it.identifier),
+          product_name:(brand+" "+clean(it.product_name||it.requestedName)+
+            " manufacturer official website regional country product page official title UPC").slice(0,460)};
+      }));
+    }
     async function createProduct(fact){
       if(!fact.verified||!clean(fact.product_name)||!/^\d{8,14}$/.test(fact.upc))return Promise.reject(new Error("Product identity could not be verified."));
       var manufacturerSource=window.OrderPipeline&&window.OrderPipeline.officialNameSource?window.OrderPipeline.officialNameSource(fact,fact.brand):"";
@@ -464,7 +506,26 @@
       if(brandName){
         var selectedBrand=fact.brandId&&managerBrandRecords.find(function(b){return String(b.id)===String(fact.brandId);});
         var brand=selectedBrand?{id:selectedBrand.id,Name:selectedBrand.name}:await findBrand(brandName);
-        if(!brand){var brandError=new Error("CRM Brand not found for '"+brandName+"'. Choose an existing brand or create one in the Create Product dialog. No product was created.");brandError.safeNoWrite=true;throw brandError;}
+        if(!brand){
+          // A manufacturer-verified product may need its official Brand record.
+          // Check the CRM once again before any write to avoid duplicate brands.
+          if(!manufacturerSource||!fact.verified){
+            var noBrand=new Error("CRM Brand missing. Official manufacturer verification is required.");
+            noBrand.safeNoWrite=true;throw noBrand;
+          }
+          await loadManagerLists();
+          brand=await findBrand(brandName);
+          if(!brand){
+            var br=await ZOHO.CRM.API.insertRecord({Entity:"Brands",APIData:{Name:brandName},Trigger:[]});
+            var resultBrand=br&&br.data&&br.data[0];
+            if(!resultBrand||resultBrand.code!=="SUCCESS"||!resultBrand.details||!resultBrand.details.id)
+              throw new Error("Brand creation not confirmed; verify CRM to avoid duplicates.");
+            brand={id:String(resultBrand.details.id),Name:brandName};
+            managerBrandRecords.push({id:brand.id,name:brandName});
+            brandCache.set(brandKey(brandName),brand);
+            updateDatalists();
+          }
+        }
         data.Brand={id:String(brand.id)};data.Brand_text=brand.Name;
       }else{var missingBrand=new Error("Brand is missing. Choose an existing CRM brand in Create Product. No product was created.");missingBrand.safeNoWrite=true;throw missingBrand;}
       return ZOHO.CRM.API.insertRecord({Entity:"Products",APIData:data,Trigger:[]}).then(function(r){var result=r&&r.data&&r.data[0];if(!result||result.code!=="SUCCESS"||!result.details||!result.details.id){var err=new Error("Zoho CRM refused or did not confirm product creation: "+readableError(result||r)+". Check Products before retrying.");err.stage="create_product";throw err;}return Object.assign({id:String(result.details.id)},data);});
@@ -608,7 +669,7 @@
       if(pipeline)return Promise.resolve();
       return Promise.all([ZOHO.CRM.CONFIG.getCurrentUser(),ZOHO.CRM.CONFIG.getOrgInfo()]).then(function(values){var user=(values[0].users||[])[0],org=(values[1].org||[])[0];if(!user||!user.id||!org||!org.id)throw new Error("Could not identify this CRM session.");
         var storage;try{storage=window.localStorage;}catch(e){storage=null;}
-        pipeline=new window.OrderPipeline({storage:storage,storageKey:"ai-order-builder:v1.8:"+org.id+":"+user.id,match:resolveProduct,linkMissingBrand:linkMissingBrandForImport,research:researchProducts,create:createProduct,enrichExisting:enrichExisting,autoEnrich:false,changed:function(value,text){items=value;$("thinkingText").textContent=text;}});
+        pipeline=new window.OrderPipeline({storage:storage,storageKey:"ai-order-builder:v1.8:"+org.id+":"+user.id,match:resolveProduct,prepareItem:inferBrandForItem,linkMissingBrand:linkMissingBrandForImport,research:researchProducts,researchOfficialRetry:researchOfficialRetry,create:createProduct,enrichExisting:enrichExisting,autoEnrich:false,changed:function(value,text){items=value;$("thinkingText").textContent=text;}});
         pipeline.load();pipeline.items=[];items=[];$("reviewPanel").hidden=true;$("resumeBtn").hidden=true;loadCurrentSORows();
       });
     }
