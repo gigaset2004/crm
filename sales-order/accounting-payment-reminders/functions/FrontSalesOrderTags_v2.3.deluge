@@ -1,0 +1,506 @@
+void automation.FrontSalesOrderTags(string salesOrderId)
+{
+idText = ifnull(salesOrderId,"").toString().trim();
+if(idText == "" || !idText.matches("^[0-9]{15,20}$"))
+{
+	info "[Front SO Tags] ERROR: Invalid Sales Order ID.";
+	return;
+}
+so = zoho.crm.getRecordById("Sales_Orders",idText.toLong());
+if(so == null || so.get("id") == null)
+{
+	info "[Front SO Tags] ERROR: Sales Order missing " + idText;
+	return;
+}
+conversationId = ifnull(so.get("Front_Conversation_ID"),"").toString().trim();
+if(!conversationId.startsWith("cnv_"))
+{
+	info "[Front SO Tags] SKIP: No valid Front Conversation ID for SO " + idText + ". Thread must be created by SalesOrder after real invoice email send.";
+	return;
+}
+salesStatus = ifnull(so.get("Status"),"").toString().trim();
+logStatus = ifnull(so.get("Logistics_Status"),"").toString().trim();
+accountingStatus = ifnull(so.get("Accounting_status"),"").toString().trim();
+soDelay = ifnull(so.get("Delay"),0).toLong();
+shouldTagOverdue = soDelay > 0 && (accountingStatus == "Deposit invoice sent" || accountingStatus == "Invoice sent" || accountingStatus == "Remainder invoice sent" || accountingStatus == "Overdue") && salesStatus != "Cancelled";
+invoiceSentDate = ifnull(so.get("Invoice_sent_on"),"").toString().trim();
+invoiceWasSent = invoiceSentDate != "" && (accountingStatus == "Deposit invoice sent" || accountingStatus == "Invoice sent" || accountingStatus == "Remainder invoice sent");
+amountPaid = ifnull(so.get("Amount_Paid"),0).toDecimal().round(2);
+total = ifnull(so.get("Grand_Total"),0).toDecimal().round(2);
+depositCovered = false;
+invoicePartiallyPaid = false;
+depositInvoiceFound = false;
+if(amountPaid > 0 && total > 0 && amountPaid < total)
+{
+	depositKey = "SO_" + idText + "_DEPOSIT";
+	depositRows = zoho.crm.searchRecords("Accounting","(Request_Key:equals:" + depositKey + ")",1,10);
+	depositInvoiceMatches = 0;
+	depositInvoiceAmount = 0.0;
+	depositReceivedAmount = 0.0;
+	if(depositRows != null)
+	{
+		for each  depositItem in depositRows
+		{
+			depositLink = depositItem.get("Sales_Order");
+			if(ifnull(depositItem.get("Request_Key"),"").toString() == depositKey && ifnull(depositItem.get("Request_Source"),"").toString() == "Sales Orders" && depositLink != null && ifnull(depositLink.get("id"),"").toString() == idText && ifnull(depositItem.get("QBO_Invoice_ID"),"").toString().trim() != "")
+			{
+				depositInvoiceMatches = depositInvoiceMatches + 1;
+				depositInvoiceAmount = ifnull(depositItem.get("Payment_Amount"),0).toDecimal().round(2);
+				depositReceivedAmount = ifnull(depositItem.get("Amount_Paid"),0).toDecimal().round(2);
+			}
+		}
+	}
+	if(depositInvoiceMatches == 1 && depositInvoiceAmount > 0)
+	{
+		depositInvoiceFound = true;
+		if(depositReceivedAmount > 0 && depositReceivedAmount < depositInvoiceAmount)
+		{
+			invoicePartiallyPaid = true;
+		}
+		else if(depositInvoiceAmount < total && depositReceivedAmount >= depositInvoiceAmount)
+		{
+			depositCovered = true;
+		}
+		if(depositCovered)
+		{
+			balanceKey = "SO_" + idText + "_BALANCE";
+			balanceRows = zoho.crm.searchRecords("Accounting","(Request_Key:equals:" + balanceKey + ")",1,10);
+			if(balanceRows != null)
+			{
+				for each  balanceItem in balanceRows
+				{
+					balanceLink = balanceItem.get("Sales_Order");
+					if(ifnull(balanceItem.get("Request_Key"),"").toString() == balanceKey && ifnull(balanceItem.get("Request_Source"),"").toString() == "Sales Orders" && balanceLink != null && ifnull(balanceLink.get("id"),"").toString() == idText)
+					{
+						balanceInvoiceAmount = ifnull(balanceItem.get("Payment_Amount"),0).toDecimal().round(2);
+						balanceReceivedAmount = ifnull(balanceItem.get("Amount_Paid"),0).toDecimal().round(2);
+						if(balanceInvoiceAmount > 0 && balanceReceivedAmount > 0 && balanceReceivedAmount < balanceInvoiceAmount)
+						{
+							invoicePartiallyPaid = true;
+						}
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		info "[Front SO Tags] WARNING: Original issued invoice missing or ambiguous, SO=" + idText;
+	}
+}
+depositRouting = accountingStatus == "Deposit paid" && salesStatus == "Ordered" && total > 0 && amountPaid > 0 && amountPaid < total;
+paidRouting = accountingStatus == "Paid" && salesStatus != "Cancelled" && salesStatus != "Shipped" && total > 0 && amountPaid >= total;
+ownerFrontId = "";
+if(depositRouting || paidRouting)
+{
+	soOwner = so.get("Owner");
+	if(soOwner != null && soOwner.get("id") != null)
+	{
+		try 
+		{
+			frontOwnerUser = zoho.crm.getRecordById("users",soOwner.get("id").toLong());
+			if(frontOwnerUser != null)
+			{
+				frontUserData = frontOwnerUser.get("users");
+				if(frontUserData != null && !frontUserData.isEmpty())
+				{
+					ownerFrontId = ifnull(frontUserData.get(0).get("Front_Teammate_ID"),"").toString().trim();
+				}
+				else
+				{
+					ownerFrontId = ifnull(frontOwnerUser.get("Front_Teammate_ID"),"").toString().trim();
+				}
+			}
+		}
+		catch (ownerError)
+		{
+			info "[Front SO Route] Native user lookup failed " + ownerError;
+		}
+		if(ownerFrontId == "")
+		{
+			frontIdFallback = Map();
+			frontIdFallback.put("4888374000000337001","tea_2wutt");
+			frontIdFallback.put("4888374000030610001","tea_44d5d");
+			frontIdFallback.put("4888374000060342114","tea_6e7dd");
+			frontIdFallback.put("4888374000069539023","tea_4c9ox");
+			frontIdFallback.put("4888374000099599028","tea_d4782");
+			frontIdFallback.put("4888374000102396788","tea_8xb2q");
+			frontIdFallback.put("4888374000124983001","tea_d479u");
+			ownerFrontId = ifnull(frontIdFallback.get(soOwner.get("id").toString()),"").toString();
+			if(ownerFrontId != "")
+			{
+				info "[Front SO Route] Fallback Front ID by CRM User ID. SO=" + idText;
+			}
+		}
+	}
+	if(ownerFrontId != "" && !ownerFrontId.startsWith("tea_"))
+	{
+		info "[Front SO Route] Invalid Front ID " + ownerFrontId;
+		ownerFrontId = "";
+	}
+	if(ownerFrontId == "")
+	{
+		info "[Front SO Route] Missing Front ID for CRM SO Owner, SO=" + idText;
+	}
+}
+salesTag = "";
+accountingTag = "";
+if(salesStatus == "Cancelled")
+{
+	salesTag = "tag_4rg442";
+}
+else if(salesStatus == "Shipped")
+{
+	salesTag = "tag_4rg42a";
+}
+else if(salesStatus == "Ordered" && logStatus == "Pending Customer Pickup")
+{
+	salesTag = "tag_4rg3yq";
+}
+else if(salesStatus == "Ordered")
+{
+	salesTag = "tag_4rg3wy";
+}
+else if(salesStatus == "Created" || salesStatus == "Approved" || salesStatus == "Requested" || salesStatus == "Send deposit" || salesStatus == "Send invoice" || salesStatus == "Deposit paid")
+{
+	salesTag = "tag_4rg40i";
+}
+if(salesStatus == "Cancelled" && amountPaid <= 0)
+{
+	accountingTag = "tag_4mofiq";
+}
+else if(accountingStatus == "Paid")
+{
+	accountingTag = "tag_2es0i9";
+}
+else if(invoicePartiallyPaid)
+{
+	accountingTag = "tag_2ewaj5";
+}
+else if(depositCovered)
+{
+	accountingTag = "tag_2f1t5d";
+}
+else if(amountPaid > 0 && total > 0 && amountPaid < total)
+{
+	accountingTag = "tag_2ewaj5";
+}
+else if(accountingStatus == "Deposit paid" && !depositInvoiceFound)
+{
+	accountingTag = "tag_2f1t5d";
+}
+else if(accountingStatus == "Overdue")
+{
+	accountingTag = "tag_2esr81";
+}
+else if(accountingStatus == "Deposit invoice sent" || accountingStatus == "Invoice sent" || accountingStatus == "Remainder invoice sent")
+{
+	accountingTag = "tag_2esr0x";
+}
+if(salesTag == "")
+{
+	info "[Front SO Tags] SKIP: Unsupported Sales status " + salesStatus;
+	return;
+}
+managed = List();
+managed.add("tag_4rg40i");
+managed.add("tag_4rg3wy");
+managed.add("tag_4rg3yq");
+managed.add("tag_4rg42a");
+managed.add("tag_4rg442");
+managed.add("tag_2esr0x");
+managed.add("tag_2f1t5d");
+managed.add("tag_2ewaj5");
+managed.add("tag_2es0i9");
+managed.add("tag_2esr81");
+managed.add("tag_4mofiq");
+managed.add("tag_40vj4i");
+try 
+{
+	frontRead = invokeurl
+	[
+		url :"https://api2.frontapp.com/conversations/" + conversationId
+		type :GET
+		detailed:true
+		connection:"frontfullintegration"
+	];
+	if(ifnull(frontRead.get("responseCode"),0).toLong() != 200)
+	{
+		info "[Front SO Tags] ERROR: GET Front HTTP " + frontRead.get("responseCode") + " " + frontRead.get("responseText");
+		return;
+	}
+	responseData = frontRead.get("responseText");
+	tagObjects = responseData.get("tags");
+	if(tagObjects == null)
+	{
+		info "[Front SO Tags] ERROR: Missing Front tags, refusing to overwrite.";
+		return;
+	}
+	frontAssignee = responseData.get("assignee");
+	frontAssigneeId = "";
+	if(frontAssignee != null)
+	{
+		frontAssigneeId = ifnull(frontAssignee.get("id"),"").toString().trim();
+	}
+	frontInboxes = responseData.get("inboxes");
+	if(frontInboxes == null)
+	{
+		frontInboxReply = invokeurl
+		[
+			url :"https://api2.frontapp.com/conversations/" + conversationId + "/inboxes"
+			type :GET
+			detailed:true
+			connection:"frontfullintegration"
+		];
+		if(ifnull(frontInboxReply.get("responseCode"),0).toLong() != 200)
+		{
+			info "[Front SO Tags] ERROR: Cannot verify conversation inbox HTTP " + frontInboxReply.get("responseCode") + ". Refusing to change Front status.";
+			return;
+		}
+		frontInboxes = frontInboxReply.get("responseText").get("_results");
+	}
+	if(frontInboxes == null)
+	{
+		info "[Front SO Tags] ERROR: Front inbox list unavailable, refusing to change status.";
+		return;
+	}
+	onHoldTagInFront = false;
+	for each  existingTag in tagObjects
+	{
+		if(ifnull(existingTag.get("id"),"").toString() == "tag_3d7qs2")
+		{
+			onHoldTagInFront = true;
+		}
+	}
+	inLogistics = false;
+	inAccounting = false;
+	inSales = false;
+	if(frontInboxes != null)
+	{
+		for each  frontInbox in frontInboxes
+		{
+			if(ifnull(frontInbox.get("id"),"").toString() == "inb_7jkb5")
+			{
+				inLogistics = true;
+			}
+			if(ifnull(frontInbox.get("id"),"").toString() == "inb_7jk7l")
+			{
+				inAccounting = true;
+			}
+			if(ifnull(frontInbox.get("id"),"").toString() == "inb_a01le")
+			{
+				inSales = true;
+			}
+		}
+	}
+	// Once R5 has been accepted for the active Accounting request, Sales owns the case.
+	// Never depend on a Front ON HOLD tag: Sales Manager decides whether to hold the order.
+	finalReminderAccepted = false;
+	if(inSales && invoiceWasSent && !paidRouting && !depositRouting)
+	{
+		for each  requestSuffix in {"DEPOSIT","BALANCE"}
+		{
+			currentKey = "SO_" + idText + "_" + requestSuffix;
+			currentRequests = zoho.crm.searchRecords("Accounting","(Request_Key:equals:" + currentKey + ")",1,10);
+			if(currentRequests != null)
+			{
+				for each  currentRequest in currentRequests
+				{
+					currentLink = currentRequest.get("Sales_Order");
+					currentStage = ifnull(currentRequest.get("Request_Status"),"").toString();
+					currentDue = ifnull(currentRequest.get("Payment_Due_Date"),"").toString();
+					openAmount = ifnull(currentRequest.get("Payment_Amount"),0).toDecimal() - ifnull(currentRequest.get("Amount_Paid"),0).toDecimal();
+					if(currentLink != null && ifnull(currentLink.get("id"),"").toString() == idText && ifnull(currentRequest.get("Request_Key"),"").toString() == currentKey && currentDue != "" && openAmount > 0 && (currentStage == "Deposit invoice sent" || currentStage == "Invoice sent" || currentStage == "Remainder invoice sent" || currentStage == "Partially Received"))
+					{
+						finalKey = "PAYREM_" + ifnull(currentRequest.get("id"),"").toString() + "_" + currentDue.replaceAll("-","") + "_R5";
+						finalLocks = zoho.crm.searchRecords("Email_Dispatch_Locks","(Dispatch_Key:equals:" + finalKey + ")",1,5);
+						if(finalLocks != null && !finalLocks.isEmpty() && ifnull(finalLocks.get(0).get("Send_Status"),"").toString() == "Accepted")
+						{
+							finalReminderAccepted = true;
+						}
+					}
+				}
+			}
+		}
+	}
+	needsCreateShipment = accountingTag == "tag_2es0i9" && salesStatus != "Cancelled" && salesStatus != "Shipped" && (logStatus == "" || logStatus == "-None-" || logStatus == "Not Started");
+	needsHandoff = paidRouting && (!inLogistics || frontAssigneeId != "tea_2wutt");
+	needsSalesHandoff = depositRouting && ownerFrontId != "" && (!inSales || frontAssigneeId != ownerFrontId);
+	needsAccountingHandoff = invoiceWasSent && salesStatus != "Cancelled" && salesStatus != "Shipped" && !inLogistics && !((onHoldTagInFront || finalReminderAccepted) && inSales) && (!inAccounting || frontAssigneeId != "tea_2wutt");
+	previous = List();
+	wanted = List();
+	for each  tagData in tagObjects
+	{
+		tagId = ifnull(tagData.get("id"),"").toString().trim();
+		if(tagId == "")
+		{
+			info "[Front SO Tags] ERROR: Invalid existing tag ID.";
+			return;
+		}
+		if(!previous.contains(tagId))
+		{
+			previous.add(tagId);
+		}
+		if(!managed.contains(tagId) && !wanted.contains(tagId))
+		{
+			wanted.add(tagId);
+		}
+	}
+	if(salesTag != "" && !wanted.contains(salesTag))
+	{
+		wanted.add(salesTag);
+	}
+	if(accountingTag != "" && !wanted.contains(accountingTag))
+	{
+		wanted.add(accountingTag);
+	}
+	if(invoiceWasSent && !wanted.contains("tag_2esr0x"))
+	{
+		wanted.add("tag_2esr0x");
+	}
+	if(shouldTagOverdue && !wanted.contains("tag_2esr81"))
+	{
+		wanted.add("tag_2esr81");
+	}
+	if(needsCreateShipment && !wanted.contains("tag_40vj4i"))
+	{
+		wanted.add("tag_40vj4i");
+	}
+	unchanged = previous.size() == wanted.size();
+	if(unchanged)
+	{
+		for each  existingId in previous
+		{
+			if(!wanted.contains(existingId))
+			{
+				unchanged = false;
+				break;
+			}
+		}
+	}
+	if(unchanged && !needsHandoff && !needsAccountingHandoff && !needsSalesHandoff && !paidRouting)
+	{
+		info "[Front SO Tags] NO CHANGE SO=" + idText + " Sales=" + salesStatus + " Accounting=" + accountingStatus;
+		return;
+	}
+	payload = Map();
+	payload.put("tag_ids",wanted);
+	if(needsHandoff && !inLogistics)
+	{
+		payload.put("inbox_id","inb_7jkb5");
+	}
+	else if(needsSalesHandoff && !inSales)
+	{
+		payload.put("inbox_id","inb_a01le");
+	}
+	else if(needsAccountingHandoff && !inAccounting)
+	{
+		payload.put("inbox_id","inb_7jk7l");
+	}
+	if(needsHandoff || needsAccountingHandoff || needsSalesHandoff)
+	{
+		payload.put("status","open");
+		if(needsSalesHandoff)
+		{
+			if(ownerFrontId != "")
+			{
+				payload.put("assignee_id",ownerFrontId);
+			}
+			else
+			{
+				payload.put("assignee_id",null);
+			}
+		}
+		else
+		{
+			payload.put("assignee_id","tea_2wutt");
+		}
+	}
+	response = invokeurl
+	[
+		url :"https://api2.frontapp.com/conversations/" + conversationId
+		type :PATCH
+		parameters:payload.toString()
+		headers:{"Content-Type":"application/json"}
+		detailed:true
+		connection:"frontfullintegration"
+	];
+	code = ifnull(response.get("responseCode"),0).toLong();
+	if(code == 204)
+	{
+		if(paidRouting)
+		{
+			removeFollowers = List();
+			if(ownerFrontId != "" && ownerFrontId != "tea_2wutt")
+			{
+				removeFollowers.add(ownerFrontId);
+			}
+			if(removeFollowers.size() > 0)
+			{
+				try 
+				{
+					removeBody = Map();
+					removeBody.put("teammate_ids",removeFollowers);
+					removeReply = invokeurl
+					[
+						url :"https://api2.frontapp.com/conversations/" + conversationId + "/followers"
+						type :DELETE
+						body:removeBody.toString()
+						headers:{"Content-Type":"application/json"}
+						detailed:true
+						connection:"frontfullintegration"
+					];
+					if(ifnull(removeReply.get("responseCode"),0).toLong() != 204)
+					{
+						info "[Front SO Tags] Paid follower cleanup HTTP " + removeReply.get("responseCode") + " " + removeReply.get("responseText");
+					}
+					else
+					{
+						verifyFollowers = invokeurl
+						[
+							url :"https://api2.frontapp.com/conversations/" + conversationId + "/followers"
+							type :GET
+							detailed:true
+							connection:"frontfullintegration"
+						];
+						if(ifnull(verifyFollowers.get("responseCode"),0).toLong() == 200)
+						{
+							activeFollowers = verifyFollowers.get("responseText");
+							activeFollowerList = ifnull(activeFollowers.get("_results"),List());
+							for each  remainingFollower in activeFollowerList
+							{
+								remainingFollowerId = ifnull(remainingFollower.get("id"),"").toString();
+								if(removeFollowers.contains(remainingFollowerId))
+								{
+									info "[Front SO Tags] WARNING: Paid follower still present " + remainingFollowerId + " SO=" + idText;
+								}
+							}
+						}
+						else
+						{
+							info "[Front SO Tags] WARNING: Cannot verify paid follower cleanup HTTP " + verifyFollowers.get("responseCode");
+						}
+					}
+				}
+				catch (removeError)
+				{
+					info "[Front SO Tags] Paid follower cleanup failed " + removeError;
+				}
+			}
+			else
+			{
+				info "[Front SO Tags] No Sales owner follower to unsubscribe, SO=" + idText;
+			}
+		}
+		info "[Front SO Tags] SUCCESS SO=" + idText + " Sales=" + salesStatus + " Accounting=" + accountingStatus + " Front=" + conversationId + " Tags=" + wanted;
+	}
+	else
+	{
+		info "[Front SO Tags] ERROR: PATCH Front HTTP " + code + " " + response.get("responseText");
+	}
+}
+catch (e)
+{
+	info "[Front SO Tags] ERROR: " + e;
+}
+}
