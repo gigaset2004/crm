@@ -1,0 +1,263 @@
+void automation.AccountingReminder_FrontAfterSend(string accountingId, string reminderNumber)
+{
+// v1.1.1 | Front Snooze R1-R4; R5 OPEN Sales handoff without ON HOLD tag
+idText = ifnull(accountingId,"").toString().trim();
+stepText = ifnull(reminderNumber,"").toString().trim();
+if(!idText.matches("^[0-9]{15,20}$") || stepText != "1" && stepText != "2" && stepText != "3" && stepText != "4" && stepText != "5")
+{
+	info "[Reminder Route] Invalid Accounting ID or step";
+	return;
+}
+acc = zoho.crm.getRecordById("Accounting",idText.toLong());
+if(acc == null || acc.get("id") == null)
+{
+	info "[Reminder Route] Accounting missing " + idText;
+	return;
+}
+dueText = ifnull(acc.get("Payment_Due_Date"),"").toString().trim();
+requestKey = ifnull(acc.get("Request_Key"),"").toString();
+source = ifnull(acc.get("Request_Source"),"").toString();
+amount = ifnull(acc.get("Payment_Amount"),0).toDecimal().round(2);
+paid = ifnull(acc.get("Amount_Paid"),0).toDecimal().round(2);
+soLink = acc.get("Sales_Order");
+if(source != "Sales Orders" || soLink == null || soLink.get("id") == null || dueText == "" || amount <= 0 || paid >= amount)
+{
+	info "[Reminder Route] Invoice inactive or paid " + idText;
+	return;
+}
+soId = soLink.get("id").toString();
+if(requestKey != "SO_" + soId + "_DEPOSIT" && requestKey != "SO_" + soId + "_BALANCE")
+{
+	info "[Reminder Route] Request Key mismatch";
+	return;
+}
+dispatchKey = "PAYREM_" + idText + "_" + dueText.replaceAll("-","") + "_R" + stepText;
+locks = zoho.crm.searchRecords("Email_Dispatch_Locks","(Dispatch_Key:equals:" + dispatchKey + ")",1,5);
+if(locks == null || locks.isEmpty() || ifnull(locks.get(0).get("Send_Status"),"").toString() != "Accepted")
+{
+	info "[Reminder Route] No accepted dispatch for " + dispatchKey;
+	return;
+}
+so = zoho.crm.getRecordById("Sales_Orders",soId.toLong());
+if(so == null || so.get("id") == null || ifnull(so.get("Status"),"").toString() == "Cancelled" || ifnull(so.get("Accounting_status"),"").toString() == "Paid" || ifnull(so.get("Accounting_status"),"").toString() == "Deposit paid")
+{
+	info "[Reminder Route] Sales Order missing, cancelled or paid";
+	return;
+}
+conversationId = ifnull(so.get("Front_Conversation_ID"),"").toString().trim();
+if(!conversationId.startsWith("cnv_"))
+{
+	info "[Reminder Route] Front conversation missing";
+	return;
+}
+resp = invokeurl
+[
+	url :"https://api2.frontapp.com/conversations/" + conversationId
+	type :GET
+	detailed:true
+	connection:"frontfullintegration"
+];
+if(ifnull(resp.get("responseCode"),0).toLong() != 200)
+{
+	info "[Reminder Route] Front GET error " + resp.get("responseCode");
+	return;
+}
+data = resp.get("responseText");
+frontAssignee = "";
+if(data.get("assignee") != null)
+{
+	frontAssignee = ifnull(data.get("assignee").get("id"),"").toString();
+}
+inAccounting = false;
+inSales = false;
+inboxes = data.get("inboxes");
+if(inboxes == null)
+{
+	inboxesResponse = invokeurl
+	[
+		url :"https://api2.frontapp.com/conversations/" + conversationId + "/inboxes"
+		type :GET
+		detailed:true
+		connection:"frontfullintegration"
+	];
+	if(ifnull(inboxesResponse.get("responseCode"),0).toLong() != 200)
+	{
+		info "[Reminder Route] ERROR Front inbox lookup HTTP=" + inboxesResponse.get("responseCode");
+		return;
+	}
+	inboxes = inboxesResponse.get("responseText").get("_results");
+}
+if(inboxes == null)
+{
+	info "[Reminder Route] ERROR Front inbox list missing; refusing to route.";
+	return;
+}
+if(inboxes != null)
+{
+	for each  inbox in inboxes
+	{
+		if(ifnull(inbox.get("id"),"").toString() == "inb_7jk7l")
+		{
+			inAccounting = true;
+		}
+		if(ifnull(inbox.get("id"),"").toString() == "inb_a01le")
+		{
+			inSales = true;
+		}
+	}
+}
+if(stepText != "5")
+{
+	if(!inAccounting)
+	{
+		info "[Reminder Route] Not in Accounting, skip Snooze " + conversationId;
+		return;
+	}
+	nyDate = zoho.currenttime.toString("yyyy-MM-dd","America/New_York").toDate("yyyy-MM-dd");
+	wakeDate = nyDate.addBusinessDay(2);
+	wakeText = wakeDate.toString("dd-MMM-yyyy","America/New_York") + " 08:00:00";
+	wakeUnix = (wakeText.unixEpoch("America/New_York") / 1000).toLong();
+	reminderOwner = frontAssignee;
+	if(!reminderOwner.startsWith("tea_"))
+	{
+		reminderOwner = "tea_2wutt";
+	}
+	snoozeMap = Map();
+	snoozeMap.put("teammate_id",reminderOwner);
+	snoozeMap.put("scheduled_at",wakeUnix);
+	r = invokeurl
+	[
+		url :"https://api2.frontapp.com/conversations/" + conversationId + "/reminders"
+		type :PATCH
+		parameters:snoozeMap.toString()
+		headers:{"Content-Type":"application/json"}
+		detailed:true
+		connection:"frontfullintegration"
+	];
+	if(ifnull(r.get("responseCode"),0).toLong() == 204)
+	{
+		info "[Reminder Route] SNOOZED R" + stepText + " SO=" + soId + " until " + wakeDate.toString("yyyy-MM-dd") + " 08:00 Miami";
+	}
+	else
+	{
+		info "[Reminder Route] ERROR Snooze HTTP=" + r.get("responseCode") + " " + r.get("responseText");
+	}
+	return;
+}
+// Fifth email: return to Sales Order owner, mark ON HOLD, stay OPEN, no Snooze.
+owner = so.get("Owner");
+if(owner == null || owner.get("id") == null)
+{
+	info "[Reminder Route] SO Owner missing " + soId;
+	return;
+}
+ownerId = owner.get("id").toString();
+salesFrontId = "";
+try 
+{
+	crmUser = zoho.crm.getRecordById("users",ownerId.toLong());
+	if(crmUser != null)
+	{
+		users = crmUser.get("users");
+		if(users != null && !users.isEmpty())
+		{
+			salesFrontId = ifnull(users.get(0).get("Front_Teammate_ID"),"").toString().trim();
+		}
+		else
+		{
+			salesFrontId = ifnull(crmUser.get("Front_Teammate_ID"),"").toString().trim();
+		}
+	}
+}
+catch (e)
+{
+	info "[Reminder Route] User lookup failed " + e;
+}
+if(salesFrontId == "")
+{
+	knownUsers = Map();
+	knownUsers.put("4888374000000337001","tea_2wutt");
+	knownUsers.put("4888374000030610001","tea_44d5d");
+	knownUsers.put("4888374000060342114","tea_6e7dd");
+	knownUsers.put("4888374000069539023","tea_4c9ox");
+	knownUsers.put("4888374000099599028","tea_d4782");
+	knownUsers.put("4888374000102396788","tea_8xb2q");
+	knownUsers.put("4888374000124983001","tea_d479u");
+	salesFrontId = ifnull(knownUsers.get(ownerId),"").toString();
+}
+if(!salesFrontId.startsWith("tea_"))
+{
+	info "[Reminder Route] ERROR cannot assign Sales Manager SO=" + soId;
+	return;
+}
+frontTags = data.get("tags");
+if(frontTags == null)
+{
+	info "[Reminder Route] ERROR Front tags unavailable, refusing overwrite";
+	return;
+}
+tagIds = List();
+hadOverdueTag = false;
+for each  tag in frontTags
+{
+	tid = ifnull(tag.get("id"),"").toString();
+	if(tid == "tag_2esr81")
+	{
+		hadOverdueTag = true;
+	}
+	if(tid != "" && !tagIds.contains(tid))
+	{
+		tagIds.add(tid);
+	}
+}
+for each  newTag in {"tag_2esr81"}
+{
+	if(!tagIds.contains(newTag))
+	{
+		tagIds.add(newTag);
+	}
+}
+if(inSales && frontAssignee == salesFrontId && hadOverdueTag && ifnull(data.get("status"),"").toString() == "open")
+{
+	info "[Reminder Route] Already in Sales OPEN with correct owner " + soId;
+	return;
+}
+if(frontAssignee.startsWith("tea_"))
+{
+	cancel = Map();
+	cancel.put("teammate_id",frontAssignee);
+	cancel.put("scheduled_at",null);
+	canceled = invokeurl
+	[
+		url :"https://api2.frontapp.com/conversations/" + conversationId + "/reminders"
+		type :PATCH
+		parameters:cancel.toString()
+		headers:{"Content-Type":"application/json"}
+		detailed:true
+		connection:"frontfullintegration"
+	];
+	info "[Reminder Route] Cancel Snooze HTTP=" + canceled.get("responseCode");
+}
+route = Map();
+route.put("inbox_id","inb_a01le");
+route.put("assignee_id",salesFrontId);
+route.put("status","open");
+route.put("tag_ids",tagIds);
+changed = invokeurl
+[
+	url :"https://api2.frontapp.com/conversations/" + conversationId
+	type :PATCH
+	parameters:route.toString()
+	headers:{"Content-Type":"application/json"}
+	detailed:true
+	connection:"frontfullintegration"
+];
+if(ifnull(changed.get("responseCode"),0).toLong() == 204)
+{
+	info "[Reminder Route] R5 DONE: Sales OPEN, Sales Manager=" + salesFrontId + ", no automatic hold, no Snooze, SO=" + soId;
+}
+else
+{
+	info "[Reminder Route] ERROR Front handoff HTTP=" + changed.get("responseCode") + " " + changed.get("responseText");
+}
+}
