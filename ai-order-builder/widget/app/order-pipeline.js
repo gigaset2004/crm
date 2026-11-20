@@ -83,9 +83,15 @@
         if(this.paused)break;
         var item=this.items[i],identity=key(item);
         if(!item.requestedBrand&&/\bgucci\b/i.test(item.requestedName||""))item.requestedBrand="Gucci";
-        if(item.product&&item.match==="matched"){cache.set(identity,item);continue;}
+        if(item.product&&item.match==="matched"){
+          if(this.options.linkMissingBrand){try{await this.options.linkMissingBrand(item);}catch(e){item.note="Brand lookup update failed: "+errorDetails(e);}}
+          cache.set(identity,item);continue;
+        }
         if(cache.has(identity))copyMatch(item,cache.get(identity));
         else{try{await this.options.match(item);}catch(e){throw withLineContext(e,item,i+1,"crm_lookup");}cache.set(identity,item);}
+        if(item.product&&item.product.id&&this.options.linkMissingBrand){
+          try{await this.options.linkMissingBrand(item);}catch(e){item.note="Brand lookup update failed: "+errorDetails(e);}
+        }
         // Never blindly repeat a write whose outcome was lost on a closed tab/network error.
         if(!item.product&&(item.writeState==="inflight"||item.writeState==="unknown")){item.match="uncertain";item.note="Product creation could not be confirmed. Search CRM before creating another product.";}
         this.notify("Checking CRM: "+(i+1)+" of "+this.items.length);
