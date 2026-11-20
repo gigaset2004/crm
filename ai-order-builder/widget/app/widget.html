@@ -179,9 +179,13 @@
     .items-table tbody tr.line-validation-error>td:first-child{border-left-color:#d69b38}
     /* v1.49: distinct but thinner row separators and inline trade editors. */
     .trade-info{display:flex;align-items:center;gap:5px 6px;flex-wrap:wrap;margin-top:4px;color:#667085;font-size:10px}
-    .trade-edit-btn{padding:0 3px;min-width:17px;height:18px;border:1px solid #cad7e6;border-radius:4px;background:#fff;color:#3d70aa;font-size:12px;line-height:15px;cursor:pointer}
-    .trade-edit-btn:hover{background:#e7f0ff;border-color:#6e9de8}
+    /* v1.54: small inline edit glyphs; no visible button background or frame. */
+    .trade-edit-btn{appearance:none;-webkit-appearance:none;display:inline-flex;align-items:center;justify-content:center;padding:0 1px;min-width:12px;width:13px;height:15px;border:0!important;box-shadow:none!important;background:transparent!important;color:#6684aa;font-size:11px;line-height:1;cursor:pointer}
+    .trade-edit-btn:hover,.trade-edit-btn:focus-visible{color:#1769e0!important;background:transparent!important;outline:none}
     .trade-info span{white-space:nowrap}
+    /* Missing customs data is a visual hint, never a required field. */
+    .trade-info .trade-missing{display:inline-block;border:1px solid #d64949;border-radius:4px;background:#fffafb;padding:2px 5px;color:#b42318;line-height:1.25;white-space:nowrap}
+    .trade-info .trade-present{white-space:nowrap}
     .trade-check-label{display:flex;align-items:center;gap:7px;margin-top:12px;color:#344054;font-size:12px}
     .trade-check-label input{width:16px;height:16px;flex:none}
   </style>
@@ -244,7 +248,7 @@
       </div>
     </div>
     <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
-  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.53</strong></footer>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.54</strong></footer>
   <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Use the official product name from the manufacturer website (any country). The original Excel title stays in Offer Product Name.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:#344054"><input id="quickOfficialConfirmed" type="checkbox" style="width:16px;height:16px;flex:none"> I verified the name on the manufacturer’s official website (not the offer).</label><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
   <div class="overlay" id="tradeOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="tradeTitle">
     <div class="dialog-card">
@@ -733,13 +737,17 @@
     // targeted country-of-manufacture search for unresolved metadata. Result
     // names from this second search never replace official Product Names.
     function researchMissingTrade(batch){
+      // Cloud Run /v1/research accepts ONLY key, identifier, product_name.
+      // The old research_focus / require_field_sources properties caused
+      // HTTP 400 before any web search began.
       return researchProducts(batch.map(function(row,i){
-        var brand=clean(row.brand),name=clean(row.product_name);
+        var brand=clean(row.brand),name=clean(row.product_name),upc=clean(row.identifier);
         return {
-          key:String(i),identifier:clean(row.identifier),
-          product_name:(brand+" "+name+" country of origin made in manufacturing location").slice(0,255),
-          research_focus:"country_of_origin,hs_code",
-          require_field_sources:true
+          key:String(i),
+          identifier:upc,
+          // Search-focused phrasing is kept in the supported name input,
+          // never written back as Product Name.
+          product_name:(brand+" "+name+" made in country of manufacture country of origin").slice(0,255)
         };
       }),{timeoutMs:20000});
     }
@@ -899,7 +907,7 @@
         var code=supplierCodeFor(it.supplierId),supplierTitle=managerSuppliers.find(function(s){return String(s.id)===String(it.supplierId);});
         var supplierHint=supplierTitle?"Supplier: "+(supplierTitle.vendor||code):"Choose a supplier code";
         tr.innerHTML='<td class="row-number">'+(i+1)+'</td><td><span class="row-status '+statusClass+'" title="'+esc(window.OrderPipeline.describeLine(it))+'">'+esc(status)+'</span><small class="row-issues">'+esc(currentIssues.join(" · "))+'</small></td><td class="brand-cell"><div class="brand-inline">'+brandLine+'<button class="brand-edit-btn" type="button" data-edit-brand="'+i+'" aria-label="Edit CRM brand on line '+(i+1)+'" title="Choose or correct CRM brand">✎</button></div></td><td class="upc-cell">'+esc(it.product&&it.product.UPC||it.identifier||"—")+'</td>'+
-          '<td><div class="product-cell">'+productTitleHtml+'<div class="trade-info"><span>HS: '+esc(hs||"—")+'</span><button class="trade-edit-btn" type="button" data-edit-trade="'+i+'" data-trade-field="hs" title="Edit HS Code" aria-label="Edit HS Code for line '+(i+1)+'">✎</button><span>COO: '+esc(coo||"—")+'</span><button class="trade-edit-btn" type="button" data-edit-trade="'+i+'" data-trade-field="coo" title="Edit Country of Origin" aria-label="Edit Country of Origin for line '+(i+1)+'">✎</button></div>'+(it.candidates&&it.candidates.length>1&&!it.product?'<select data-i="'+i+'" data-k="product">'+opts+'</select>':'')+searchControl+'</div></td>'+
+          '<td><div class="product-cell">'+productTitleHtml+'<div class="trade-info"><span class="'+(hs?"trade-present":"trade-missing")+'" title="'+(hs?"HS Code":"HS Code missing; optional")+'">HS: '+esc(hs||"—")+'</span><button class="trade-edit-btn" type="button" data-edit-trade="'+i+'" data-trade-field="hs" title="Edit HS Code" aria-label="Edit HS Code for line '+(i+1)+'">✎</button><span class="'+(coo?"trade-present":"trade-missing")+'" title="'+(coo?"Country of Origin":"Country of Origin missing; optional")+'">COO: '+esc(coo||"—")+'</span><button class="trade-edit-btn" type="button" data-edit-trade="'+i+'" data-trade-field="coo" title="Edit Country of Origin" aria-label="Edit Country of Origin for line '+(i+1)+'">✎</button></div>'+(it.candidates&&it.candidates.length>1&&!it.product?'<select data-i="'+i+'" data-k="product">'+opts+'</select>':'')+searchControl+'</div></td>'+
           '<td><input class="offer-input" data-i="'+i+'" data-k="offerName" aria-label="Product name from supplier offer" maxlength="255" placeholder="Supplier title (or official name)" value="'+esc(offerNameFor(it))+'"></td>'+
           '<td><div class="supplier-inline"><select data-i="'+i+'" data-k="supplierCode" aria-label="Supplier abbreviation" title="'+esc(supplierHint)+'">'+supplierOptions(it.supplierId)+'</select></div></td>'+
           '<td><input data-i="'+i+'" data-k="quantity" aria-label="Quantity" type="number" inputmode="decimal" min="0.01" step="any" value="'+esc(it.quantity==null?"":it.quantity)+'"></td>'+
