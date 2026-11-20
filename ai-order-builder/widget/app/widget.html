@@ -386,6 +386,23 @@
           try{
             var p=await readProduct(it.product.id);
             if(items.indexOf(it)<0||!it.product||String(it.product.id)!==String(p.id))return;
+            // A user can reopen a Create SO without re-running Extract. Make
+            // the same corroborated GTIN/COO repair available during hydration,
+            // not only in the import enrichment pipeline.
+            var cooSource=!clean(p.Country_of_origin)&&!Object.prototype.hasOwnProperty.call(it,"cooManual")&&
+              window.ProductEnricher&&window.ProductEnricher.corroboratedOrigin?
+              window.ProductEnricher.corroboratedOrigin(p,it):null;
+            if(cooSource){
+              try{
+                await updateProduct({id:String(p.id),Country_of_origin:cooSource.country});
+                var verified=await readProduct(p.id);
+                if(clean(verified.Country_of_origin)!==cooSource.country)
+                  throw new Error("CRM did not confirm Product COO update.");
+                p=verified;
+              }catch(originError){
+                console.warn("AI Order Builder: corroborated COO could not be saved",originError);
+              }
+            }
             var changed=false;
             if(!clean(it.product.HS_Code)&&clean(p.HS_Code)&&!Object.prototype.hasOwnProperty.call(it,"hsManual")){
               it.product.HS_Code=clean(p.HS_Code);changed=true;

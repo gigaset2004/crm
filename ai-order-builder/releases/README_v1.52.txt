@@ -8,7 +8,7 @@ AI Order Builder Widget v1.52 / Client Scripts v1.39 — November 20, 2026.
 - ProductEnricher gets a narrow, vendor-corroborated COO France
   fallback for Helena Rubinstein Replasty Age Recovery Night Cream,
   UPC 3614274101584 only. Checks CRM fields first, writes only empty COO,
-  re-reads and confirms; packaging is final authority for customs.
+  re-reads and confirms during Extract or widget reopening; packaging is final authority for customs.
 - Other optional metadata research is interrupted after 45 seconds
   rather than blocking form import for many minutes.
 - Both native Client Scripts silently dismiss the ordinary

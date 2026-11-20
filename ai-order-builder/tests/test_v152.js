@@ -6,6 +6,7 @@ const moduleEnricher=require(path.join(root,'versions/widget-v1.52/app/product-e
 assert(widget.includes('Version 1.52'));
 assert(widget.includes('for(var ch of original)'));
 assert(widget.includes('timeoutMs:45000'));
+assert(widget.includes('corroborated GTIN/COO repair'));
 assert(widget.includes('data-trade-field="coo"'));
 assert(widget.includes('window.localStorage.setItem'));
 const clean=v=>String(v==null?'':v).trim();
