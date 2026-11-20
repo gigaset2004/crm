@@ -48,8 +48,12 @@
         upc:findColumn(normalized,["upc","upcnumber","barcode","barcodeid","gtin","gtin12","gtin13","gtin14","ean","ean13","eancode"]),
         name:findColumn(normalized,["description","productname","productdescription","itemdescription","itemname","product","item","name"]),
         qty:findColumn(normalized,["order","orderqty","orderquantity","orderedqty","orderedquantity","quantityordered","qtyordered","qty","quantity","unitsordered"]),
-        price:findColumn(normalized,["price","unitprice","netprice","wholesaleprice","cost","unitcost","purchaseprice","customerprice"])
+        price:findColumn(normalized,["price","priceusd","unitpriceusd","usdprice","priceinusd","unitprice","netprice","wholesaleprice","cost","unitcost","purchaseprice","customerprice"])
       };
+      // Customer ORDER overrides an earlier stock QTY column.
+      var oi=findColumn(normalized,["order","orderqty","orderquantity","orderedqty","orderedquantity","quantityordered","qtyordered","unitsordered"]);
+      if(oi>=0)cols.qty=oi;
+      cols.orderColumn=oi>=0;
       // Support incomplete supplier templates too: keep rows and flag absent columns.
       if((cols.upc>=0||cols.name>=0)&&(cols.qty>=0||cols.price>=0||(cols.upc>=0&&cols.name>=0))){headers=cols;index=i;break;}
     }
@@ -61,10 +65,14 @@
       var rowNo=rowNumbers[n]||n+1;
       // Only blank rows and explicit totals/notes are skipped. A product with an
       // empty quantity/price must remain in the review table, never disappear.
+      if(headers.orderColumn&&!sourceName&&!rawUPC){ignored++;continue;} // total/footer
       if(!sourceName&&!rawUPC&&!rawQty&&!rawPrice){ignored++;continue;}
       if(/^(grand\s*total|sub\s*total|total|tax|vat|shipping|freight|discount|notes?|balance\s*due|amount\s*due)\b/i.test(sourceName)&&!rawUPC){ignored++;continue;}
-      candidates++;
       var cellQuantity=numeric(cells[headers.qty]),unitPrice=numeric(cells[headers.price]);
+      // In customer ORDER sheets, QTY is stock availability, not ordered units.
+      // Blank and zero ORDER values are not order lines; nonempty bad entries remain for review.
+      if(headers.orderColumn&&(!rawQty||cellQuantity===0)){ignored++;continue;}
+      candidates++;
       var barcode=upc(cells[headers.upc]),rowIssues=[];
       if(cellQuantity==null||cellQuantity<=0)rowIssues.push('quantity missing or invalid');
       if(unitPrice==null||unitPrice<=0)rowIssues.push('unit price missing or invalid');
@@ -76,14 +84,16 @@
       items.push({
         identifier:barcode.value,requestedName:sourceName,offerName:sourceName,requestedBrand:brand,
         quantity:cellQuantity,price:unitPrice,product:null,match:'pending',sourceType:'import',
-        sourceFile:fileName,sourceRow:rowNo,sourceUPC:barcode.original,importWarning:rowIssues.join('; ')
+        sourceFile:fileName,sourceRow:rowNo,sourceUPC:barcode.original,importWarning:rowIssues.join('; '),
+        autoCreateFromSheet:!!(headers.orderColumn&&barcode.value&&sourceName&&brand&&cellQuantity>0&&unitPrice>0)
       });
       if(cellQuantity>0)qtyTotal+=cellQuantity;
       if(cellQuantity>0&&unitPrice>0)amountTotal+=unitPrice*cellQuantity;
     }
     return{items:items,audit:{file:fileName,headerRow:rowNumbers[index]||index+1,sourceRows:grid.length-index-1,
       productRows:candidates,imported:items.length,quantity:qtyTotal,amount:Math.round(amountTotal*100)/100,
-      scientificConverted:countScientific,ignored:ignored,problemRows:failed,warnings:warnings.slice(0,75),brand:brand}};
+      scientificConverted:countScientific,ignored:ignored,problemRows:failed,warnings:warnings.slice(0,75),brand:brand,
+      orderColumn:!!headers.orderColumn,quantityHeader:headers.qty>=0?heading(grid[index][headers.qty]):'',priceHeader:headers.price>=0?heading(grid[index][headers.price]):''}};
   }
   function normalizeRawGrid(grid){
     // If a workbook doesn't have recognized order columns, still fix scientific

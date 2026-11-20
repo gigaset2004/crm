@@ -65,6 +65,30 @@
         if(!item.product&&(item.writeState==="inflight"||item.writeState==="unknown")){item.match="uncertain";item.note="Product creation could not be confirmed. Search CRM before creating another product.";}
         this.notify("Checking CRM: "+(i+1)+" of "+this.items.length);
       }
+      // v1.45: Exact customer ORDER UPC and supplier identity; no AI identity substitution.
+      // Recheck CRM immediately before write; ambiguous/unknown matches are never auto-created.
+      for(var j=0;j<this.items.length&&!this.paused;j++){
+        var it=this.items[j];
+        if(!it.autoCreateFromSheet||it.sourceType!=="import"||it.match!=="missing"||it.researchDone)continue;
+        var code=String(it.identifier||"").trim(),name=String(it.requestedName||"").trim(),brand=String(it.requestedBrand||"").trim();
+        if(!/^\d{8,14}$/.test(code)||!name||!brand){it.researchDone=true;it.note="Missing confirmed UPC, name or brand. Use Create product.";this.notify(it.note);continue;}
+        var existing=this.items.find(function(other){return other!==it&&other.product&&key(other)===key(it);});
+        if(existing){copyMatch(it,existing);it.writeState="done";continue;}
+        try{await this.options.match(it);}catch(e){throw withLineContext(e,it,j+1,"crm_recheck_before_excel_create");}
+        if(it.product||it.match==="ambiguous"||it.writeState==="unknown"||it.writeState==="inflight")continue;
+        it.writeState="inflight";this.notify("Creating CRM product from Excel: "+code);
+        try{
+          var p=await this.options.create({verified:true,upc:code,product_name:name,brand:brand,brandId:it.selectedBrandId||""});
+          if(!p||!p.id)throw new Error("CRM did not confirm Product ID.");
+          it.product=p;it.match="matched";it.createdInCrm=true;it.writeState="done";it.researchDone=true;it.note="New CRM Product created from Excel";
+          this.items.forEach(function(other){if(other!==it&&key(other)===key(it)){copyMatch(other,it);other.writeState="done";}});
+        }catch(e){
+          var safe=!!(e&&e.safeNoWrite);
+          it.writeState=safe?"none":"unknown";it.match=safe?"missing":"uncertain";it.researchDone=true;
+          it.note=safe?"Automatic creation blocked: "+errorDetails(e)+". Use Create product.":"Creation not confirmed: "+errorDetails(e)+". Check CRM by UPC before retrying.";
+        }
+        this.notify(it.note);
+      }
       while(!this.paused){
         var seen=new Set(),batch=this.items.filter(function(it){var k=key(it);if(it.match!=="missing"||it.researchDone||seen.has(k))return false;seen.add(k);return true;}).slice(0,5);
         if(!batch.length)break;

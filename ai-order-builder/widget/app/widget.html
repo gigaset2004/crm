@@ -157,6 +157,18 @@
     .saved-so-recovery input{width:min(460px,100%);min-width:150px;min-height:34px;border:1px solid #cbd5e1;border-radius:6px;padding:6px 9px}
     .saved-so-banner .connection-detail{font-size:11px;color:#667085}
 
+    /* v1.45: distinct product boundaries and restrained error highlighting. */
+    .items-table tbody tr{background:#fff}
+    .items-table tbody tr:nth-child(even){background:#f4f7fb}
+    .items-table tbody tr>td{background:transparent;border-bottom:3px solid #bac8d8!important;padding-top:13px;padding-bottom:13px}
+    .items-table tbody tr:hover>td{background:#edf4ff}
+    .items-table tr.line-validation-error>td{background:transparent}
+    .items-table tr.line-validation-error>td:first-child{box-shadow:inset 4px 0 #dea33d}
+    .items-table input.line-invalid,.items-table select.line-invalid{border:1.5px solid #d64949!important;background:#fffafb!important;box-shadow:none}
+    .items-table .row-issues{color:#8b5d12;font-weight:550;line-height:1.5}
+    .items-table .product-missing{outline:none;background:transparent}
+    .items-table .row-number{color:#344054;font-weight:700}
+    .row-status.missing{background:#fff3d8;color:#805a10}
   </style>
 </head>
 <body>
@@ -195,7 +207,8 @@
     </div><div class="toolbar"><button id="extractBtn" class="btn primary">Extract and match</button></div><p class="message" id="sourceMessage" role="status"></p></section>
     <section class="panel" id="reviewPanel" hidden>
       <div class="manager-title"><div><h2>2 · Order products</h2><p class="hint">The product is linked by CRM Product ID / UPC. Its name in the offer and supplier code belong to this order only.</p></div><button id="addLineBtn" class="btn" type="button">+ Add unmatched line</button></div>
-      <div id="processBox" class="process-box" role="status" aria-live="polite" hidden><strong id="processingTitle">Processing products…</strong><p id="processingCounts" class="hint"></p><button id="resumeBtn" class="btn" hidden>Continue processing</button></div>
+      <p class="hint">Not in CRM = product not found. Verified Excel ORDER items are created automatically from exact UPC, name and CRM brand after a second check. Otherwise use Create product.</p>
+       <div id="processBox" class="process-box" role="status" aria-live="polite" hidden><strong id="processingTitle">Processing products…</strong><p id="processingCounts" class="hint"></p><button id="resumeBtn" class="btn" hidden>Continue processing</button></div>
       <div class="bulk-controls"><span class="bulk-label">Supplier for all lines</span>
         <select id="bulkSupplierCode" aria-label="Supplier code for all lines"><option value="">Choose supplier code</option></select>
         <button id="bulkApplyBtn" class="btn" type="button">Apply supplier to all</button>
@@ -216,7 +229,7 @@
       </div>
     </div>
     <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
-  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.44</strong></footer>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.45</strong></footer>
   <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Check the details, then create the product in CRM.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
   <div class="overlay" id="editBrandOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editBrandTitle"><div class="dialog-card"><h2 id="editBrandTitle">Change product brand</h2><p id="editBrandDescription">Choose the correct brand linked to this product.</p><div class="brand-picker"><select id="editBrandSelect" aria-label="Select CRM brand"><option value="">Choose a CRM brand</option></select><button id="editBrandNew" class="btn" type="button">+ New brand</button></div><p id="editBrandMessage" class="message" role="status"></p><div class="quick-actions"><button id="editBrandCancel" class="btn" type="button">Cancel</button><button id="editBrandSave" class="btn primary" type="button">Save brand</button></div></div></div>
   <div class="overlay" id="editProductNameOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editProductNameTitle"><div class="dialog-card"><h2 id="editProductNameTitle">Edit official CRM product name</h2><p id="editProductNameDescription">Changes the linked Products record for all CRM users. Does not change the supplier offer name in this order.</p><label class="manual-field">Official Product Name<input id="editProductNameInput" autocomplete="off" maxlength="255" placeholder="Official product name"></label><p class="name-edit-hint">The UPC and Product ID remain unchanged. The supplier offer name is saved separately.</p><p class="message" id="editProductNameMessage" role="status"></p><div class="quick-actions"><button id="editProductNameCancel" class="btn" type="button">Cancel</button><button id="editProductNameSave" class="btn primary" type="button">Save to CRM Products</button></div></div></div>
@@ -346,7 +359,7 @@
     }
     function lineIssues(it,index){
       var errs=[];
-      if(!it.product||!it.product.id||!clean(it.product.Product_Name))errs.push("CRM product missing");
+      if(!it.product||!it.product.id||!clean(it.product.Product_Name))errs.push(it.match==="uncertain"?"Creation unconfirmed — check CRM":it.match==="ambiguous"||it.match==="web_choice"?"Choose CRM product":it.match==="missing"&&it.researchDone?"Not in CRM — Create product":"Checking CRM product");
       if(!clean(offerNameFor(it)))errs.push("Offer name missing");
       if(enteredNumber(it.quantity)==null||enteredNumber(it.quantity)<=0)errs.push("Quantity required");
       var price=priceFor(it);
@@ -573,7 +586,7 @@
         var status=it.product?(it.createdInCrm?"New":"Match"):it.match==="uncertain"?"Check":it.match==="ambiguous"||it.match==="web_choice"?"Choose":it.researchDone?"Not found":"Pending";
         // Preserve v1.21 web-result variant chooser, including verified source links and create-manually fallback.
         if(it.match==="web_choice"&&it.publicCandidates&&it.publicCandidates.length){searchControl='<div class="public-choices"><p class="hint">'+esc(it.note||"Choose the product line and size.")+'</p>'+it.publicCandidates.map(function(f,n){var url=f.official_url||f.evidence&&f.evidence.product_name&&f.evidence.product_name.url||"";var link=/^https:\/\//i.test(url)?'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Official/source page</a>':'';return '<div class="public-choice"><span>'+esc(f.product_name)+'<small>'+esc(f.brand||"")+(f.upc?' · UPC: '+esc(f.upc):' · UPC needs confirmation')+'</small>'+link+'</span><button class="btn" data-public-line="'+i+'" data-public-choice="'+n+'">Use this product</button></div>';}).join("")+'<div class="row-actions"><button class="btn" data-retry="'+i+'">Search again</button><button class="btn" data-quick="'+i+'">Create product manually</button></div></div>';}
-        var statusClass=it.product?(it.createdInCrm?"new":"match"):"pending";
+        var statusClass=it.product?(it.createdInCrm?"new":"match"):it.match==="missing"&&it.researchDone?"missing":"pending";
         var currentIssues=lineIssues(it,i);
         var code=supplierCodeFor(it.supplierId),supplierTitle=managerSuppliers.find(function(s){return String(s.id)===String(it.supplierId);});
         var supplierHint=supplierTitle?"Supplier: "+(supplierTitle.vendor||code):"Choose a supplier code";
@@ -682,7 +695,9 @@
           if(importAudits.length){
             var scanned=importAudits.reduce(function(a,b){return{lines:a.lines+b.imported,qty:a.qty+b.quantity,amount:a.amount+b.amount,converted:a.converted+b.scientificConverted,problems:a.problems+b.problemRows};},{lines:0,qty:0,amount:0,converted:0,problems:0});
             var formattedAmount=scanned.amount.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-            var summaryText="Spreadsheet read directly: "+scanned.lines+" source product rows retained · "+scanned.qty.toLocaleString("en-US")+" units · $"+formattedAmount+". Scientific UPCs expanded: "+scanned.converted+".";
+            var orderColFound=importAudits.some(function(a){return a.orderColumn===true;});
+            var summaryText=(orderColFound?"Customer ORDER column: ":"Spreadsheet read directly: ")+scanned.lines+" source product rows retained · "+scanned.qty.toLocaleString("en-US")+" units · $"+formattedAmount+". Scientific UPCs expanded: "+scanned.converted+".";
+            if(orderColFound)summaryText+=" Supplier QTY stock values ignored.";
             if(scanned.problems)summaryText+=" "+scanned.problems+" row(s) have missing or invalid values, highlighted red.";
             msg("sourceMessage",summaryText);
             $("thinkingText").textContent=summaryText+" Checking CRM matches…";
