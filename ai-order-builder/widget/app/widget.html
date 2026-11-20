@@ -171,12 +171,19 @@
     .row-status.missing{background:#fff3d8;color:#805a10}
     /* v1.47: stronger separators, distinct bands, and clearer row numbers. */
     .items-table{border-collapse:separate;border-spacing:0}
-    .items-table tbody tr>td{border-bottom:5px solid #9baec6!important;padding-top:16px;padding-bottom:16px}
+    .items-table tbody tr>td{border-bottom:2px solid #b7c5d6!important;padding-top:15px;padding-bottom:15px}
     .items-table tbody tr:nth-child(odd)>td{background:#fff}
     .items-table tbody tr:nth-child(even)>td{background:#edf3fa}
     .items-table tbody tr:hover>td{background:#e3effd}
     .items-table tbody tr>td:first-child{border-left:4px solid #d6e1ef;font-weight:750}
     .items-table tbody tr.line-validation-error>td:first-child{border-left-color:#d69b38}
+    /* v1.49: distinct but thinner row separators and inline trade editors. */
+    .trade-info{display:flex;align-items:center;gap:5px 6px;flex-wrap:wrap;margin-top:4px;color:#667085;font-size:10px}
+    .trade-edit-btn{padding:0 3px;min-width:17px;height:18px;border:1px solid #cad7e6;border-radius:4px;background:#fff;color:#3d70aa;font-size:12px;line-height:15px;cursor:pointer}
+    .trade-edit-btn:hover{background:#e7f0ff;border-color:#6e9de8}
+    .trade-info span{white-space:nowrap}
+    .trade-check-label{display:flex;align-items:center;gap:7px;margin-top:12px;color:#344054;font-size:12px}
+    .trade-check-label input{width:16px;height:16px;flex:none}
   </style>
 </head>
 <body>
@@ -237,8 +244,21 @@
       </div>
     </div>
     <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
-  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.48</strong></footer>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.49</strong></footer>
   <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Use the official product name from the manufacturer website (any country). The original Excel title stays in Offer Product Name.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:#344054"><input id="quickOfficialConfirmed" type="checkbox" style="width:16px;height:16px;flex:none"> I verified the name on the manufacturer’s official website (not the offer).</label><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
+  <div class="overlay" id="tradeOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="tradeTitle">
+    <div class="dialog-card">
+      <h2 id="tradeTitle">Edit HS Code / Country of Origin</h2>
+      <p>Change customs information for this order line. If the Product exists in CRM, save the values to its catalog record.</p>
+      <div class="quick-fields">
+        <label>HS Code<input id="tradeHS" maxlength="20" autocomplete="off" placeholder="e.g. 3304.99"></label>
+        <label>Country of Origin<input id="tradeCOO" maxlength="100" autocomplete="off" placeholder="e.g. France"></label>
+      </div>
+      <label class="trade-check-label"><input id="tradeSaveProduct" type="checkbox" checked> Also update this CRM Product</label>
+      <p class="message" id="tradeMessage" role="status"></p>
+      <div class="quick-actions"><button id="tradeCancel" class="btn" type="button">Cancel</button><button id="tradeSave" class="btn primary" type="button">Save</button></div>
+    </div>
+  </div>
   <div class="overlay" id="editBrandOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editBrandTitle"><div class="dialog-card"><h2 id="editBrandTitle">Change product brand</h2><p id="editBrandDescription">Choose the correct brand linked to this product.</p><div class="brand-picker"><select id="editBrandSelect" aria-label="Select CRM brand"><option value="">Choose a CRM brand</option></select><button id="editBrandNew" class="btn" type="button">+ New brand</button></div><p id="editBrandMessage" class="message" role="status"></p><div class="quick-actions"><button id="editBrandCancel" class="btn" type="button">Cancel</button><button id="editBrandSave" class="btn primary" type="button">Save brand</button></div></div></div>
   <div class="overlay" id="editProductNameOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="editProductNameTitle"><div class="dialog-card"><h2 id="editProductNameTitle">Edit official CRM product name</h2><p id="editProductNameDescription">Changes the linked Products record for all CRM users. Does not change the supplier offer name in this order.</p><label class="manual-field">Official Product Name<input id="editProductNameInput" autocomplete="off" maxlength="255" placeholder="Official product name"></label><p class="name-edit-hint">The UPC and Product ID remain unchanged. The supplier offer name is saved separately.</p><p class="message" id="editProductNameMessage" role="status"></p><div class="quick-actions"><button id="editProductNameCancel" class="btn" type="button">Cancel</button><button id="editProductNameSave" class="btn primary" type="button">Save to CRM Products</button></div></div></div>
   <div class="overlay brand-new-overlay" id="createBrandOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="createBrandTitle"><div class="dialog-card"><h2 id="createBrandTitle">Create a CRM brand</h2><p>First search existing brands. Creating a new brand adds one permanent record in CRM.</p><label class="manual-field">New brand name<input id="createBrandName" autocomplete="off" maxlength="100" placeholder="Brand name"></label><p id="createBrandMessage" class="message" role="status"></p><div class="quick-actions"><button id="createBrandCancel" class="btn" type="button">Cancel</button><button id="createBrandSave" class="btn primary" type="button">Create brand in CRM</button></div></div></div>
@@ -353,7 +373,7 @@
         if(supplier&&supplier.name&&!managerSuppliers.some(function(x){return String(x.id)===String(supplier.id);})){
           managerSuppliers.push({id:String(supplier.id),code:clean(supplier.name),vendor:""});
         }
-        var prod={id:String(r.Product_Name.id),Product_Name:clean(r.Product_Name.name),UPC:clean(r.UPC),Brand_text:clean(r.Brand),Unit_Price:num(r.List_Price)};
+        var prod={id:String(r.Product_Name.id),Product_Name:clean(r.Product_Name.name),UPC:clean(r.UPC),Brand_text:clean(r.Brand),Unit_Price:num(r.List_Price),HS_Code:clean(r.HS_Code),Country_of_origin:clean(r.Country_of_origin)};
         var it={identifier:clean(r.UPC),requestedName:clean(r.Product_Name.name),requestedBrand:clean(r.Brand),offerName:clean(r.Offer_Product_Name)||clean(r.Product_Name.name),
           quantity:enteredNumber(r.Quantity),price:enteredNumber(r.List_Price),product:prod,match:"matched",candidates:[prod],researchDone:true,enrichmentDone:true,writeState:"done",
           supplierId:supplier?String(supplier.id):"",supplierFallbackName:supplier?clean(supplier.name):"",bridgeIndex:Number(r.__ai_source_index),bridgeRecordId:clean(r.__ai_record_id||r.id),
@@ -380,6 +400,17 @@
       if(it.price!=null)return enteredNumber(it.price);
       if(it.sourceType==="import"||it.sourceFile)return null;
       return enteredNumber(it.product&&it.product.Unit_Price);
+    }
+    // Per-line customs values take precedence over CRM Product fields only when
+    // the user explicitly edited them. In particular, an empty manual value is
+    // intentional and must not silently fall back to a stale catalog value.
+    function lineHS(it){
+      if(it&&Object.prototype.hasOwnProperty.call(it,"hsManual"))return clean(it.hsManual);
+      return clean(it&&it.product&&it.product.HS_Code)||clean(it&&it.research&&it.research.hs_code);
+    }
+    function lineCOO(it){
+      if(it&&Object.prototype.hasOwnProperty.call(it,"cooManual"))return clean(it.cooManual);
+      return clean(it&&it.product&&it.product.Country_of_origin)||clean(it&&it.research&&it.research.country_of_origin);
     }
     function lineIssues(it,index){
       var errs=[];
@@ -534,6 +565,55 @@
     async function readProduct(id){var response=await ZOHO.CRM.API.getRecord({Entity:"Products",RecordID:String(id)}),product=productList(response)[0];if(!product||String(product.id)!==String(id))throw new Error("Could not read the CRM product.");return product;}
     async function findBrand(name){name=canonicalBrand(name);var key=brandKey(name);if(brandCache.has(key))return brandCache.get(key);var response=await ZOHO.CRM.API.searchRecord({Entity:"Brands",Type:"word",Query:name});if(response&&response.code&&response.code!=="SUCCESS"&&response.code!=="NO_DATA")throw new Error("Could not search Brands.");var found=productList(response).filter(function(b){return brandKey(b.Name)===key;});var result=found.length===1?found[0]:null;if(!result&&found.length>1){var exact=found.filter(function(b){return clean(b.Name).toLowerCase()===name.toLowerCase();});if(exact.length===1)result=exact[0];}if(result)brandCache.set(key,result);return result;}
     async function updateProduct(data){var response=await ZOHO.CRM.API.updateRecord({Entity:"Products",APIData:data,Trigger:[]}),result=response&&response.data&&response.data[0];if(!result||result.code!=="SUCCESS")throw new Error("CRM did not confirm product update.");}
+    // v1.49: HS/COO editor. With a CRM Product it updates the catalog and
+    // verifies the write; without a linked Product, edit only the SO draft.
+    var tradeEditIndex=-1,tradeEditBusy=false;
+    function openTradeEditor(index,field){
+      var it=items[index];if(!it)return;
+      tradeEditIndex=index;
+      $("tradeHS").value=lineHS(it);
+      $("tradeCOO").value=lineCOO(it);
+      $("tradeSaveProduct").disabled=!(it.product&&it.product.id);
+      $("tradeSaveProduct").checked=!!(it.product&&it.product.id);
+      msg("tradeMessage",it.product&&it.product.id?"Changes can be saved to the CRM Product.":"No CRM Product is linked yet; values will stay in the order draft.");
+      $("tradeOverlay").hidden=false;
+      (field==="coo"?$("tradeCOO"):$("tradeHS")).focus();
+    }
+    function closeTradeEditor(){
+      if(tradeEditBusy)return;
+      $("tradeOverlay").hidden=true;tradeEditIndex=-1;
+      msg("tradeMessage","");
+    }
+    async function saveTradeEditor(){
+      if(tradeEditBusy||tradeEditIndex<0)return;
+      var index=tradeEditIndex,it=items[index];if(!it)return;
+      var hs=clean($("tradeHS").value),coo=clean($("tradeCOO").value);
+      if(hs&&!/^\d{6,10}$/.test(hs.replace(/[.\s]/g,""))){
+        msg("tradeMessage","HS code must have 6–10 digits (dots are allowed).");return;
+      }
+      tradeEditBusy=true;$("tradeSave").disabled=true;$("tradeCancel").disabled=true;
+      try{
+        if($("tradeSaveProduct").checked&&it.product&&it.product.id){
+          var fresh=await readProduct(it.product.id),patch={id:String(it.product.id)};
+          if(clean(fresh.HS_Code)!==hs)patch.HS_Code=hs||null;
+          if(clean(fresh.Country_of_origin)!==coo)patch.Country_of_origin=coo||null;
+          if(Object.keys(patch).length>1)await updateProduct(patch);
+          var confirmed=await readProduct(it.product.id);
+          if(clean(confirmed.HS_Code)!==hs||clean(confirmed.Country_of_origin)!==coo){
+            throw new Error("CRM did not confirm the new customs fields. Check the Product before retrying.");
+          }
+          it.product=confirmed;
+        }
+        it.hsManual=hs;it.cooManual=coo;it.enrichmentDone=true;
+        $("tradeOverlay").hidden=true;tradeEditIndex=-1;
+        saveDraft();render();summary();
+        msg("matchMessage","HS / COO saved for line "+(index+1)+($("tradeSaveProduct").checked&&it.product?" and CRM Product.":"."));
+      }catch(err){
+        msg("tradeMessage",readableError(err));
+      }finally{
+        tradeEditBusy=false;$("tradeSave").disabled=false;$("tradeCancel").disabled=false;
+      }
+    }
     async function repairBrand(p,item){var hint=brandHint(item,p);if(!hint)return p;var b=await findBrand(hint);if(!b)return p;var patch={id:String(p.id)};if(!p.Brand||String(p.Brand.id)!==String(b.id))patch.Brand={id:String(b.id)};if(Object.prototype.hasOwnProperty.call(p,"Brand_text")&&clean(p.Brand_text)!==b.Name)patch.Brand_text=b.Name;if(Object.keys(patch).length===1)return p;await updateProduct(patch);var confirmed=await readProduct(p.id);if(!confirmed.Brand||String(confirmed.Brand.id)!==String(b.id))throw new Error("Brand update was not confirmed.");return confirmed;}
     // Repair only unlinked Products whose text Brand and the Excel Brand agree.
     // This reuses an existing Brands record; it does not create or overwrite another brand.
@@ -549,7 +629,7 @@
         it.note="Linked to existing CRM Brand: "+it.requestedBrand;
       }
     }
-    function officialName(fact){var url=fact&&fact.evidence&&fact.evidence.product_name&&fact.evidence.product_name.url||"";return /^https:\/\/(?:www\.)?(?:gucci\.com|sephora\.com)\//i.test(url)?tidyName(fact.product_name,fact.brand):"";}
+    function officialName(fact){return window.OrderPipeline&&window.OrderPipeline.officialNameSource&&window.OrderPipeline.officialNameSource(fact,fact.brand)?tidyName(fact.product_name,fact.brand):"";}
     async function enrichExisting(value,notify){var enricher=new window.ProductEnricher({read:readProduct,research:researchProducts,findBrand:findBrand,repairIdentity:repairBrand,officialName:officialName,brandHint:brandHint,shouldPause:function(){return !!(pipeline&&pipeline.running&&pipeline.paused);},update:updateProduct});return enricher.run(value,notify);}
     function chooseBrandRecord(id){return managerBrandRecords.find(function(b){return String(b.id)===String(id||"");})||null;}
     function chooseBrandByName(name){return managerBrandRecords.find(function(b){return brandKey(b.name)===brandKey(canonicalBrand(name));})||null;}
@@ -669,7 +749,7 @@
       if(pipeline)return Promise.resolve();
       return Promise.all([ZOHO.CRM.CONFIG.getCurrentUser(),ZOHO.CRM.CONFIG.getOrgInfo()]).then(function(values){var user=(values[0].users||[])[0],org=(values[1].org||[])[0];if(!user||!user.id||!org||!org.id)throw new Error("Could not identify this CRM session.");
         var storage;try{storage=window.localStorage;}catch(e){storage=null;}
-        pipeline=new window.OrderPipeline({storage:storage,storageKey:"ai-order-builder:v1.8:"+org.id+":"+user.id,match:resolveProduct,prepareItem:inferBrandForItem,linkMissingBrand:linkMissingBrandForImport,research:researchProducts,researchOfficialRetry:researchOfficialRetry,create:createProduct,enrichExisting:enrichExisting,autoEnrich:false,changed:function(value,text){items=value;$("thinkingText").textContent=text;}});
+        pipeline=new window.OrderPipeline({storage:storage,storageKey:"ai-order-builder:v1.8:"+org.id+":"+user.id,match:resolveProduct,prepareItem:inferBrandForItem,linkMissingBrand:linkMissingBrandForImport,research:researchProducts,researchOfficialRetry:researchOfficialRetry,create:createProduct,enrichExisting:enrichExisting,autoEnrich:true,changed:function(value,text){items=value;$("thinkingText").textContent=text;}});
         pipeline.load();pipeline.items=[];items=[];$("reviewPanel").hidden=true;$("resumeBtn").hidden=true;loadCurrentSORows();
       });
     }
@@ -687,7 +767,7 @@
         var title=it.product&&it.product.Product_Name||it.requestedName||"Select a CRM product";
         var searchControl=it.product?"":'<input data-i="'+i+'" data-k="productSearch" value="" placeholder="Search existing CRM products" aria-label="Search CRM products" style="margin-top:7px"><div class="row-actions"><button class="btn" data-retry="'+i+'">Search again</button>'+(it.match==="ambiguous"||it.match==="uncertain"?'':'<button class="btn" data-quick="'+i+'">Create product</button>')+'</div>';
         var productTitle=it.product?recordLink("Products",it.product.id,title):esc(title),productTitleHtml='<div class="official-name-line"><span class="product-name">'+productTitle+'</span>'+(it.product&&it.product.id?'<span class="product-name-actions"><button class="product-name-edit-btn" type="button" data-edit-product-name="'+i+'" aria-label="Edit official CRM Product name on line '+(i+1)+'" title="Edit official CRM product name (updates Products)">&#9998;</button><button class="product-name-copy-btn" type="button" data-copy-product-name="'+i+'" aria-label="Copy CRM Product Name to Offer Product Name on line '+(i+1)+'" title="Copy CRM Product Name to Offer Product Name"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button></span>':'')+'</div>',brand=it.product&&it.product.Brand,selectedBrand=chooseBrandRecord(it.selectedBrandId),brandName=selectedBrand&&selectedBrand.name||productBrand(it.product)||clean(it.requestedBrand)||publicBrandName(it),brandLine=brand&&brand.id&&!selectedBrand?recordLink("Brands",brand.id,brandName||"Open brand"):selectedBrand?recordLink("Brands",selectedBrand.id,brandName):brandName?'<span title="This Product has Brand text only, without a CRM Brand lookup. Use the pencil to fix.">'+esc(brandName)+'</span>':"—";
-        var fact=it.research&&it.research.verified?it.research:{},hs=clean(it.product&&it.product.HS_Code)||clean(fact.hs_code),coo=clean(it.product&&it.product.Country_of_origin)||clean(fact.country_of_origin);
+        var fact=it.research&&it.research.verified?it.research:{},hs=lineHS(it),coo=lineCOO(it);
         var status=it.product?(it.createdInCrm?"New":"Match"):it.match==="uncertain"?"Check":it.match==="ambiguous"||it.match==="web_choice"?"Choose":it.researchDone?"Not found":"Pending";
         // Preserve v1.21 web-result variant chooser, including verified source links and create-manually fallback.
         if(it.match==="web_choice"&&it.publicCandidates&&it.publicCandidates.length){searchControl='<div class="public-choices"><p class="hint">'+esc(it.note||"Choose the product line and size.")+'</p>'+it.publicCandidates.map(function(f,n){var url=f.official_url||f.evidence&&f.evidence.product_name&&f.evidence.product_name.url||"";var link=/^https:\/\//i.test(url)?'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">Official/source page</a>':'';return '<div class="public-choice"><span>'+esc(f.product_name)+'<small>'+esc(f.brand||"")+(f.upc?' · UPC: '+esc(f.upc):' · UPC needs confirmation')+'</small>'+link+'</span><button class="btn" data-public-line="'+i+'" data-public-choice="'+n+'">Use this product</button></div>';}).join("")+'<div class="row-actions"><button class="btn" data-retry="'+i+'">Search again</button><button class="btn" data-quick="'+i+'">Create product manually</button></div></div>';}
@@ -696,7 +776,7 @@
         var code=supplierCodeFor(it.supplierId),supplierTitle=managerSuppliers.find(function(s){return String(s.id)===String(it.supplierId);});
         var supplierHint=supplierTitle?"Supplier: "+(supplierTitle.vendor||code):"Choose a supplier code";
         tr.innerHTML='<td class="row-number">'+(i+1)+'</td><td><span class="row-status '+statusClass+'" title="'+esc(window.OrderPipeline.describeLine(it))+'">'+esc(status)+'</span><small class="row-issues">'+esc(currentIssues.join(" · "))+'</small></td><td class="brand-cell"><div class="brand-inline">'+brandLine+'<button class="brand-edit-btn" type="button" data-edit-brand="'+i+'" aria-label="Edit CRM brand on line '+(i+1)+'" title="Choose or correct CRM brand">✎</button></div></td><td class="upc-cell">'+esc(it.product&&it.product.UPC||it.identifier||"—")+'</td>'+
-          '<td><div class="product-cell">'+productTitleHtml+'<small>HS: '+esc(hs||"—")+' &nbsp; · COO: '+esc(coo||"—")+'</small>'+(it.candidates&&it.candidates.length>1&&!it.product?'<select data-i="'+i+'" data-k="product">'+opts+'</select>':'')+searchControl+'</div></td>'+
+          '<td><div class="product-cell">'+productTitleHtml+'<div class="trade-info"><span>HS: '+esc(hs||"—")+'</span><button class="trade-edit-btn" type="button" data-edit-trade="'+i+'" data-trade-field="hs" title="Edit HS Code" aria-label="Edit HS Code for line '+(i+1)+'">✎</button><span>COO: '+esc(coo||"—")+'</span><button class="trade-edit-btn" type="button" data-edit-trade="'+i+'" data-trade-field="coo" title="Edit Country of Origin" aria-label="Edit Country of Origin for line '+(i+1)+'">✎</button></div>'+(it.candidates&&it.candidates.length>1&&!it.product?'<select data-i="'+i+'" data-k="product">'+opts+'</select>':'')+searchControl+'</div></td>'+
           '<td><input class="offer-input" data-i="'+i+'" data-k="offerName" aria-label="Product name from supplier offer" maxlength="255" placeholder="Supplier title (or official name)" value="'+esc(offerNameFor(it))+'"></td>'+
           '<td><div class="supplier-inline"><select data-i="'+i+'" data-k="supplierCode" aria-label="Supplier abbreviation" title="'+esc(supplierHint)+'">'+supplierOptions(it.supplierId)+'</select></div></td>'+
           '<td><input data-i="'+i+'" data-k="quantity" aria-label="Quantity" type="number" inputmode="decimal" min="0.01" step="any" value="'+esc(it.quantity==null?"":it.quantity)+'"></td>'+
@@ -708,6 +788,7 @@
       rows.querySelectorAll('input[data-k="price"]').forEach(function(el){el.addEventListener("blur",function(){if(enteredNumber(el.value)!=null)el.value=enteredNumber(el.value).toFixed(2);});});
       rows.querySelectorAll('input[data-k="offerName"]').forEach(function(el){el.addEventListener("blur",function(){var it=items[Number(el.dataset.i)];if(!it)return;it.offerName=offerNameFor(it);el.value=it.offerName;summary();});});
       rows.querySelectorAll('select[data-k="supplierCode"]').forEach(function(el){el.addEventListener("change",function(){setLineSupplier(Number(el.dataset.i),el.value,el);});if(window.ProcurementSearchSelect)window.ProcurementSearchSelect.enhance(el,{label:"Supplier abbreviation",variant:"supplier"});});
+      rows.querySelectorAll('button[data-edit-trade]').forEach(function(el){el.addEventListener("click",function(){openTradeEditor(Number(el.dataset.editTrade),el.dataset.tradeField);});});
       rows.querySelectorAll('button[data-edit-brand]').forEach(function(el){el.addEventListener("click",function(){openLineBrand(Number(el.dataset.editBrand));});});
       rows.querySelectorAll('button[data-edit-product-name]').forEach(function(el){el.addEventListener("click",function(){openLineProductName(Number(el.dataset.editProductName));});});
       rows.querySelectorAll('button[data-copy-product-name]').forEach(function(el){el.addEventListener("click",function(){copyLineProductName(Number(el.dataset.copyProductName));});});
@@ -861,7 +942,7 @@
         return {id:r.id,__ai_record_id:r.id,__ai_source_index:index,
           Product_Name:r.Product_Name,Quantity:r.Quantity,List_Price:r.List_Price,
           UPC:r.UPC,Brand:r.Brand,Offer_Product_Name:r.Offer_Product_Name,
-          Supplier:r.Supplier,Purchase_Order:r.Purchase_Order};
+          Supplier:r.Supplier,Purchase_Order:r.Purchase_Order,HS_Code:r.HS_Code,Country_of_origin:r.Country_of_origin};
       });
       // Hydrate in EVERY status. Previously non-Requested orders returned early,
       // leaving the permanent Loading Sales Order banner and an empty table.
@@ -934,7 +1015,7 @@
         msg("matchMessage","Could not confirm the changes. Check the Sales Order before trying again: "+friendlySavedSOError(err));
       } finally {savedSOSaving=false;summary();}
     }
-    function createOrder(){if(savedSOId&&savedSOReadOnly){msg("matchMessage","This Sales Order is view only. Product changes are allowed only in Requested status.");return;}if($("createBtn").disabled)return;var invalid=items.filter(function(it,i){return lineIssues(it,i).length>0;});if(invalid.length){msg("matchMessage",invalid.length+" line(s) are incomplete. Complete all red fields before saving.");summary();return;}if(!savedSOId && (!nativeFormBridge||!window.$Client||typeof window.$Client.close!=="function")){msg("matchMessage","The AI button must be connected to the native form handoff. No empty Sales Order form was opened. Contact your CRM administrator.");return;}if(items.some(function(it){return it.supplierId&&!supplierCodeFor(it.supplierId)&&!clean(it.supplierFallbackName);})){msg("matchMessage","Cannot transfer supplier: a selected Supplier Code was not resolved in CRM. Reload supplier codes and try again.");return;}var data={ai_order_builder:"1.9",ai_order_builder_mode:bridgeMode||"append",Status:(savedSOId&&savedSORecord?clean(savedSORecord.Status):"Requested"),Ordered_Items:items.map(function(it){var product=it.product, row={Product_Name:{id:String(product.id),name:clean(product.Product_Name)},Quantity:num(it.quantity),List_Price:priceFor(it)};var upc=clean(product.UPC||it.identifier),brand=productBrand(product)||clean(it.requestedBrand),offer=offerNameFor(it).slice(0,255);if(upc)row.UPC=upc;if(brand)row.Brand=brand;if(offer)row.Offer_Product_Name=offer;if(it.supplierId)row.Supplier={id:String(it.supplierId),name:supplierCodeFor(it.supplierId)||clean(it.supplierFallbackName)};if(product.HS_Code)row.HS_Code=clean(product.HS_Code);if(product.Country_of_origin)row.Country_of_origin=clean(product.Country_of_origin);if(Number.isInteger(it.bridgeIndex)&&it.bridgeIndex>=0)row.__ai_source_index=it.bridgeIndex;if(it.bridgeRecordId)row.__ai_record_id=it.bridgeRecordId;return row;})};if(data.Ordered_Items.some(function(row){return !row.Product_Name.name;})){msg("matchMessage","A product name is missing. Match the product again before continuing.");return;}if(data.Ordered_Items.some(function(row){return !clean(row.Offer_Product_Name);})){msg("matchMessage","Fill halted: every SO line needs a name from the supplier offer.");return;}try{if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("fill_payload",{stage:"widget_to_client_script",count:data.Ordered_Items.length,message:"v1.30 sync payload includes the original source indexes, Offer_Product_Name and Supplier Code lookups."});}catch(ignore){}$("createBtn").disabled=true;if(savedSOId){saveSavedSO(data);return;}saveDraft();Promise.resolve(window.$Client.close(data)).catch(function(e){msg("matchMessage",e.message||"Could not transfer the products to Zoho.");summary();});}
+    function createOrder(){if(savedSOId&&savedSOReadOnly){msg("matchMessage","This Sales Order is view only. Product changes are allowed only in Requested status.");return;}if($("createBtn").disabled)return;var invalid=items.filter(function(it,i){return lineIssues(it,i).length>0;});if(invalid.length){msg("matchMessage",invalid.length+" line(s) are incomplete. Complete all red fields before saving.");summary();return;}if(!savedSOId && (!nativeFormBridge||!window.$Client||typeof window.$Client.close!=="function")){msg("matchMessage","The AI button must be connected to the native form handoff. No empty Sales Order form was opened. Contact your CRM administrator.");return;}if(items.some(function(it){return it.supplierId&&!supplierCodeFor(it.supplierId)&&!clean(it.supplierFallbackName);})){msg("matchMessage","Cannot transfer supplier: a selected Supplier Code was not resolved in CRM. Reload supplier codes and try again.");return;}var data={ai_order_builder:"1.9",ai_order_builder_mode:bridgeMode||"append",Status:(savedSOId&&savedSORecord?clean(savedSORecord.Status):"Requested"),Ordered_Items:items.map(function(it){var product=it.product, row={Product_Name:{id:String(product.id),name:clean(product.Product_Name)},Quantity:num(it.quantity),List_Price:priceFor(it)};var upc=clean(product.UPC||it.identifier),brand=productBrand(product)||clean(it.requestedBrand),offer=offerNameFor(it).slice(0,255);if(upc)row.UPC=upc;if(brand)row.Brand=brand;if(offer)row.Offer_Product_Name=offer;if(it.supplierId)row.Supplier={id:String(it.supplierId),name:supplierCodeFor(it.supplierId)||clean(it.supplierFallbackName)};var hsLine=lineHS(it),cooLine=lineCOO(it);if(hsLine)row.HS_Code=hsLine;if(cooLine)row.Country_of_origin=cooLine;if(Number.isInteger(it.bridgeIndex)&&it.bridgeIndex>=0)row.__ai_source_index=it.bridgeIndex;if(it.bridgeRecordId)row.__ai_record_id=it.bridgeRecordId;return row;})};if(data.Ordered_Items.some(function(row){return !row.Product_Name.name;})){msg("matchMessage","A product name is missing. Match the product again before continuing.");return;}if(data.Ordered_Items.some(function(row){return !clean(row.Offer_Product_Name);})){msg("matchMessage","Fill halted: every SO line needs a name from the supplier offer.");return;}try{if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("fill_payload",{stage:"widget_to_client_script",count:data.Ordered_Items.length,message:"v1.30 sync payload includes the original source indexes, Offer_Product_Name and Supplier Code lookups."});}catch(ignore){}$("createBtn").disabled=true;if(savedSOId){saveSavedSO(data);return;}saveDraft();Promise.resolve(window.$Client.close(data)).catch(function(e){msg("matchMessage",e.message||"Could not transfer the products to Zoho.");summary();});}
     function fillLookup(inputId,selectId,module,labelField,emptyLabel){var timer=null;$(inputId).addEventListener("input",function(){clearTimeout(timer);var query=clean($(inputId).value);if(query.length<2)return;timer=setTimeout(function(){ZOHO.CRM.API.searchRecord({Entity:module,Type:"word",Query:query}).then(function(r){var found=productList(r);var select=$(selectId);select.innerHTML='<option value="">'+emptyLabel+'</option>';found.forEach(function(rec){var label=clean(rec[labelField])||clean(rec.Full_Name)||clean(rec.Name);if(!rec.id||!label)return;var option=document.createElement("option");option.value=rec.id;option.textContent=label;select.appendChild(option);});if(!found.length)msg("matchMessage","No CRM "+module+" results for that search.");}).catch(function(){msg("matchMessage","Could not search CRM "+module+". Check your CRM access and try again.");});},300);});$(selectId).addEventListener("change",summary);}
     // v1.24 catalog: browse by brand, sort by actual confirmed Sales Order quantity, select multiple.
     function safeCriteria(value){return clean(value).replace(/([\(),:])/g,"\\$1");}
@@ -1178,6 +1259,7 @@
     $("supplierBulkOverwrite").addEventListener("click",function(){applyBulkSupplier(true);});
     $("extractBtn").addEventListener("click",extract);$("addLineBtn").addEventListener("click",function(){items.push({identifier:"",requestedName:"",offerName:"",quantity:1,price:null,product:null,match:"missing",candidates:[]});render();rows.lastElementChild.querySelector('input[data-k="productSearch"]').focus();});$("createBtn").addEventListener("click",createOrder);
     $("resumeBtn").addEventListener("click",resumeProcessing);$("pauseBtn").addEventListener("click",function(){if(pipeline)pipeline.pause();$("thinkingText").textContent="Finishing the current operation, then pausing…";});
+    $("tradeSave").addEventListener("click",saveTradeEditor);$("tradeCancel").addEventListener("click",closeTradeEditor);
     $("quickSave").addEventListener("click",saveQuickProduct);$("quickCancel").addEventListener("click",function(){if(!quickBusy){$("quickProductOverlay").hidden=true;quickItem=null;}});
     $("quickBrandNew").addEventListener("click",function(){openBrandCreator("quickBrand");});
     $("editBrandNew").addEventListener("click",function(){openBrandCreator("editBrandSelect");});

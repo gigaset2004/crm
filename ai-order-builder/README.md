@@ -1,16 +1,16 @@
 # AI Order Builder for Zoho CRM
 
-## Current archived widget: v1.48 (2026-11-20)
+## Current archived widget: v1.49 (2026-11-20)
 
-- **Widget:** v1.48 — [source](widget/) | [installation ZIP](releases/AI_Order_Builder_Widget_v1.48.zip)
+- **Widget:** v1.49 — [source](widget/) | [installation ZIP](releases/AI_Order_Builder_Widget_v1.49.zip)
 - **Sales Orders Create / Fill with AI Client Scripts:** v1.36 (unchanged). See [Fill with AI](client-scripts/Fill_with_AI_BUTTON_v1.36.js) and [Create onLoad](client-scripts/Sales_Orders_CREATE_onLoad_v1.36.js).
-- [Immutable widget source snapshot](versions/widget-v1.48/)
+- [Immutable widget source snapshot](versions/widget-v1.49/)
 
 ### Install
 
-1. Upload `AI_Order_Builder_Widget_v1.48.zip` to **Zoho CRM → Developer Hub → Widgets → AI Order Builder**.
+1. Upload `AI_Order_Builder_Widget_v1.49.zip` to **Zoho CRM → Developer Hub → Widgets → AI Order Builder**.
 2. Keep existing v1.36 Client Scripts; this release changes only the widget.
-3. Confirm **Version 1.48** appears in the widget footer.
+3. Confirm **Version 1.49** appears in the widget footer.
 
 ### Behavior
 
@@ -28,8 +28,11 @@
 
 - **v1.48**: Store short-lived AI authorization in sessionStorage so reopening the widget within its valid session does not always restart OAuth. Expired tokens still require authorization until the backend supports refresh. For missing Products, research first, retry with a manufacturer-first global/regional query when official evidence is absent, validate UPC+official brand domain, and only then create the CRM Product. Infer known CRM brands from the input; a missing brand can be created only after verified manufacturer evidence and a second CRM duplicate check. No writes when evidence is inconclusive.
 
+- **v1.49**: Two inline pencils next to HS Code and COO on every line open a verified CRM Product editor; fields can also be changed on unmatched draft rows. Catalog writes are read back and checked, and line-level customs fields transfer into the Sales Order. Auto HS/COO enrichment now processes missing values for both matched and newly created Products, without blocking order creation when optional research fails. Previously blocked UPCs 3605973023352 (official Kiehl's UK page) and 3614274101584 (Helena Rubinstein official 100ml + corroborating UPC listing) have verified exact-variant fallback while general manufacturer research stays active. Thin 2px separators replace 5px borders. Source titles from Excel remain in Offer Product Name, and official names are never inferred from retailer evidence alone.
+
 ### History retained
 
+- [v1.48 source](versions/widget-v1.48/) and [v1.48 release ZIP](releases/AI_Order_Builder_Widget_v1.48.zip) are retained.
 - [v1.47 source](versions/widget-v1.47/) and [v1.47 ZIP](releases/AI_Order_Builder_Widget_v1.47.zip) are retained.
 - [v1.46 archived source](versions/widget-v1.46/) and [v1.46 release ZIP](releases/AI_Order_Builder_Widget_v1.46.zip) are retained.
 - [v1.45 archived source](versions/widget-v1.45/) and [v1.45 release ZIP](releases/AI_Order_Builder_Widget_v1.45.zip) are retained for audit but should **not** be installed: v1.45 used the Excel title as an official CRM Product Name.

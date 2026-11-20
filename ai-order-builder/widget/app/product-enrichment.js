@@ -1,7 +1,7 @@
 (function(root){
   "use strict";
   function text(v){return String(v==null?"":v).trim();}
-  function empty(p,k){return Object.prototype.hasOwnProperty.call(p,k)&&!text(p[k]);}
+  function empty(p,k){return !text(p&&p[k]);}
   function needed(p){return ["UPC","HS_Code","Country_of_origin","Brand_text"].some(function(k){return empty(p,k);})||(Object.prototype.hasOwnProperty.call(p,"Brand")&&!(p.Brand&&p.Brand.id));}
   function note(item,message){item.note=(item.createdInCrm?"New product created · ":"")+message;}
   function Enricher(options){this.options=options;}
@@ -19,7 +19,7 @@
         if(self.options.repairIdentity)fresh=await self.options.repairIdentity(fresh,item);
         share(id,fresh);
         var checkName=self.options.officialName&&/gucci|colorete|—/i.test(text(fresh.Product_Name));
-        if(item.createdInCrm||(!needed(fresh)&&!checkName)){entry[1].forEach(function(it){it.enrichmentDone=true;});continue;}
+        if(!needed(fresh)&&!checkName){entry[1].forEach(function(it){it.enrichmentDone=true;});continue;}
         pending.push({id:id,item:item,product:fresh});
       }catch(e){entry[1].forEach(function(it){note(it,"Could not check product details. Existing product retained.");});}
     }
