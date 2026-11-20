@@ -1,16 +1,18 @@
 # AI Order Builder for Zoho CRM
 
-## Current archived widget: v1.49 (2026-11-20)
+## Current archived widget: v1.50 (2026-11-20)
 
-- **Widget:** v1.49 — [source](widget/) | [installation ZIP](releases/AI_Order_Builder_Widget_v1.49.zip)
-- **Sales Orders Create / Fill with AI Client Scripts:** v1.36 (unchanged). See [Fill with AI](client-scripts/Fill_with_AI_BUTTON_v1.36.js) and [Create onLoad](client-scripts/Sales_Orders_CREATE_onLoad_v1.36.js).
-- [Immutable widget source snapshot](versions/widget-v1.49/)
+- **Widget:** v1.50 — [source](widget/) | [installation ZIP](releases/AI_Order_Builder_Widget_v1.50.zip)
+- **Sales Orders Create / Fill with AI Client Scripts:** v1.37. See [Fill with AI](client-scripts/Fill_with_AI_BUTTON_v1.37.js) and [Create onLoad](client-scripts/Sales_Orders_CREATE_onLoad_v1.37.js).
+- [Immutable widget source snapshot](versions/widget-v1.50/)
 
 ### Install
 
-1. Upload `AI_Order_Builder_Widget_v1.49.zip` to **Zoho CRM → Developer Hub → Widgets → AI Order Builder**.
-2. Keep existing v1.36 Client Scripts; this release changes only the widget.
-3. Confirm **Version 1.49** appears in the widget footer.
+1. Upload `AI_Order_Builder_Widget_v1.50.zip` to **Zoho CRM → Developer Hub → Widgets → AI Order Builder**.
+2. Replace the two existing Create-page Client Scripts with v1.37 (button onClick and page onLoad).
+3. Add Account-only Billing/Shipping Client Scripts for Create and Edit page onChange and onSave (see client-scripts/INSTALL.txt).
+4. Confirm **Version 1.50** in the widget footer and test first-row Supplier, dot-only prices and Account addresses.
+5. The connected Zoho Client Script API returned OAUTH_SCOPE_MISMATCH; install the Client Scripts through Developer Hub.
 
 ### Behavior
 
@@ -30,8 +32,11 @@
 
 - **v1.49**: Two inline pencils next to HS Code and COO on every line open a verified CRM Product editor; fields can also be changed on unmatched draft rows. Catalog writes are read back and checked, and line-level customs fields transfer into the Sales Order. Auto HS/COO enrichment now processes missing values for both matched and newly created Products, without blocking order creation when optional research fails. Previously blocked UPCs 3605973023352 (official Kiehl's UK page) and 3614274101584 (Helena Rubinstein official 100ml + corroborating UPC listing) have verified exact-variant fallback while general manufacturer research stays active. Thin 2px separators replace 5px borders. Source titles from Excel remain in Offer Product Name, and official names are never inferred from retailer evidence alone.
 
+- **v1.50 / native Client Scripts v1.37:** Verify Product Name, Offer Product Name, Quantity, Unit Price and Supplier after native SO transfer; repair missing Supplier on any row including the first. Unit price now displays and accepts only decimal-dot values (27.15); values containing commas are rejected. New Account-only onChange/onSave scripts enforce Sales Orders Billing and Shipping fields from Account instead of Contact.
+
 ### History retained
 
+- [v1.49 source](versions/widget-v1.49/) and [v1.49 ZIP](releases/AI_Order_Builder_Widget_v1.49.zip) are retained.
 - [v1.48 source](versions/widget-v1.48/) and [v1.48 release ZIP](releases/AI_Order_Builder_Widget_v1.48.zip) are retained.
 - [v1.47 source](versions/widget-v1.47/) and [v1.47 ZIP](releases/AI_Order_Builder_Widget_v1.47.zip) are retained.
 - [v1.46 archived source](versions/widget-v1.46/) and [v1.46 release ZIP](releases/AI_Order_Builder_Widget_v1.46.zip) are retained.

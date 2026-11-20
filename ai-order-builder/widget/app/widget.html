@@ -244,7 +244,7 @@
       </div>
     </div>
     <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
-  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.49</strong></footer>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.50</strong></footer>
   <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Use the official product name from the manufacturer website (any country). The original Excel title stays in Offer Product Name.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:#344054"><input id="quickOfficialConfirmed" type="checkbox" style="width:16px;height:16px;flex:none"> I verified the name on the manufacturer’s official website (not the offer).</label><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
   <div class="overlay" id="tradeOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="tradeTitle">
     <div class="dialog-card">
@@ -391,12 +391,18 @@
     function productBrand(p){return clean(p&&p.Brand&&p.Brand.name)||clean(p&&p.Brand_text)||"";}
     // Import values are authoritative. Never silently substitute the CRM catalog
     // price for a missing unit price in a supplier order.
+    // v1.50: Numeric entry uses a dot only. Reject 10,000 and 27,15;
+    // neither comma-decimals nor comma-thousands are interpreted silently.
     function enteredNumber(value){
       if(value==null||clean(value)==="")return null;
-      var n=typeof value==="number"?value:num(value);
+      if(typeof value==="number")return Number.isFinite(value)?value:null;
+      var typed=clean(value);
+      if(!/^-?\d+(?:\.\d+)?$/.test(typed))return null;
+      var n=Number(typed);
       return Number.isFinite(n)?n:null;
     }
     function priceFor(it){
+      if(it.priceInvalidText||(it.priceEntryTouched&&it.price==null))return null;
       if(it.price!=null)return enteredNumber(it.price);
       if(it.sourceType==="import"||it.sourceFile)return null;
       return enteredNumber(it.product&&it.product.Unit_Price);
@@ -418,7 +424,7 @@
       if(!clean(offerNameFor(it)))errs.push("Offer name missing");
       if(enteredNumber(it.quantity)==null||enteredNumber(it.quantity)<=0)errs.push("Quantity required");
       var price=priceFor(it);
-      if(price==null||price<=0)errs.push("Unit price required");
+      if(price==null||price<=0)errs.push(it.priceInvalidText?"Unit price must use a dot (27.15). No commas or group separators.":"Unit price required");
       if(it.sourceUPC&&!it.identifier&&(!it.product||!it.product.id))errs.push("UPC requires review");
       for(var n=0;n<index;n++){
         var other=items[n];
@@ -780,12 +786,29 @@
           '<td><input class="offer-input" data-i="'+i+'" data-k="offerName" aria-label="Product name from supplier offer" maxlength="255" placeholder="Supplier title (or official name)" value="'+esc(offerNameFor(it))+'"></td>'+
           '<td><div class="supplier-inline"><select data-i="'+i+'" data-k="supplierCode" aria-label="Supplier abbreviation" title="'+esc(supplierHint)+'">'+supplierOptions(it.supplierId)+'</select></div></td>'+
           '<td><input data-i="'+i+'" data-k="quantity" aria-label="Quantity" type="number" inputmode="decimal" min="0.01" step="any" value="'+esc(it.quantity==null?"":it.quantity)+'"></td>'+
-          '<td><div class="price-editor"><input data-i="'+i+'" data-k="price" aria-label="Unit price" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(priceFor(it)==null?"":priceFor(it).toFixed(2))+'"><button type="button" class="price-icon-btn" data-copy-price="'+i+'" aria-label="Copy price from line '+(i+1)+'" title="Copy this price"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button><button type="button" class="price-icon-btn" data-paste-price="'+i+'" aria-label="Paste copied price into line '+(i+1)+'" title="Paste copied price" '+(priceClipboard===null?'disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="13" height="17" rx="2"></rect><rect x="9" y="2" width="7" height="5" rx="1"></rect><path d="M9 12h7M9 16h5"></path></svg></button></div></td>'+
+          '<td><div class="price-editor"><input data-i="'+i+'" data-k="price" aria-label="Unit price (US decimal point)" type="text" inputmode="decimal" autocomplete="off" title="Use 27.15 or 10000.00. No commas." value="'+esc(it.priceInvalidText|| (priceFor(it)==null?"":priceFor(it).toFixed(2)))+'"><button type="button" class="price-icon-btn" data-copy-price="'+i+'" aria-label="Copy price from line '+(i+1)+'" title="Copy this price"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button><button type="button" class="price-icon-btn" data-paste-price="'+i+'" aria-label="Paste copied price into line '+(i+1)+'" title="Paste copied price" '+(priceClipboard===null?'disabled':'')+'><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="13" height="17" rx="2"></rect><rect x="9" y="2" width="7" height="5" rx="1"></rect><path d="M9 12h7M9 16h5"></path></svg></button></div></td>'+
           '<td><button class="delete-line" data-remove="'+i+'" aria-label="Remove line" title="'+(it.purchaseOrderId?'Linked to PO; cannot remove':'Remove product from SO')+'" '+(it.purchaseOrderId?'disabled':'')+'>&times;</button></td>';
         rows.appendChild(tr);
       });
-      rows.querySelectorAll('input[data-k="quantity"],input[data-k="price"],input[data-k="offerName"]').forEach(function(el){el.addEventListener("input",function(){var item=items[Number(el.dataset.i)];if(!item)return;item[el.dataset.k]=(el.dataset.k==="offerName")?el.value:enteredNumber(el.value);summary();});});
-      rows.querySelectorAll('input[data-k="price"]').forEach(function(el){el.addEventListener("blur",function(){if(enteredNumber(el.value)!=null)el.value=enteredNumber(el.value).toFixed(2);});});
+      rows.querySelectorAll('input[data-k="quantity"],input[data-k="price"],input[data-k="offerName"]').forEach(function(el){el.addEventListener("input",function(){
+        var item=items[Number(el.dataset.i)];if(!item)return;
+        if(el.dataset.k==="offerName"){item.offerName=el.value;}
+        else if(el.dataset.k==="price"){
+          var entered=enteredNumber(el.value);
+          item.priceEntryTouched=true;
+          item.priceInvalidText=clean(el.value)&&entered===null?el.value:"";
+          item.price=entered;
+          el.classList.toggle("line-invalid",!!item.priceInvalidText);
+          el.setCustomValidity(item.priceInvalidText?"Unit price must use '.' (example: 27.15). No comma separators.":"");
+          if(item.priceInvalidText&&el.value.indexOf(",")!==-1)msg("matchMessage","Unit price: commas are not allowed. Enter 27.15 or 10000.00 with a dot.");
+        }else{item.quantity=enteredNumber(el.value);}
+        summary();
+      });});
+      rows.querySelectorAll('input[data-k="price"]').forEach(function(el){el.addEventListener("blur",function(){
+        var value=enteredNumber(el.value);
+        if(value!==null){el.value=value.toFixed(2);el.setCustomValidity("");}
+        else if(clean(el.value)){msg("matchMessage","Invalid unit price: use a dot, e.g. 27.15. Commas are not allowed.");}
+      });});
       rows.querySelectorAll('input[data-k="offerName"]').forEach(function(el){el.addEventListener("blur",function(){var it=items[Number(el.dataset.i)];if(!it)return;it.offerName=offerNameFor(it);el.value=it.offerName;summary();});});
       rows.querySelectorAll('select[data-k="supplierCode"]').forEach(function(el){el.addEventListener("change",function(){setLineSupplier(Number(el.dataset.i),el.value,el);});if(window.ProcurementSearchSelect)window.ProcurementSearchSelect.enhance(el,{label:"Supplier abbreviation",variant:"supplier"});});
       rows.querySelectorAll('button[data-edit-trade]').forEach(function(el){el.addEventListener("click",function(){openTradeEditor(Number(el.dataset.editTrade),el.dataset.tradeField);});});
