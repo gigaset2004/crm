@@ -19,6 +19,31 @@
     return err;
   }
   function copyMatch(to,from){to.product=from.product;to.match=from.match;to.candidates=from.candidates||[];if(from.publicCandidates)to.publicCandidates=from.publicCandidates;if(from.createdInCrm)to.createdInCrm=true;if(from.researchDone)to.researchDone=true;if(from.note)to.note=from.note;}
+  // v1.46: Official Product_Name requires evidence from the brand's own website.
+  // No geographic TLD restriction: accept worldwide regional brand sites.
+  // Excel product names can be SEARCH TERMS only, never automatic CRM Product_Name.
+  function officialNameSource(fact,brand){
+    if(!fact||!fact.verified||!String(fact.product_name||"").trim())return "";
+    function normalized(s){return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");}
+    var brandRoot=normalized(brand||fact.brand),sources=[
+      fact.official_url,
+      fact.evidence&&fact.evidence.product_name&&fact.evidence.product_name.url
+    ];
+    if(brandRoot.length<3)return "";
+    for(var i=0;i<sources.length;i++){
+      var url=String(sources[i]||"").trim();
+      if(!/^https:\/\//i.test(url))continue;
+      try{
+        var host=new URL(url).hostname.toLowerCase().replace(/^www\./,"");
+        var parts=host.split(".");
+        if(parts.length<2)continue;
+        var twoPartSuffix=/^(co|com|net|org|ac|edu)\.[a-z]{2}$/.test(parts.slice(-2).join("."));
+        var domainRoot=normalized(parts[parts.length-(twoPartSuffix?3:2)]||"");
+        if(domainRoot===brandRoot||domainRoot.indexOf(brandRoot)===0)return url;
+      }catch(e){}
+    }
+    return "";
+  }
   function Pipeline(options){this.options=options;this.items=[];this.running=false;this.paused=false;this.nextAttemptAt=0;}
   Pipeline.describeLine=function(item){
     if(item.product&&item.product.id)return item.createdInCrm?"New product created":"Found in CRM";
@@ -65,30 +90,6 @@
         if(!item.product&&(item.writeState==="inflight"||item.writeState==="unknown")){item.match="uncertain";item.note="Product creation could not be confirmed. Search CRM before creating another product.";}
         this.notify("Checking CRM: "+(i+1)+" of "+this.items.length);
       }
-      // v1.45: Exact customer ORDER UPC and supplier identity; no AI identity substitution.
-      // Recheck CRM immediately before write; ambiguous/unknown matches are never auto-created.
-      for(var j=0;j<this.items.length&&!this.paused;j++){
-        var it=this.items[j];
-        if(!it.autoCreateFromSheet||it.sourceType!=="import"||it.match!=="missing"||it.researchDone)continue;
-        var code=String(it.identifier||"").trim(),name=String(it.requestedName||"").trim(),brand=String(it.requestedBrand||"").trim();
-        if(!/^\d{8,14}$/.test(code)||!name||!brand){it.researchDone=true;it.note="Missing confirmed UPC, name or brand. Use Create product.";this.notify(it.note);continue;}
-        var existing=this.items.find(function(other){return other!==it&&other.product&&key(other)===key(it);});
-        if(existing){copyMatch(it,existing);it.writeState="done";continue;}
-        try{await this.options.match(it);}catch(e){throw withLineContext(e,it,j+1,"crm_recheck_before_excel_create");}
-        if(it.product||it.match==="ambiguous"||it.writeState==="unknown"||it.writeState==="inflight")continue;
-        it.writeState="inflight";this.notify("Creating CRM product from Excel: "+code);
-        try{
-          var p=await this.options.create({verified:true,upc:code,product_name:name,brand:brand,brandId:it.selectedBrandId||""});
-          if(!p||!p.id)throw new Error("CRM did not confirm Product ID.");
-          it.product=p;it.match="matched";it.createdInCrm=true;it.writeState="done";it.researchDone=true;it.note="New CRM Product created from Excel";
-          this.items.forEach(function(other){if(other!==it&&key(other)===key(it)){copyMatch(other,it);other.writeState="done";}});
-        }catch(e){
-          var safe=!!(e&&e.safeNoWrite);
-          it.writeState=safe?"none":"unknown";it.match=safe?"missing":"uncertain";it.researchDone=true;
-          it.note=safe?"Automatic creation blocked: "+errorDetails(e)+". Use Create product.":"Creation not confirmed: "+errorDetails(e)+". Check CRM by UPC before retrying.";
-        }
-        this.notify(it.note);
-      }
       while(!this.paused){
         var seen=new Set(),batch=this.items.filter(function(it){var k=key(it);if(it.match!=="missing"||it.researchDone||seen.has(k))return false;seen.add(k);return true;}).slice(0,5);
         if(!batch.length)break;
@@ -106,6 +107,14 @@
             self.items.forEach(function(other){if(other!==current&&key(other)===key(current))copyMatch(other,current);});self.notify(current.note);continue;
           }
           if(!fact||!fact.verified){current.research=fact||null;current.researchDone=true;current.note="Product not confirmed. Search again or create the product below.";this.items.forEach(function(other){if(other!==current&&key(other)===key(current))copyMatch(other,current);});this.notify(current.note);continue;}
+          // Verified UPC alone does not verify the official manufacturer's product title.
+          var manufacturerSource=officialNameSource(fact,current.requestedBrand||fact.brand);
+          if(!manufacturerSource){
+            current.research=fact;current.match="missing";current.researchDone=true;
+            current.note="Official manufacturer product name not confirmed. Product NOT created. Verify the manufacturer's official page in any market, then use Create product.";
+            this.items.forEach(function(other){if(other!==current&&key(other)===key(current))copyMatch(other,current);});this.notify(current.note);continue;
+          }
+          fact.official_product_name_source=manufacturerSource;
           // Never replace a supplied Excel UPC with a different barcode proposed by AI.
           // A mismatch must be reviewed by a person, not created as a different CRM product.
           if(/^\d{8,14}$/.test(String(current.identifier||""))&&String(fact.upc||"")!==String(current.identifier)){
@@ -149,5 +158,6 @@
       this.notify(this.paused?"Processing paused.":this.items.every(function(it){return it.product&&it.product.id;})?"Products are ready.":"Review the unresolved products.");return this.items;
     }finally{self.running=false;self.save();}
   };
+  Pipeline.officialNameSource=officialNameSource;
   root.OrderPipeline=Pipeline;if(typeof module!=="undefined"&&module.exports)module.exports=Pipeline;
 })(typeof window!=="undefined"?window:globalThis);
