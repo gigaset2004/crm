@@ -244,7 +244,7 @@
       </div>
     </div>
     <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
-  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.50</strong></footer>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.51</strong></footer>
   <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Use the official product name from the manufacturer website (any country). The original Excel title stays in Offer Product Name.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:#344054"><input id="quickOfficialConfirmed" type="checkbox" style="width:16px;height:16px;flex:none"> I verified the name on the manufacturer’s official website (not the offer).</label><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
   <div class="overlay" id="tradeOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="tradeTitle">
     <div class="dialog-card">
@@ -360,6 +360,30 @@
         $("manualSearchPanel").hidden=managerMode!=="manual";
       }
     }
+    // Some Zoho native forms do not expose HS/COO in the Client Script row
+    // snapshot. Restore missing display fields directly from the linked CRM
+    // Product, without replacing existing line-specific values or user edits.
+    async function hydrateMissingTradeFromProducts(snapshot){
+      var pending=snapshot.filter(function(it){return it.product&&it.product.id&&(!clean(it.product.HS_Code)||!clean(it.product.Country_of_origin));});
+      for(var k=0;k<pending.length;k+=5){
+        var batch=pending.slice(k,k+5);
+        await Promise.all(batch.map(async function(it){
+          try{
+            var p=await readProduct(it.product.id);
+            if(items.indexOf(it)<0||!it.product||String(it.product.id)!==String(p.id))return;
+            var changed=false;
+            if(!clean(it.product.HS_Code)&&clean(p.HS_Code)&&!Object.prototype.hasOwnProperty.call(it,"hsManual")){
+              it.product.HS_Code=clean(p.HS_Code);changed=true;
+            }
+            if(!clean(it.product.Country_of_origin)&&clean(p.Country_of_origin)&&!Object.prototype.hasOwnProperty.call(it,"cooManual")){
+              it.product.Country_of_origin=clean(p.Country_of_origin);changed=true;
+            }
+            if(changed){it.note="HS / COO loaded from linked CRM Product.";}
+          }catch(e){/* Keep existing SO line values if Products read fails. */}
+        }));
+      }
+      if(snapshot===items){render();summary();}
+    }
     function loadCurrentSORows(){
       // The Client Script passes a snapshot of the CURRENT unsaved SO rows to this widget.
       // Ignore any previous session draft — current form fields are authoritative.
@@ -385,6 +409,9 @@
       $("reviewPanel").hidden=false;
       $("processBox").hidden=true;
       render();
+      // Do not hide verified Product customs metadata merely because the
+      // native Sales Order form returned a partial subform snapshot.
+      hydrateMissingTradeFromProducts(current).catch(function(e){console.warn("AI Order Builder: optional HS / COO restoration failed",e);});
       msg("matchMessage",savedSOReadOnly?current.length+" existing SO product line(s) loaded for viewing only. Changes are allowed only in Requested status.":current.length+" existing SO product line(s) loaded. Add, edit or remove products here, then Fill Sales Order.");
       if(typeof diagnosticLog!=="undefined"&&diagnosticLog)diagnosticLog.add("so_rows_loaded",{count:current.length,stage:"sync_1.30"});
     }
@@ -486,22 +513,34 @@
     // v1.48: Keep a short-lived AI authorization token across widget reopenings
     // in the same browser tab. No bearer token in persistent localStorage.
     var AI_SESSION_KEY="ai-order-builder:ai-session:v1";
+    // v1.51: sessionStorage is frequently discarded when Zoho recreates the
+    // embedded popup iframe. Use short-lived, origin-scoped localStorage as
+    // a fallback. Never extend the server token's 14-minute lifetime.
     function restoreAISession(){
-      try{
-        var saved=JSON.parse(window.sessionStorage.getItem(AI_SESSION_KEY)||"null");
-        if(saved&&typeof saved.token==="string"&&Number(saved.expires)>Date.now()+30000){
-          aiSession=saved.token;aiSessionExpires=Number(saved.expires);return true;
-        }
-      }catch(e){}
+      var stores=[];
+      try{if(window.sessionStorage)stores.push(window.sessionStorage);}catch(e){}
+      try{if(window.localStorage)stores.push(window.localStorage);}catch(e){}
+      for(var i=0;i<stores.length;i++){
+        try{
+          var saved=JSON.parse(stores[i].getItem(AI_SESSION_KEY)||"null");
+          if(saved&&typeof saved.token==="string"&&Number(saved.expires)>Date.now()+30000){
+            aiSession=saved.token;aiSessionExpires=Number(saved.expires);return true;
+          }
+          if(saved)stores[i].removeItem(AI_SESSION_KEY);
+        }catch(e){}
+      }
       return false;
     }
     function rememberAISession(token){
       aiSession=token;aiSessionExpires=Date.now()+14*60*1000;
-      try{window.sessionStorage.setItem(AI_SESSION_KEY,JSON.stringify({token:token,expires:aiSessionExpires}));}catch(e){}
+      var value=JSON.stringify({token:token,expires:aiSessionExpires});
+      try{window.sessionStorage.setItem(AI_SESSION_KEY,value);}catch(e){}
+      try{window.localStorage.setItem(AI_SESSION_KEY,value);}catch(e){}
     }
     function clearAISession(){
       aiSession="";aiSessionExpires=0;
       try{window.sessionStorage.removeItem(AI_SESSION_KEY);}catch(e){}
+      try{window.localStorage.removeItem(AI_SESSION_KEY);}catch(e){}
     }
     function connectAI(){if(!AI_SERVICE_URL)return Promise.resolve("");if(!aiSession)restoreAISession();if(aiSession&&Date.now()<aiSessionExpires-30000)return Promise.resolve(aiSession);if(aiConnectionPromise)return aiConnectionPromise;aiConnectionPromise=new Promise(function(resolve,reject){var popup=window.open(AI_SERVICE_URL+"/auth/start","zohoAiOrderBuilderAuth","width=600,height=720,resizable=yes,scrollbars=yes");if(!popup){reject(new Error("Allow the Zoho sign-in window to open, then try again."));return;}var timeout=setTimeout(function(){finish(new Error("Zoho sign-in timed out. Please try again."));},180000),closed=setInterval(function(){if(popup.closed)finish(new Error("Zoho sign-in window was closed. Click Extract and match to connect and try again."));},750);function finish(error,token){clearTimeout(timeout);clearInterval(closed);window.removeEventListener("message",onMessage);if(error)reject(error);else resolve(token);}function onMessage(e){if(e.origin!==AI_SERVICE_URL||e.source!==popup||!e.data||e.data.type!=="AI_ORDER_BUILDER_AUTH"||typeof e.data.token!=="string")return;rememberAISession(e.data.token);$("aiStatus").textContent="AI is connected.";finish(null,aiSession);}window.addEventListener("message",onMessage);});return aiConnectionPromise.then(function(token){aiConnectionPromise=null;return token;},function(error){aiConnectionPromise=null;throw error;});}
     function aiExtract(text,images,token){if(!text&&!images.length)return Promise.reject(new Error("Paste order text or choose a file first."));return fetch(AI_SERVICE_URL+"/v1/extract",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({text:text,images:images})}).then(function(r){if(r.status===401){clearAISession();}return r.json().then(function(data){if(!r.ok)throw new Error(readableError(data.error||data.message||"AI extraction failed."));return data;});}).then(function(data){if(!Array.isArray(data.items))throw new Error("AI returned no order lines.");return requestContext(data.items.map(function(x){return{identifier:clean(x.identifier),requestedName:clean(x.product_name),quantity:enteredNumber(x.quantity),price:enteredNumber(x.unit_price),offerName:clean(x.product_name),product:null,match:"pending"};}),text);});}
@@ -1024,7 +1063,8 @@
         bridgeRows=result.record.Ordered_Items.map(function(r,index){return {
           id:r.id,__ai_record_id:r.id,__ai_source_index:index,Product_Name:r.Product_Name,
           Quantity:r.Quantity,List_Price:r.List_Price,UPC:r.UPC,Brand:r.Brand,
-          Offer_Product_Name:r.Offer_Product_Name,Supplier:r.Supplier,Purchase_Order:r.Purchase_Order
+          Offer_Product_Name:r.Offer_Product_Name,Supplier:r.Supplier,Purchase_Order:r.Purchase_Order,
+          HS_Code:r.HS_Code,Country_of_origin:r.Country_of_origin
         };});
         bridgeHydrated=false;
         loadCurrentSORows();

@@ -80,7 +80,7 @@
     throw new Error(source+': '+errorText(payload));
   }
   function coqlSQL(soId){
-    return 'select id, Parent_Id, Product_Name, Quantity, List_Price, Offer_Product_Name, Supplier, UPC, Brand, Purchase_Order '+
+    return 'select id, Parent_Id, Product_Name, Quantity, List_Price, Offer_Product_Name, Supplier, UPC, Brand, Purchase_Order, HS_Code, Country_of_origin '+
       "from Ordered_Items where Parent_Id = '"+str(soId)+"' limit 0, 200";
   }
   async function getRecordWithProducts(zoho, soId){
@@ -175,6 +175,14 @@
         if (!moneyEqual(old.List_Price,price)) {changes.List_Price=price;has=true;}
         if (str(old.Offer_Product_Name)!==offer) {changes.Offer_Product_Name=offer;has=true;}
         if (idOf(old.Supplier)!==supplierId) {changes.Supplier=supplierId?{id:supplierId}:null;has=true;}
+        // Explicit non-empty trade values from the widget supplement the SO
+        // subform; absent values must never erase customs metadata already set.
+        if (str(incoming.HS_Code) && str(old.HS_Code)!==str(incoming.HS_Code)) {
+          changes.HS_Code=str(incoming.HS_Code);has=true;
+        }
+        if (str(incoming.Country_of_origin) && str(old.Country_of_origin)!==str(incoming.Country_of_origin)) {
+          changes.Country_of_origin=str(incoming.Country_of_origin);has=true;
+        }
         if (has) {
           // v1.44: Allow editing fields on existing PO-linked SO lines.
           // The Purchase_Order reference is preserved; related PO records are not modified.
@@ -185,6 +193,8 @@
         if(supplierId)newRow.Supplier={id:supplierId};
         if(str(incoming.UPC))newRow.UPC=str(incoming.UPC);
         if(str(incoming.Brand))newRow.Brand=str(incoming.Brand);
+        if(str(incoming.HS_Code))newRow.HS_Code=str(incoming.HS_Code);
+        if(str(incoming.Country_of_origin))newRow.Country_of_origin=str(incoming.Country_of_origin);
         result.push(newRow);stats.added++;
       }
     }
@@ -214,7 +224,9 @@
           if(!candidate.__verifiedNew) {got=candidate;candidate.__verifiedNew=true;break;}
         }
       }
-      if(!got || idOf(got.Product_Name)!==pid || !moneyEqual(got.Quantity,w.Quantity) || !moneyEqual(got.List_Price,w.List_Price) || str(got.Offer_Product_Name)!==str(w.Offer_Product_Name) || idOf(got.Supplier)!==idOf(w.Supplier)){
+      if(!got || idOf(got.Product_Name)!==pid || !moneyEqual(got.Quantity,w.Quantity) || !moneyEqual(got.List_Price,w.List_Price) || str(got.Offer_Product_Name)!==str(w.Offer_Product_Name) || idOf(got.Supplier)!==idOf(w.Supplier)
+         || (str(w.HS_Code) && str(got.HS_Code)!==str(w.HS_Code))
+         || (str(w.Country_of_origin) && str(got.Country_of_origin)!==str(w.Country_of_origin))){
         throw new Error('CRM response differs at product line '+(j+1)+'. The update may have been saved; reload to check before retrying.');
       }
     }
