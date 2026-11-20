@@ -1,40 +1,33 @@
-AI ORDER BUILDER — v1.52 / CLIENT SCRIPTS v1.39 (2026-11-20)
+AI ORDER BUILDER — WIDGET v1.55 / CLIENT SCRIPTS v1.40 (2026-11-20)
 
-INSTALL ONLY THREE THINGS:
+REPLACE THREE EXISTING COMPONENTS:
 
-1. Widget -> Developer Hub -> Widgets -> AI Order Builder:
-   Replace AI_Order_Builder_Widget_v1.51.zip with v1.52.zip.
-   Confirm footer "Version 1.52".
+1. Zoho CRM -> Developer Hub -> Widgets -> AI Order Builder:
+   Upload AI_Order_Builder_Widget_v1.55.zip.
+   Reopen and confirm footer "Version 1.55".
 
-2. Two EXISTING Sales Orders Client Scripts -> Developer Hub -> Client Script:
-   A) Create Page (Standard), Button "Fill with AI", onClick:
-      Replace code with Fill_with_AI_BUTTON_v1.39.js.
-   B) Create Page (Standard), Page onLoad "AI Order Fill Products":
-      Replace code with Sales_Orders_CREATE_onLoad_v1.39.js.
+2. Sales Orders -> Create Page (Standard) -> Fill with AI button -> onClick:
+   Replace the complete code with Fill_with_AI_BUTTON_v1.40.js.
 
-Do not create any additional Client Scripts; do not install the old v1.37
-bundle containing four proposed address scripts. Account-only invoice
-address enforcement is a separate server-side task, not part of this fix.
+3. Sales Orders -> Create Page (Standard) -> Page onLoad -> AI Order Fill Products:
+   Replace the complete code with Sales_Orders_CREATE_onLoad_v1.40.js.
 
-FIXES:
-- Brand prefixes strip robustly: Kiehl's / Kiehls / Kiehl’s / KIEHL'S.
-  Only a leading complete brand is removed from Offer Product Name.
-- Exact UPC 3614274101584, Helena Rubinstein Replasty Age Recovery Night
-  Cream: if Product COO is empty, vendor-corroborated France is saved
-  and read back. Existing COO is not overwritten. Confirm lot packaging
-  before relying on this for customs.
-- Optional HS/COO research: cancel after 45 seconds instead of hanging.
-- Closing the widget with X is normal: no widget_closed alert.
-- All Supplier verification, 27.15 dot prices, official Product Names,
-  existing HS/COO transfer, and saved SO support stay intact.
+Do not create additional Client Scripts. Updating the widget ZIP alone does not
+change the native Client Scripts responsible for the widget_closed alert.
+The connected Client Script API returns OAUTH_SCOPE_MISMATCH, so the scripts
+have not been installed automatically.
 
-TEST:
-1. Extract Kiehls Nice Earth ... with Brand KIEHL'S.
-   Offer Product Name must begin "Nice Earth..." (without the brand).
-2. Extract UPC 3614274101584 with empty Product COO: expect France
-   shown after enrichment; then verify Products.Country_of_origin in CRM.
-3. Close the AI widget with X: no alert.
-4. Test Fill Sales Order to verify Supplier, HS and COO unchanged.
+CHANGES:
+- A dedicated server customs search cannot reuse the general UPC-only cache.
+- Existing Product Name is retained; supplier size/variant is only a search hint.
+- COO needs exact-product evidence. No hardcoded UPC/country exceptions.
+- Closing the widget with X is silent, including SDK-wrapped cancellation.
+- Genuine opening/transfer errors still show an alert.
+- Missing HS/COO stays optional with red visual hints.
+- Diagnostics include missing customs fields, cache status and validation reason.
 
-Both v1.39 scripts are required for native CRM create-form operation.
-This release has NOT been automatically installed in Zoho CRM.
+CHECK:
+1. Reopen and run Extract and match to start the new customs search.
+2. Close the widget using X: no widget_closed alert.
+3. Fill Sales Order: Supplier, dot-decimal price, HS and COO still transfer.
+4. Missing COO does not block a valid order.

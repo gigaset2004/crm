@@ -95,10 +95,10 @@
         batch.forEach(function(row,index){
           var first=facts&&facts.find(function(f){return f.key===String(index);});
           var found=verifiedTradeFields(first,row.product,row.item);
-          if((empty(row.product,"Country_of_origin")&&!found.coo)||
-             (empty(row.product,"HS_Code")&&!found.hs)){
-            secondary.push({row:row,index:index});
-          }
+          var fields=[];
+          if(empty(row.product,"Country_of_origin")&&!found.coo)fields.push("country_of_origin");
+          if(empty(row.product,"HS_Code")&&!found.hs)fields.push("hs_code");
+          if(fields.length)secondary.push({row:row,index:index,fields:fields});
         });
         if(secondary.length){
           if(notify)notify("Searching product-specific customs sources…");
@@ -107,7 +107,12 @@
               key:String(index),
               identifier:text(x.row.product.UPC)||text(x.row.item.identifier),
               brand:self.options.brandHint?self.options.brandHint(x.row.item,x.row.product):text(x.row.product.Brand_text),
-              product_name:text(x.row.product.Product_Name)
+              research_fields:x.fields,
+              // Preserve a supplier's size/shade as an untrusted search hint.
+              // Barcode evidence still controls identity; never save this title.
+              product_name:(text(x.row.product.Product_Name)+
+                (text(x.row.item.requestedName)&&comparable(x.row.item.requestedName)!==comparable(x.row.product.Product_Name)?
+                  " | Supplier title: "+text(x.row.item.requestedName):"")).slice(0,255)
             };});
             var extra=await self.options.researchMetadata(researchRows);
             if(Array.isArray(extra))secondary.forEach(function(x,i){

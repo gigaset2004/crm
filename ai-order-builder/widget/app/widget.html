@@ -238,7 +238,7 @@
       </colgroup><thead><tr><th>#</th><th>Status</th><th>Brand</th><th>UPC</th><th>Official CRM product</th><th>Name from supplier offer</th><th>Supplier code</th><th>Qty</th><th>Unit price</th><th></th></tr></thead>
       <tbody id="rows"><tr><td colspan="10" class="muted">No products yet. Search manually or import with AI.</td></tr></tbody></table></div>
       <div class="summary"><span class="hint" id="matchSummary">Match every line to a CRM product.</span><div class="totals"><span class="quantity-total" id="totalQuantity">Total Quantity: 0</span><span class="total" id="orderTotal">Request total: $0.00</span></div></div>
-      <p class="hint">Product, quantity and unit price are required for every row. Missing values are shown in red; saving is blocked until corrected.</p><p class="processed-summary" id="processedSummary"></p><p class="message" id="matchMessage" role="status"></p>
+      <p class="hint">Product, quantity and unit price are required for every row. Missing HS / COO is highlighted for convenience; these fields are optional.</p><p class="processed-summary" id="processedSummary"></p><p class="message" id="matchMessage" role="status"></p>
       <div class="manager-footer"><span class="hint">Edit the products of this SO, then click Fill Sales Order. Added and removed rows, prices, Offer Product Name and Supplier are synchronized with the open form.</span><button id="createBtn" class="btn primary" disabled>Fill Sales Order</button></div>
     </section>
     
@@ -248,7 +248,7 @@
       </div>
     </div>
     <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
-  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.54</strong></footer>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.55</strong></footer>
   <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Use the official product name from the manufacturer website (any country). The original Excel title stays in Offer Product Name.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:#344054"><input id="quickOfficialConfirmed" type="checkbox" style="width:16px;height:16px;flex:none"> I verified the name on the manufacturer’s official website (not the offer).</label><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
   <div class="overlay" id="tradeOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="tradeTitle">
     <div class="dialog-card">
@@ -587,8 +587,11 @@
       var timeoutMs=options&&Number(options.timeoutMs)||0;
       var controller=timeoutMs>0&&typeof AbortController!=="undefined"?new AbortController():null;
       var timer=controller?setTimeout(function(){controller.abort();},timeoutMs):null;
+      var payload={products:products};
+      if(options&&options.researchMode)payload.research_mode=options.researchMode;
+      if(options&&Array.isArray(options.researchFields))payload.research_fields=options.researchFields;
       var params={method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+aiSession},
-        body:JSON.stringify({products:products})};
+        body:JSON.stringify(payload)};
       if(controller)params.signal=controller.signal;
       return fetch(AI_SERVICE_URL+"/v1/research",params).then(function(r){
         return r.json().then(function(data){
@@ -737,19 +740,23 @@
     // targeted country-of-manufacture search for unresolved metadata. Result
     // names from this second search never replace official Product Names.
     function researchMissingTrade(batch){
-      // Cloud Run /v1/research accepts ONLY key, identifier, product_name.
-      // The old research_focus / require_field_sources properties caused
-      // HTTP 400 before any web search began.
+      // The explicit request mode has an independent customs search/cache.
+      // Changing the product title alone reused the original UPC-only cache.
+      // Individual product entries still use only the three supported keys.
+      var fields=[];
+      batch.forEach(function(row){
+        (row.research_fields||["country_of_origin","hs_code"]).forEach(function(field){
+          if((field==="country_of_origin"||field==="hs_code")&&fields.indexOf(field)<0)fields.push(field);
+        });
+      });
       return researchProducts(batch.map(function(row,i){
         var brand=clean(row.brand),name=clean(row.product_name),upc=clean(row.identifier);
         return {
           key:String(i),
           identifier:upc,
-          // Search-focused phrasing is kept in the supported name input,
-          // never written back as Product Name.
-          product_name:(brand+" "+name+" made in country of manufacture country of origin").slice(0,255)
+          product_name:(brand+" "+name).trim().slice(0,255)
         };
-      }),{timeoutMs:20000});
+      }),{timeoutMs:75000,researchMode:"customs",researchFields:fields});
     }
     async function enrichExisting(value,notify){
       var enricher=new window.ProductEnricher({
@@ -977,7 +984,7 @@
       $("processedSummary").textContent="Complete: "+complete+" of "+items.length+" · Matched lines: "+progress.found+" · New products: "+progress.created+" · Requires correction: "+invalid;
       $("totalQuantity").textContent="Total Quantity: "+totalQty.toLocaleString("en-US",{maximumFractionDigits:4});
       $("orderTotal").textContent="Request total: $"+total.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-      $("matchSummary").textContent=ready?"All lines validated.":invalid+" line(s) need correction. Red fields must be filled; duplicated lines require review.";
+      $("matchSummary").textContent=ready?"All required fields validated. HS / COO is optional.":invalid+" line(s) need correction. Required fields and duplicate lines need review; HS / COO is optional.";
       $("matchSummary").classList.toggle("validation-hint",invalid>0);
       $("createBtn").disabled=!(crmReady&&ready)||enrichingSelection||!!(savedSOId&&(savedSOReadOnly||!savedSOReady||savedSOSaving));
       saveDraft();
@@ -1425,8 +1432,8 @@
     // Diagnostics are optional: a missing log asset cannot block the order builder.
     try{
       if(window.OrderDiagnostics){
-        var diagnosticLog=new window.OrderDiagnostics("1.42");
-        diagnosticLog.add("widget_loaded",{stage:"baseline_1.16"});
+        var diagnosticLog=new window.OrderDiagnostics("1.55");
+        diagnosticLog.add("widget_loaded",{stage:"widget_1.55"});
         // Record only service status, time and request ID; never request/response bodies.
         if(typeof window.fetch==="function"){
           var diagnosticFetch=window.fetch;
@@ -1434,7 +1441,7 @@
             var url=String(typeof input==="string"?input:input&&input.url||""),tracked=url.indexOf(AI_SERVICE_URL+"/v1/")===0,start=Date.now();
             return diagnosticFetch.apply(this,arguments).then(function(response){
               if(tracked)try{diagnosticLog.add("service_response",{stage:url.split("/v1/")[1].split("?")[0],status:response.status,duration_ms:Date.now()-start,request_id:response.headers.get("X-Request-ID")||""});}catch(ignore){}
-              if(tracked)try{response.clone().json().then(function(data){try{diagnosticLog.add("service_result",{request_id:String(data.request_id||""),count:Array.isArray(data.items)?data.items.length:0,error_code:response.ok?"none":"http_"+response.status});if(Array.isArray(data.items))data.items.forEach(function(f){diagnosticLog.add("research_item",{stage:f.needs_selection?"choose_variant":f.verified?"verified":"unconfirmed",error_code:f.failure_code||"none",count:f.source_count||0});if(diagnosticLog.addSources)diagnosticLog.addSources(data.request_id,f.search_trace||[]);});}catch(ignore){}},function(){});}catch(ignore){}
+              if(tracked)try{response.clone().json().then(function(data){try{diagnosticLog.add("service_result",{request_id:String(data.request_id||""),count:Array.isArray(data.items)?data.items.length:0,error_code:response.ok?"none":"http_"+response.status});if(Array.isArray(data.items))data.items.forEach(function(f){var validation=f.validation_errors||{};diagnosticLog.add("research_item",{stage:f.needs_selection?"choose_variant":f.verified?"verified":"unconfirmed",request_id:String(data.request_id||""),upc:clean(f.upc),research_mode:f.research_mode||"standard",error_code:f.failure_code||"none",count:f.source_count||0,cache_hit:f.cache_hit===true,coo_found:!!clean(f.country_of_origin),hs_digits:clean(f.hs_code).replace(/\D/g,"").length,coo_error:validation.country_of_origin||"",hs_error:validation.hs_code||""});if(diagnosticLog.addSources)diagnosticLog.addSources(data.request_id,f.search_trace||[]);});}catch(ignore){}},function(){});}catch(ignore){}
               return response;
             },function(error){if(tracked)try{diagnosticLog.add("service_error",{error_code:"network_error",duration_ms:Date.now()-start});}catch(ignore){}throw error;});
           };
@@ -1445,7 +1452,7 @@
         $("downloadLogBtn").addEventListener("click",function(){
           diagnosticLog.add("download",{count:items.length,stage:$("thinkingOverlay").hidden?"idle":"processing"});
           var blob=new Blob([diagnosticLog.report(items,{imports:importAudits,lastError:lastProcessingError})],{type:"text/plain;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
-          a.href=url;a.download="ai-order-builder-1.42-"+diagnosticLog.id+".txt";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+          a.href=url;a.download="ai-order-builder-"+diagnosticLog.build+"-"+diagnosticLog.id+".txt";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
         });
       }
     }catch(logError){/* Logging must never prevent startup. */}

@@ -1,25 +1,33 @@
 # AI Order Builder for Zoho CRM
 
-## Current archived widget: v1.54 (2026-11-20)
+## Current release: widget v1.55 / Client Scripts v1.40 (2026-11-20)
 
-- **Widget:** v1.54 — [source](widget/) | [installation ZIP](releases/AI_Order_Builder_Widget_v1.54.zip)
-- **Sales Orders Create / Fill with AI Client Scripts:** v1.39. See [Fill with AI](client-scripts/Fill_with_AI_BUTTON_v1.39.js) and [Create onLoad](client-scripts/Sales_Orders_CREATE_onLoad_v1.39.js).
-- [Immutable widget source snapshot](versions/widget-v1.54/)
+- **Widget:** v1.55 — [source](widget/) | [installation ZIP](releases/AI_Order_Builder_Widget_v1.55.zip)
+- **Two existing Client Scripts:** [Fill with AI onClick v1.40](client-scripts/Fill_with_AI_BUTTON_v1.40.js) and [Create onLoad v1.40](client-scripts/Sales_Orders_CREATE_onLoad_v1.40.js).
+- [Immutable widget source snapshot](versions/widget-v1.55/)
+- [Release details and verification](releases/README_v1.55.txt)
 
 ### Install
 
-1. Upload `AI_Order_Builder_Widget_v1.54.zip` to **Zoho CRM → Developer Hub → Widgets → AI Order Builder**.
-2. Replace the two existing Create-page Client Scripts with v1.39 (button onClick and page onLoad).
-3. Only two Client Scripts are needed for AI Order Builder. Do not install additional onSave/onChange scripts; Account-only address enforcement is a separate server automation that is NOT included in this release.
-4. Confirm **Version 1.54** in the widget footer and test first-row Supplier, dot-only prices and Account addresses.
-5. The connected Zoho Client Script API previously returned OAUTH_SCOPE_MISMATCH. Keep the already installed two v1.39 Client Scripts unchanged; this release updates only the widget.
+1. Upload `AI_Order_Builder_Widget_v1.55.zip` to **Zoho CRM → Developer Hub → Widgets → AI Order Builder**.
+2. Replace the code of the two existing Sales Orders Create-page Client Scripts: **Fill with AI / onClick** and **AI Order Fill Products / onLoad**, using the complete v1.40 files above.
+3. Do not add extra Client Scripts. The two replacements preserve Supplier, unit price, HS/COO transfer and the existing order logic.
+4. Reopen the widget, confirm **Version 1.55**, then run **Extract and match** again. Close it with X to verify silent cancellation.
+5. The connected Client Script API returns `OAUTH_SCOPE_MISMATCH`, so these two script changes require installation in Zoho; uploading only the widget ZIP does not replace native Client Scripts.
+
+### v1.55 changes
+
+- Fix the server cache behind repeated blank COO: standard identity lookup was cached by UPC, so changing the retry title still returned the previous result without a search. The optional second pass now uses explicit `research_mode: "customs"`, a dedicated query for the actually missing fields and an independent cache. Incomplete requested customs results are not cached.
+- Preserve the supplier's size/variant as an untrusted search hint, while the exact UPC and source evidence control identification. The hint never replaces the official CRM Product Name.
+- Accept a separate COO source only with its own checked quotation of the exact same UPC; it need not be the primary product-name source. Preserve product-specific origin validation. Unresolved conflicting origin claims remain blank with a reason; no UPC-to-country mapping or predetermined product URL is added.
+- Client Scripts v1.40 silently handle ordinary `widget_closed` cancellation in string and SDK wrapper forms. Genuine opening/transfer errors remain visible.
+- Diagnostics now show version 1.55, optional missing HS/COO per row, cache hits and field-validation reasons. HS/COO remain optional; their red hints and small transparent pencils are preserved.
+- All older versions remain archived unchanged.
 
 ### v1.54 changes
 
-- Fix **HTTP 400** on the optional second HS/COO `/v1/research` request: its payload now contains only the service-supported `key`, `identifier`, `product_name` keys. Remove unsupported `research_focus` and `require_field_sources` that caused immediate rejection without searching.
-- Highlight missing **HS Code** and **COO** using a small pale-red box and red outline. Both customs values remain **optional** and never prevent Fill Sales Order.
-- Trade metadata pencils are tiny transparent glyphs without background or frame; existing editable modal stays unchanged.
-- No UPC-specific country mapping is reintroduced. All other v1.53 functionality remains intact. Two existing v1.39 Client Scripts remain unchanged.
+- Removed unsupported product request properties that caused HTTP 400 on the second HS/COO request. v1.55 additionally fixes the server cache that prevented that accepted request from doing a new search.
+- Added optional missing HS/COO highlights and small transparent pencils.
 
 ### Behavior
 
