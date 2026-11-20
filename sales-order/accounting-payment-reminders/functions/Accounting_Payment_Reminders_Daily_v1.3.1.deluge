@@ -1,0 +1,429 @@
+void schedule.Accounting_Payment_Reminders_Daily()
+{
+// v1.3.1 | 2026-11-19 | R1-R4 Snooze; R5 Sales OPEN, no automatic hold. TEST MODE.
+// This schedule NEVER sends emails while sendEnabled is false.
+// Uses Accounting due date and unpaid balance; SO and Front are safety/transport only.
+// Uses CRM Email_Dispatch_Locks as the idempotency ledger (no technical Front comments).
+sendEnabled = false;
+todayNY = zoho.currenttime.toString("yyyy-MM-dd","America/New_York").toDate("yyyy-MM-dd");
+info "[Payment Reminder v1.0] START NewYork=" + todayNY.toString("yyyy-MM-dd") + " SendEnabled=" + sendEnabled;
+pages = {1,2,3,4,5,6,7,8,9,10};
+scanned = 0;
+eligible = 0;
+ready = 0;
+sent = 0;
+errors = 0;
+for each  pageNumber in pages
+{
+	records = zoho.crm.getRecords("Accounting",pageNumber,200);
+	if(records != null)
+	{
+		for each  item in records
+		{
+			scanned = scanned + 1;
+			accountingId = ifnull(item.get("id"),"").toString().trim();
+			if(accountingId != "")
+			{
+				try 
+				{
+					source = ifnull(item.get("Request_Source"),"").toString().trim();
+					stage = ifnull(item.get("Request_Status"),"").toString().trim();
+					key = ifnull(item.get("Request_Key"),"").toString().trim();
+					dueText = ifnull(item.get("Payment_Due_Date"),"").toString().trim();
+					requestAmount = ifnull(item.get("Payment_Amount"),0).toDecimal().round(2);
+					paidAmount = ifnull(item.get("Amount_Paid"),0).toDecimal().round(2);
+					validStage = stage == "Deposit invoice sent" || stage == "Invoice sent" || stage == "Remainder invoice sent" || stage == "Partially Received";
+					if(source == "Sales Orders" && validStage && dueText != "" && requestAmount > 0 && paidAmount < requestAmount)
+					{
+						dueDate = dueText.toDate("yyyy-MM-dd");
+						if(todayNY >= dueDate)
+						{
+							delayDays = dueDate.workDaysBetween(todayNY);
+							if(delayDays < 0)
+							{
+								delayDays = 0 - delayDays;
+							}
+							if(delayDays >= 0)
+							{
+								eligible = eligible + 1;
+								soId = "";
+								soLookup = item.get("Sales_Order");
+								if(soLookup != null && ifnull(soLookup.get("id"),"").toString().trim() != "")
+								{
+									soId = soLookup.get("id").toString();
+								}
+								else if(key.startsWith("SO_"))
+								{
+									legacyId = key.replaceAll("SO_","",true).replaceAll("_DEPOSIT","",true).replaceAll("_BALANCE","",true);
+									if(legacyId.matches("^[0-9]{1,19}$") && (key == "SO_" + legacyId + "_DEPOSIT" || key == "SO_" + legacyId + "_BALANCE"))
+									{
+										soId = legacyId;
+									}
+								}
+								if(soId == "" || key != "SO_" + soId + "_DEPOSIT" && key != "SO_" + soId + "_BALANCE")
+								{
+									info "[Payment Reminder v1.0] SKIP Accounting=" + accountingId + " missing/mismatched SO link";
+								}
+								else
+								{
+									so = zoho.crm.getRecordById("Sales_Orders",soId.toLong());
+									if(so == null || so.get("id") == null)
+									{
+										info "[Payment Reminder v1.0] SKIP Accounting=" + accountingId + " SO not found";
+									}
+									else
+									{
+										soStatus = ifnull(so.get("Status"),"").toString().trim();
+										paymentStatus = ifnull(so.get("Accounting_status"),"").toString().trim();
+										soTotal = ifnull(so.get("Grand_Total"),0).toDecimal().round(2);
+										soPaid = ifnull(so.get("Amount_Paid"),0).toDecimal().round(2);
+										balanceRequest = key.endsWith("_BALANCE");
+										activeCycle = false;
+										if(balanceRequest)
+										{
+											activeCycle = (stage == "Remainder invoice sent" || stage == "Partially Received") && (paymentStatus == "Remainder invoice sent" || paymentStatus == "Overdue");
+										}
+										else
+										{
+											activeCycle = (stage == "Deposit invoice sent" || stage == "Invoice sent" || stage == "Partially Received") && (paymentStatus == "Deposit invoice sent" || paymentStatus == "Invoice sent" || paymentStatus == "Overdue");
+										}
+										settledSO = soStatus == "Cancelled" || paymentStatus == "Paid" || soTotal > 0 && soPaid >= soTotal || !balanceRequest && paymentStatus == "Deposit paid";
+										conversationId = ifnull(so.get("Front_Conversation_ID"),"").toString().trim();
+										if(!activeCycle || settledSO)
+										{
+											info "[Payment Reminder v1.0] SKIP Accounting=" + accountingId + " invoice inactive or paid";
+										}
+										else if(!conversationId.startsWith("cnv_"))
+										{
+											info "[Payment Reminder v1.0] SKIP Accounting=" + accountingId + " no valid Front conversation";
+										}
+										else
+										{
+											// v1.1.0: Reminder ledger lives in CRM Email_Dispatch_Locks (never in Front comments).
+											lastStep = 0;
+											lastDelay = 0;
+											hasPending = false;
+											for each  reminderStep in {1,2,3,4,5}
+											{
+												lookupKey = "PAYREM_" + accountingId + "_" + dueText.replaceAll("-","") + "_R" + reminderStep;
+												previousDispatch = zoho.crm.searchRecords("Email_Dispatch_Locks","(Dispatch_Key:equals:" + lookupKey + ")",1,5);
+												if(previousDispatch != null && !previousDispatch.isEmpty())
+												{
+													lockRecord = previousDispatch.get(0);
+													if(ifnull(lockRecord.get("Send_Status"),"").toString() == "Accepted")
+													{
+														if(reminderStep > lastStep)
+														{
+															lastStep = reminderStep;
+															sentTime = ifnull(lockRecord.get("Modified_Time"),"").toString();
+															if(sentTime.length() >= 10)
+															{
+																verifiedSentDate = sentTime.subString(0,10).toDate("yyyy-MM-dd");
+																lastDelay = dueDate.workDaysBetween(verifiedSentDate);
+																if(lastDelay < 0)
+																{
+																	lastDelay = 0 - lastDelay;
+																}
+															}
+														}
+													}
+													else
+													{
+														hasPending = true;
+													}
+												}
+											}
+											nextStep = lastStep + 1;
+											nextDueDelay = 0;
+											if(lastStep > 0)
+											{
+												nextDueDelay = lastDelay + 2;
+											}
+											if(lastStep >= 5)
+											{
+												info "[Payment Reminder v1.3] FINAL R5 already sent Accounting=" + accountingId;
+												if(sendEnabled)
+												{
+													try 
+													{
+														automation.AccountingReminder_FrontAfterSend(accountingId,"5");
+													}
+													catch (finalRouteError)
+													{
+														info "[Payment Reminder v1.3] ERROR retrying Sales handoff Accounting=" + accountingId + " " + finalRouteError;
+													}
+												}
+											}
+											else if(hasPending)
+											{
+												info "[Payment Reminder v1.1] SKIP Accounting=" + accountingId + " unresolved CRM dispatch";
+											}
+											else if(delayDays < nextDueDelay)
+											{
+												info "[Payment Reminder v1.1] WAIT Accounting=" + accountingId + " delay=" + delayDays + " nextDue=" + nextDueDelay;
+											}
+											else
+											{
+												ready = ready + 1;
+												amountDue = (requestAmount - paidAmount).round(2);
+												orderNumber = ifnull(so.get("Subject"),"").toString();
+												invoiceType = "invoice";
+												if(balanceRequest)
+												{
+													invoiceType = "remaining balance invoice";
+												}
+												else if(stage == "Deposit invoice sent")
+												{
+													invoiceType = "deposit invoice";
+												}
+												bodyHtml = "";
+												if(nextStep == 1)
+												{
+													bodyHtml = "<p>Hello,</p><p>This is a friendly reminder that payment for your " + invoiceType + " on order " + orderNumber + " is due today, " + dueText + ".</p><p>Outstanding amount: USD " + amountDue + ".</p><p>Please let us know when we can expect your payment. If you have already paid, please disregard this reminder and send us the payment confirmation.</p><p>Best regards,<br>MinMaxDeals Accounting</p>";
+												}
+												else if(nextStep == 2)
+												{
+													bodyHtml = "<p>Hello,</p><p>We are following up on the overdue " + invoiceType + " for order " + orderNumber + ". We have not yet confirmed payment of USD " + amountDue + " (due " + dueText + ", " + delayDays + " business days overdue).</p><p>Please arrange payment promptly or provide an expected payment date.</p><p>Best regards,<br>MinMaxDeals Accounting</p>";
+												}
+												else if(nextStep == 3)
+												{
+													bodyHtml = "<p>Hello,</p><p>Our records still show an overdue payment of USD " + amountDue + " for order " + orderNumber + ".</p><p>We need your confirmation of the payment date. Please reply with an update today so we can plan the next steps for your order.</p><p>Best regards,<br>MinMaxDeals Accounting</p>";
+												}
+												else if(nextStep == 4)
+												{
+													bodyHtml = "<p>Hello,</p><p>This is an urgent follow-up regarding the overdue amount of USD " + amountDue + " for order " + orderNumber + ".</p><p>Unless payment or a confirmed payment arrangement is received, further processing of the order may need to be paused. Please contact us promptly.</p><p>Best regards,<br>MinMaxDeals Accounting</p>";
+												}
+												else
+												{
+													bodyHtml = "<p>Hello,</p><p>This is our final automated payment reminder regarding order " + orderNumber + ". The unpaid amount remains USD " + amountDue + " (due " + dueText + ").</p><p>Please contact your sales manager regarding the outstanding payment and next steps for your order.</p><p>Best regards,<br>MinMaxDeals Accounting</p>";
+												}
+												info "[Payment Reminder v1.1] " + if(sendEnabled,"SEND","DRY_RUN") + " Accounting=" + accountingId + " Front=" + conversationId + " R=" + nextStep + " delay=" + delayDays + " amount=" + amountDue;
+												if(sendEnabled)
+												{
+													frontConversation = invokeurl
+													[
+														url :"https://api2.frontapp.com/conversations/" + conversationId
+														type :GET
+														detailed:true
+														connection:"frontfullintegration"
+													];
+													if(ifnull(frontConversation.get("responseCode"),0).toLong() != 200)
+													{
+														errors = errors + 1;
+														info "[Payment Reminder v1.1] ERROR cannot read Front conversation " + conversationId;
+													}
+													else
+													{
+														toAddress = "";
+														frontRecipient = frontConversation.get("responseText").get("recipient");
+														if(frontRecipient != null)
+														{
+															toAddress = ifnull(frontRecipient.get("handle"),"").toString().trim();
+														}
+														if(!toAddress.contains("@"))
+														{
+															errors = errors + 1;
+															info "[Payment Reminder v1.1] ERROR no valid Front email for Accounting=" + accountingId;
+														}
+														else
+														{
+															invoicePDF = null;
+															try 
+															{
+																invoicePDF = invokeurl
+																[
+																	url :"https://www.zohoapis.com/crm/v8/settings/inventory_templates/4888374000000343119/actions/print_preview?record_id=" + soId + "&print_type=pdf"
+																	type :GET
+																	connection:"zoho_crm_connection"
+																	response-format:FILE
+																];
+															}
+															catch (pdfError)
+															{
+																info "[Payment Reminder v1.2] ERROR preparing invoice PDF SO=" + soId + " " + pdfError;
+															}
+															if(invoicePDF == null || !ifnull(invoicePDF.getFileType(),"").toString().contains("pdf"))
+															{
+																errors = errors + 1;
+																info "[Payment Reminder v1.2] ERROR No valid invoice PDF; reminder not sent Accounting=" + accountingId;
+															}
+															else
+															{
+																invoicePDF.setFileName("Invoice.pdf");
+																invoicePDF.setParamName("attachments[]");
+																dispatchKey = "PAYREM_" + accountingId + "_" + dueText.replaceAll("-","") + "_R" + nextStep;
+																dispatchData = Map();
+																dispatchData.put("Name",dispatchKey);
+																dispatchData.put("Dispatch_Key",dispatchKey);
+																dispatchData.put("Send_Status","Claimed");
+																dispatchData.put("Sales_Order_ID",soId);
+																dispatchOptions = Map();
+																dispatchOptions.put("trigger",List());
+																dispatchCreated = zoho.crm.createRecord("Email_Dispatch_Locks",dispatchData,dispatchOptions);
+																if(dispatchCreated == null || dispatchCreated.get("id") == null)
+																{
+																	errors = errors + 1;
+																	info "[Payment Reminder v1.1] ERROR duplicate/failed CRM dispatch claim " + dispatchKey;
+																}
+																else
+																{
+																	lockId = dispatchCreated.get("id").toString();
+																	sendForm = Map();
+																	sendForm.put("to[]",toAddress);
+																	sendForm.put("body",bodyHtml);
+																	// Exact channel alias already used by the working SalesOrder invoice sender.
+																	sendForm.put("channel_id","alt:address:accounting@minmaxdeals.com");
+																	sendForm.put("attachments[]",invoicePDF);
+																	frontSend = null;
+																	try 
+																	{
+																		frontSend = invokeurl
+																		[
+																			url :"https://api2.frontapp.com/conversations/" + conversationId + "/messages"
+																			type :POST
+																			body:sendForm
+																			detailed:true
+																			connection:"frontfullintegration"
+																		];
+																	}
+																	catch (sendError)
+																	{
+																		info "[Payment Reminder v1.1] UNKNOWN SEND; CRM claim retained Accounting=" + accountingId + " " + sendError;
+																	}
+																	if(frontSend != null && ifnull(frontSend.get("responseCode"),0).toLong() == 202)
+																	{
+																		sent = sent + 1;
+																		frontUid = ifnull(frontSend.get("responseText").get("message_uid"),"").toString();
+																		ack = Map();
+																		ack.put("Send_Status","Accepted");
+																		ack.put("Front_Message_UID",frontUid);
+																		ackResult = zoho.crm.updateRecord("Email_Dispatch_Locks",lockId.toLong(),ack,dispatchOptions);
+																		if(ackResult == null || ackResult.get("id") == null)
+																		{
+																			info "[Payment Reminder v1.1] WARNING dispatch accepted but CRM receipt failed " + lockId;
+																		}
+																		// Wait until Front has materialized the outbound message, before the visible comment.
+																		messageVerified = false;
+																		if(frontUid != "")
+																		{
+																			for each  verifyTry in {1,2,3,4,5}
+																			{
+																				messageRead = invokeurl
+																				[
+																					url :"https://api2.frontapp.com/messages/alt:uid:" + frontUid
+																					type :GET
+																					detailed:true
+																					connection:"frontfullintegration"
+																				];
+																				if(ifnull(messageRead.get("responseCode"),0).toLong() == 200)
+																				{
+																					related = messageRead.get("responseText").get("_links");
+																					if(related != null && related.get("related") != null)
+																					{
+																						linkConversation = ifnull(related.get("related").get("conversation"),"").toString();
+																						if(linkConversation.endsWith("/" + conversationId))
+																						{
+																							messageVerified = true;
+																							verifiedMessageId = ifnull(messageRead.get("responseText").get("id"),"").toString();
+																						}
+																					}
+																					break;
+																				}
+																			}
+																		}
+																		if(messageVerified && verifiedMessageId != "")
+																		{
+																			// Wait for the actual outbound timeline event so the comment is below the email.
+																			messageVerified = false;
+																			for each  eventTry in {1,2,3,4,5,6,7,8,9,10,11,12}
+																			{
+																				timelineResponse = invokeurl
+																				[
+																					url :"https://api2.frontapp.com/conversations/" + conversationId + "/events?limit=50"
+																					type :GET
+																					detailed:true
+																					connection:"frontfullintegration"
+																				];
+																				if(ifnull(timelineResponse.get("responseCode"),0).toLong() == 200)
+																				{
+																					outEvents = timelineResponse.get("responseText").get("_results");
+																					if(outEvents != null)
+																					{
+																						for each  evt in outEvents
+																						{
+																							evtType = ifnull(evt.get("type"),"").toString();
+																							if(evtType == "out_reply" || evtType == "outbound")
+																							{
+																								evtTarget = evt.get("target");
+																								if(evtTarget != null && evtTarget.get("data") != null && ifnull(evtTarget.get("data").get("id"),"").toString() == verifiedMessageId)
+																								{
+																									messageVerified = true;
+																									break;
+																								}
+																							}
+																						}
+																					}
+																				}
+																				if(messageVerified)
+																				{
+																					break;
+																				}
+																			}
+																		}
+																		if(messageVerified)
+																		{
+																			commentRequest = Map();
+																			commentRequest.put("body","Reminder " + nextStep + " of 5");
+																			commentResponse = invokeurl
+																			[
+																				url :"https://api2.frontapp.com/conversations/" + conversationId + "/comments"
+																				type :POST
+																				parameters:commentRequest.toString()
+																				headers:{"Content-Type":"application/json"}
+																				detailed:true
+																				connection:"frontfullintegration"
+																			];
+																			info "[Payment Reminder v1.1] SENT FrontAccounting R" + nextStep + " Accounting=" + accountingId + " commentHTTP=" + commentResponse.get("responseCode");
+																		}
+																		else
+																		{
+																			info "[Payment Reminder v1.1] WARNING message accepted but conversation threading unverified; no comment Accounting=" + accountingId;
+																		}
+																		try 
+																		{
+																			automation.AccountingReminder_FrontAfterSend(accountingId,nextStep.toString());
+																		}
+																		catch (routeError)
+																		{
+																			info "[Payment Reminder v1.3] ERROR post-send Front route Accounting=" + accountingId + " R" + nextStep + ": " + routeError;
+																		}
+																	}
+																	else if(frontSend != null)
+																	{
+																		errors = errors + 1;
+																		info "[Payment Reminder v1.1] ERROR Front rejected / unknown; CRM claim retained " + frontSend.get("responseCode");
+																	}
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				catch (rowError)
+				{
+					errors = errors + 1;
+					info "[Payment Reminder v1.0] ERROR Accounting=" + accountingId + " " + rowError;
+				}
+			}
+		}
+	}
+}
+info "[Payment Reminder v1.0] END scanned=" + scanned + " eligible=" + eligible + " ready=" + ready + " sent=" + sent + " errors=" + errors;
+}
