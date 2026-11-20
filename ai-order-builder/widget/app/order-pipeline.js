@@ -44,27 +44,6 @@
     }
     return "";
   }
-  // v1.49: Verified official-source fallback for known UPCs where the
-  // research service previously returned a retailer-only source. These are
-  // exact SKU/size matches, never a substitute for general online research.
-  // Kiehl's official UK page contains the EAN. Helena Rubinstein's official
-  // page confirms the 100ml variant; the retailer confirms the same EAN/size.
-  function vettedOfficialProduct(item){
-    var upc=String(item&&item.identifier||"").trim(),name=String(item&&item.requestedName||"").toLowerCase();
-    var brand=String(item&&item.requestedBrand||"").toLowerCase().replace(/[^a-z0-9]/g,"");
-    if(upc==="3605973023352"&&/deep\s*pore|rare\s*earth|nice\s*earth/.test(name)&&/125\s*ml|4[.,]2\s*(?:fl\s*)?oz/.test(name)&&(!brand||brand==="kiehls")){
-      var url="https://www.kiehls.co.uk/new/new/best-sellers/rare-earth-deep-pore-cleansing-mask/3605973023352.html";
-      return {verified:true,upc:upc,brand:"Kiehl's",product_name:"Rare Earth Deep Pore Cleansing Mask 125 ml",
-        official_url:url,evidence:{product_name:{url:url},upc:{url:url}},vettedOfficialSource:true};
-    }
-    if(upc==="3614274101584"&&/re.?plasty/.test(name)&&/100\s*ml|3[.,]38\s*(?:fl\s*)?oz/.test(name)&&(!brand||brand==="helenarubinstein")){
-      var official="https://www.helenarubinstein.com/int/skincare/by-range/replasty/replasty-age-recovery-night-cream/HR-000022.html";
-      var barcode="https://www.harveynorman.com.au/helena-rubinstein-re-plasty-age-recovery-night-cream-100ml.html";
-      return {verified:true,upc:upc,brand:"Helena Rubinstein",product_name:"Replasty Age Recovery Night Cream 100 ml",
-        official_url:official,evidence:{product_name:{url:official},upc:{url:barcode}},vettedOfficialSource:true};
-    }
-    return null;
-  }
   function Pipeline(options){this.options=options;this.items=[];this.running=false;this.paused=false;this.nextAttemptAt=0;}
   Pipeline.describeLine=function(item){
     if(item.product&&item.product.id)return item.createdInCrm?"New product created":"Found in CRM";
@@ -134,7 +113,6 @@
             current.match="missing";current.researchDone=true;current.note="Research could not confirm this UPC: "+errorDetails(fact.retryable_error)+". Use Search again on THIS line.";hadRowLevelIssue=true;
             self.items.forEach(function(other){if(other!==current&&key(other)===key(current))copyMatch(other,current);});self.notify(current.note);continue;
           }
-          if(!fact||!fact.verified){var vettedEarly=vettedOfficialProduct(current);if(vettedEarly)fact=vettedEarly;}
           if(!fact||!fact.verified){current.research=fact||null;current.researchDone=true;current.note="Product not confirmed. Search again or create the product below.";this.items.forEach(function(other){if(other!==current&&key(other)===key(current))copyMatch(other,current);});this.notify(current.note);continue;}
           // First research may only have a retailer URL. Retry a manufacturer-first
           // worldwide search and use only a verified, matching-UPC official result.
@@ -153,10 +131,6 @@
             }catch(researchError){
               current.note="Additional official-site lookup failed: "+errorDetails(researchError);
             }
-          }
-          if(!manufacturerSource){
-            var vettedFallback=vettedOfficialProduct(current);
-            if(vettedFallback){fact=vettedFallback;manufacturerSource=officialNameSource(fact,current.requestedBrand||fact.brand);}
           }
           if(!manufacturerSource){
             current.research=fact;current.match="missing";current.researchDone=true;
@@ -219,6 +193,5 @@
     }finally{self.running=false;self.save();}
   };
   Pipeline.officialNameSource=officialNameSource;
-  Pipeline.vettedOfficialProduct=vettedOfficialProduct;
   root.OrderPipeline=Pipeline;if(typeof module!=="undefined"&&module.exports)module.exports=Pipeline;
 })(typeof window!=="undefined"?window:globalThis);

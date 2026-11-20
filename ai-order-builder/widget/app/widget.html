@@ -244,7 +244,7 @@
       </div>
     </div>
     <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
-  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.52</strong></footer>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.53</strong></footer>
   <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Use the official product name from the manufacturer website (any country). The original Excel title stays in Offer Product Name.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:#344054"><input id="quickOfficialConfirmed" type="checkbox" style="width:16px;height:16px;flex:none"> I verified the name on the manufacturer’s official website (not the offer).</label><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
   <div class="overlay" id="tradeOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="tradeTitle">
     <div class="dialog-card">
@@ -386,23 +386,9 @@
           try{
             var p=await readProduct(it.product.id);
             if(items.indexOf(it)<0||!it.product||String(it.product.id)!==String(p.id))return;
-            // A user can reopen a Create SO without re-running Extract. Make
-            // the same corroborated GTIN/COO repair available during hydration,
-            // not only in the import enrichment pipeline.
-            var cooSource=!clean(p.Country_of_origin)&&!Object.prototype.hasOwnProperty.call(it,"cooManual")&&
-              window.ProductEnricher&&window.ProductEnricher.corroboratedOrigin?
-              window.ProductEnricher.corroboratedOrigin(p,it):null;
-            if(cooSource){
-              try{
-                await updateProduct({id:String(p.id),Country_of_origin:cooSource.country});
-                var verified=await readProduct(p.id);
-                if(clean(verified.Country_of_origin)!==cooSource.country)
-                  throw new Error("CRM did not confirm Product COO update.");
-                p=verified;
-              }catch(originError){
-                console.warn("AI Order Builder: corroborated COO could not be saved",originError);
-              }
-            }
+            // Read only existing CRM Product values on reopen.
+            // Internet discovery runs through the general research pipeline;
+            // never assign a country based on a hardcoded UPC here.
             var changed=false;
             if(!clean(it.product.HS_Code)&&clean(p.HS_Code)&&!Object.prototype.hasOwnProperty.call(it,"hsManual")){
               it.product.HS_Code=clean(p.HS_Code);changed=true;
@@ -634,7 +620,19 @@
       var productName=tidyName(fact.product_name,fact.brand),brandName=canonicalBrand(fact.brand);if(brandName&&productName.slice(0,brandName.length).toLowerCase()===brandName.toLowerCase()&&/^[\s:|–—-]/.test(productName.slice(brandName.length))){productName=productName.slice(brandName.length).replace(/^[\s:|–—-]+/,"")||productName;}
       var brandWords=brandName.split(/\s+/);if(brandWords.length>1&&brandWords.slice(1).every(function(w){return /^(beauty|cosmetics|skincare)$/i.test(w);})&&productName.slice(0,brandWords[0].length).toLowerCase()===brandWords[0].toLowerCase()&&/^\s/.test(productName.slice(brandWords[0].length))){productName=clean(productName.slice(brandWords[0].length))||productName;}
       var data={Product_Name:productName.slice(0,255),UPC:fact.upc};
-      if(fact.hs_code)data.HS_Code=clean(fact.hs_code);if(fact.country_of_origin)data.Country_of_origin=clean(fact.country_of_origin);
+      // Verified product identity does not itself prove COO. Use field-level
+      // source evidence for automatic writes, or explicit manual review.
+      var tradeFact=window.ProductEnricher&&window.ProductEnricher.verifiedTradeFields?
+        window.ProductEnricher.verifiedTradeFields(fact,{
+          UPC:fact.upc,Brand_text:fact.brand,Product_Name:fact.product_name
+        },{identifier:fact.upc,requestedBrand:fact.brand}):{};
+      if(fact.manualOfficialNameConfirmed){
+        if(fact.hs_code)data.HS_Code=clean(fact.hs_code);
+        if(fact.country_of_origin)data.Country_of_origin=clean(fact.country_of_origin);
+      }else{
+        if(tradeFact.hs)data.HS_Code=tradeFact.hs;
+        if(tradeFact.coo)data.Country_of_origin=tradeFact.coo;
+      }
       if(brandName){
         var selectedBrand=fact.brandId&&managerBrandRecords.find(function(b){return String(b.id)===String(fact.brandId);});
         var brand=selectedBrand?{id:selectedBrand.id,Name:selectedBrand.name}:await findBrand(brandName);
@@ -731,7 +729,31 @@
       }
     }
     function officialName(fact){return window.OrderPipeline&&window.OrderPipeline.officialNameSource&&window.OrderPipeline.officialNameSource(fact,fact.brand)?tidyName(fact.product_name,fact.brand):"";}
-    async function enrichExisting(value,notify){var enricher=new window.ProductEnricher({read:readProduct,research:function(batch){return researchProducts(batch,{timeoutMs:45000});},findBrand:findBrand,repairIdentity:repairBrand,officialName:officialName,brandHint:brandHint,shouldPause:function(){return !!(pipeline&&pipeline.running&&pipeline.paused);},update:updateProduct});return enricher.run(value,notify);}
+    // General two-pass trade research: one standard search, then a short,
+    // targeted country-of-manufacture search for unresolved metadata. Result
+    // names from this second search never replace official Product Names.
+    function researchMissingTrade(batch){
+      return researchProducts(batch.map(function(row,i){
+        var brand=clean(row.brand),name=clean(row.product_name);
+        return {
+          key:String(i),identifier:clean(row.identifier),
+          product_name:(brand+" "+name+" country of origin made in manufacturing location").slice(0,255),
+          research_focus:"country_of_origin,hs_code",
+          require_field_sources:true
+        };
+      }),{timeoutMs:20000});
+    }
+    async function enrichExisting(value,notify){
+      var enricher=new window.ProductEnricher({
+        read:readProduct,
+        research:function(batch){return researchProducts(batch,{timeoutMs:25000});},
+        researchMetadata:researchMissingTrade,
+        findBrand:findBrand,repairIdentity:repairBrand,officialName:officialName,
+        brandHint:brandHint,shouldPause:function(){return !!(pipeline&&pipeline.running&&pipeline.paused);},
+        update:updateProduct
+      });
+      return enricher.run(value,notify);
+    }
     function chooseBrandRecord(id){return managerBrandRecords.find(function(b){return String(b.id)===String(id||"");})||null;}
     function chooseBrandByName(name){return managerBrandRecords.find(function(b){return brandKey(b.name)===brandKey(canonicalBrand(name));})||null;}
     function brandDropdownOptions(selected){var value=String(selected||"");return '<option value="">Choose a CRM brand</option>'+managerBrandRecords.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(b){return '<option value="'+esc(b.id)+'" '+(value===String(b.id)?'selected':'')+'>'+esc(b.name)+'</option>';}).join("");}

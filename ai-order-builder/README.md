@@ -1,17 +1,17 @@
 # AI Order Builder for Zoho CRM
 
-## Current archived widget: v1.52 (2026-11-20)
+## Current archived widget: v1.53 (2026-11-20)
 
-- **Widget:** v1.52 — [source](widget/) | [installation ZIP](releases/AI_Order_Builder_Widget_v1.52.zip)
+- **Widget:** v1.53 — [source](widget/) | [installation ZIP](releases/AI_Order_Builder_Widget_v1.53.zip)
 - **Sales Orders Create / Fill with AI Client Scripts:** v1.39. See [Fill with AI](client-scripts/Fill_with_AI_BUTTON_v1.39.js) and [Create onLoad](client-scripts/Sales_Orders_CREATE_onLoad_v1.39.js).
-- [Immutable widget source snapshot](versions/widget-v1.52/)
+- [Immutable widget source snapshot](versions/widget-v1.53/)
 
 ### Install
 
-1. Upload `AI_Order_Builder_Widget_v1.52.zip` to **Zoho CRM → Developer Hub → Widgets → AI Order Builder**.
+1. Upload `AI_Order_Builder_Widget_v1.53.zip` to **Zoho CRM → Developer Hub → Widgets → AI Order Builder**.
 2. Replace the two existing Create-page Client Scripts with v1.39 (button onClick and page onLoad).
 3. Only two Client Scripts are needed for AI Order Builder. Do not install additional onSave/onChange scripts; Account-only address enforcement is a separate server automation that is NOT included in this release.
-4. Confirm **Version 1.52** in the widget footer and test first-row Supplier, dot-only prices and Account addresses.
+4. Confirm **Version 1.53** in the widget footer and test first-row Supplier, dot-only prices and Account addresses.
 5. The connected Zoho Client Script API returned OAUTH_SCOPE_MISMATCH; install exactly the two v1.38 scripts through Developer Hub.
 
 ### Behavior
@@ -38,8 +38,11 @@
 
 - **v1.52 / Client Scripts v1.39**: strip leading brand from Offer Product Name across apostrophes (KIEHL\'S / Kiehls / Kiehl’s), accents and punctuation while retaining official CRM Product Name. UPC 3614274101584 Helena Rubinstein Replasty Age Recovery Night Cream 100ml has vendor-corroborated France COO fallback, written only when Product COO is empty with readback verification, both during Extract and when reopening the widget. Optional HS/COO research expires in 45s. Closing AI widget with X silently ignores the normal widget_closed event in the two existing Client Scripts. Genuine errors still show alerts. No additional Client Scripts.
 
+- **v1.53**: remove the exceptional UPC-to-Product and UPC-to-COO rules added in v1.49/v1.52. Instead, existing and missing Products use the same general web research for every UPC; missing HS/COO triggers a short, manufacturer/country-of-origin-focused second search. Only matching, verified UPC/brand facts can add HS; country-of-origin updates additionally require a product-specific HTTPS evidence source. Existing CRM trade data is never silently overwritten. The widget no longer invents or stores a country because a particular UPC appears in its JavaScript. Client Scripts v1.39 remain unchanged.
+
 ### History retained
 
+- [v1.52 source](versions/widget-v1.52/) and [v1.52 ZIP](releases/AI_Order_Builder_Widget_v1.52.zip) retained for audit, but v1.53 removes the hardcoded item overrides.
 - [v1.51 source](versions/widget-v1.51/) and [v1.51 ZIP](releases/AI_Order_Builder_Widget_v1.51.zip) are retained.
 - [v1.50 source](versions/widget-v1.50/) and [v1.50 ZIP](releases/AI_Order_Builder_Widget_v1.50.zip) are retained.
 - [v1.49 source](versions/widget-v1.49/) and [v1.49 ZIP](releases/AI_Order_Builder_Widget_v1.49.zip) are retained.
