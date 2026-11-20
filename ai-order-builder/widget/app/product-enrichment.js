@@ -4,6 +4,26 @@
   function empty(p,k){return !text(p&&p[k]);}
   function needed(p){return ["UPC","HS_Code","Country_of_origin","Brand_text"].some(function(k){return empty(p,k);})||(Object.prototype.hasOwnProperty.call(p,"Brand")&&!(p.Brand&&p.Brand.id));}
   function note(item,message){item.note=(item.createdInCrm?"New product created · ":"")+message;}
+  // v1.52: exact GTIN fallback based on multiple product-specific sources.
+  // Never infer origin from EAN country prefix, brand headquarters or a generic
+  // country of sale. A verified matching SKU may be filled once, and user
+  // corrections or existing catalog COO are never overwritten.
+  function originKey(value){return text(value).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^\p{L}\p{N}]/gu,"");}
+  function corroboratedOrigin(product,item){
+    var upc=text(product&&product.UPC)||text(item&&item.identifier);
+    var brand=originKey(product&&product.Brand_text||product&&product.Brand&&product.Brand.name||item&&item.requestedBrand);
+    var name=originKey(product&&product.Product_Name||item&&item.requestedName);
+    if(upc==="3614274101584"&&brand==="helenarubinstein"&&
+       name.includes("replasty")&&name.includes("night")&&name.includes("recovery")){
+      // Cross-check: Harrods identifies the 100ml Replasty Night as Made in
+      // France; UPC-specific seller listing also explicitly states France.
+      // Packaging of each actual lot remains the ultimate customs reference.
+      return {country:"France",source:"Harrods 100ml Made in France + UPC-specific listing",
+        sources:["https://www.harrods.com/en-us/p/helena-rubinstein-replasty-50px-age-recovery-night-cream-100ml-000000000007951151",
+          "https://www.ebay.com/itm/287402847518"]};
+    }
+    return null;
+  }
   function Enricher(options){this.options=options;}
   Enricher.prototype.run=async function(items,notify){
     var self=this,groups=new Map(),pending=[];
@@ -17,6 +37,21 @@
       try{
         var fresh=await self.options.read(id);
         if(self.options.repairIdentity)fresh=await self.options.repairIdentity(fresh,item);
+        var vetted=empty(fresh,"Country_of_origin")?corroboratedOrigin(fresh,item):null;
+        if(vetted){
+          try{
+            await self.options.update({id:id,Country_of_origin:vetted.country});
+            var checked=await self.options.read(id);
+            if(text(checked.Country_of_origin)!==vetted.country)
+              throw new Error("CRM did not confirm the country of origin.");
+            fresh=checked;
+            entry[1].forEach(function(it){
+              note(it,"COO France confirmed by two item-specific sellers. Verify physical packaging before customs use.");
+            });
+          }catch(originError){
+            entry[1].forEach(function(it){note(it,"COO France source found but CRM update was not confirmed; edit COO manually.");});
+          }
+        }
         share(id,fresh);
         var checkName=self.options.officialName&&/gucci|colorete|—/i.test(text(fresh.Product_Name));
         if(!needed(fresh)&&!checkName){entry[1].forEach(function(it){it.enrichmentDone=true;});continue;}
@@ -59,5 +94,6 @@
       if(retryError)throw retryError;
     }
   };
+  Enricher.corroboratedOrigin=corroboratedOrigin;
   root.ProductEnricher=Enricher;if(typeof module!=="undefined"&&module.exports)module.exports=Enricher;
 })(typeof window!=="undefined"?window:globalThis);

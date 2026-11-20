@@ -1,58 +1,40 @@
-AI ORDER BUILDER — INSTALL v1.50 / Client Scripts v1.37 (2026-11-20)
+AI ORDER BUILDER — v1.52 / CLIENT SCRIPTS v1.39 (2026-11-20)
 
-1. WIDGET
-Zoho CRM -> Developer Hub -> Widgets -> AI Order Builder
-Replace ZIP with AI_Order_Builder_Widget_v1.50.zip.
-After reopening, verify footer: Version 1.50.
+INSTALL ONLY THREE THINGS:
 
-2. REPLACE THE TWO EXISTING CLIENT SCRIPTS
-Zoho CRM -> Developer Hub -> Client Script:
-A) Sales Orders -> Standard Create Page -> Button 'Fill with AI' -> onClick
-   Paste complete contents of Fill_with_AI_BUTTON_v1.37.js.
-B) Sales Orders -> Standard Create Page -> Page Event -> onLoad
-   Paste complete contents of Sales_Orders_CREATE_onLoad_v1.37.js.
-Do NOT change the existing button, its placement, page or event.
+1. Widget -> Developer Hub -> Widgets -> AI Order Builder:
+   Replace AI_Order_Builder_Widget_v1.51.zip with v1.52.zip.
+   Confirm footer "Version 1.52".
 
-3. ADD FOUR NEW ACCOUNT-ONLY ADDRESS SCRIPTS
-Create Page / Page Event / onChange
-   Sales_Orders_CREATE_onChange_Account_Contact_v1.0.js
-Create Page / Page Event / onSave
-   Sales_Orders_CREATE_onSave_Account_Only_v1.0.js
-Edit Page / Page Event / onChange
-   Sales_Orders_EDIT_onChange_Account_Contact_v1.0.js
-Edit Page / Page Event / onSave
-   Sales_Orders_EDIT_onSave_Account_Only_v1.0.js
+2. Two EXISTING Sales Orders Client Scripts -> Developer Hub -> Client Script:
+   A) Create Page (Standard), Button "Fill with AI", onClick:
+      Replace code with Fill_with_AI_BUTTON_v1.39.js.
+   B) Create Page (Standard), Page onLoad "AI Order Fill Products":
+      Replace code with Sales_Orders_CREATE_onLoad_v1.39.js.
 
-Use the Standard Sales Orders layout in each new script. OnChange is
-a PAGE Event, not a Field Event. It uses the field_name event argument.
+Do not create any additional Client Scripts; do not install the old v1.37
+bundle containing four proposed address scripts. Account-only invoice
+address enforcement is a separate server-side task, not part of this fix.
 
-ADDRESS POLICY
-SO Billing_* fields = Accounts.Billing_* fields.
-SO Shipping_* fields = Accounts.Shipping_* fields.
-No fallback from Contacts at all; empty Account fields clear Contact values.
-Save is blocked if Account is not selected or its data is not available.
-This applies when creating or editing a Sales Order in the native CRM form.
+FIXES:
+- Brand prefixes strip robustly: Kiehl's / Kiehls / Kiehl’s / KIEHL'S.
+  Only a leading complete brand is removed from Offer Product Name.
+- Exact UPC 3614274101584, Helena Rubinstein Replasty Age Recovery Night
+  Cream: if Product COO is empty, vendor-corroborated France is saved
+  and read back. Existing COO is not overwritten. Confirm lot packaging
+  before relying on this for customs.
+- Optional HS/COO research: cancel after 45 seconds instead of hanging.
+- Closing the widget with X is normal: no widget_closed alert.
+- All Supplier verification, 27.15 dot prices, official Product Names,
+  existing HS/COO transfer, and saved SO support stay intact.
 
-SUPPLIER POLICY
-Every row is verified after Fill Sales Order for:
-Product ID, Offer Product Name, Quantity, Unit Price, Supplier lookup ID.
-If the first-row Supplier was dropped, it is written again and checked.
-A failed supplier verification produces a clear error, not success.
+TEST:
+1. Extract Kiehls Nice Earth ... with Brand KIEHL'S.
+   Offer Product Name must begin "Nice Earth..." (without the brand).
+2. Extract UPC 3614274101584 with empty Product COO: expect France
+   shown after enrichment; then verify Products.Country_of_origin in CRM.
+3. Close the AI widget with X: no alert.
+4. Test Fill Sales Order to verify Supplier, HS and COO unchanged.
 
-US PRICE FORMAT
-Widget unit-price column is a text input (avoids locale conversion to
-comma decimal). Enter 27.15 or 10000.00. Commas (27,15 or 10,000) are
-invalid and block Fill Sales Order. No automatic comma conversion.
-
-TEST
-1. New SO, 3 lines; Apply Supplier to all, including first line.
-   Fill Sales Order. Verify all 3 Supplier lookups before saving.
-2. Enter 27.15 -> 27.15 displayed; enter 10,000 -> invalid.
-3. Select Account A, then a Contact having a different address.
-   The SO Billing/Shipping fields must match Account A only.
-4. Save and reopen the SO to confirm the persisted address.
-
-NOTE: Connected Zoho CRM API returned OAUTH_SCOPE_MISMATCH when retrieving
-Client Script metadata. Therefore these scripts were saved on GitHub
-but NOT automatically installed in CRM. You must install them using
-Developer Hub with the correct permissions. No live CRM data was changed.
+Both v1.39 scripts are required for native CRM create-form operation.
+This release has NOT been automatically installed in Zoho CRM.

@@ -1,17 +1,17 @@
 # AI Order Builder for Zoho CRM
 
-## Current archived widget: v1.51 (2026-11-20)
+## Current archived widget: v1.52 (2026-11-20)
 
-- **Widget:** v1.51 — [source](widget/) | [installation ZIP](releases/AI_Order_Builder_Widget_v1.51.zip)
-- **Sales Orders Create / Fill with AI Client Scripts:** v1.38. See [Fill with AI](client-scripts/Fill_with_AI_BUTTON_v1.38.js) and [Create onLoad](client-scripts/Sales_Orders_CREATE_onLoad_v1.38.js).
-- [Immutable widget source snapshot](versions/widget-v1.51/)
+- **Widget:** v1.52 — [source](widget/) | [installation ZIP](releases/AI_Order_Builder_Widget_v1.52.zip)
+- **Sales Orders Create / Fill with AI Client Scripts:** v1.39. See [Fill with AI](client-scripts/Fill_with_AI_BUTTON_v1.39.js) and [Create onLoad](client-scripts/Sales_Orders_CREATE_onLoad_v1.39.js).
+- [Immutable widget source snapshot](versions/widget-v1.52/)
 
 ### Install
 
-1. Upload `AI_Order_Builder_Widget_v1.51.zip` to **Zoho CRM → Developer Hub → Widgets → AI Order Builder**.
-2. Replace the two existing Create-page Client Scripts with v1.38 (button onClick and page onLoad).
+1. Upload `AI_Order_Builder_Widget_v1.52.zip` to **Zoho CRM → Developer Hub → Widgets → AI Order Builder**.
+2. Replace the two existing Create-page Client Scripts with v1.39 (button onClick and page onLoad).
 3. Only two Client Scripts are needed for AI Order Builder. Do not install additional onSave/onChange scripts; Account-only address enforcement is a separate server automation that is NOT included in this release.
-4. Confirm **Version 1.51** in the widget footer and test first-row Supplier, dot-only prices and Account addresses.
+4. Confirm **Version 1.52** in the widget footer and test first-row Supplier, dot-only prices and Account addresses.
 5. The connected Zoho Client Script API returned OAUTH_SCOPE_MISMATCH; install exactly the two v1.38 scripts through Developer Hub.
 
 ### Behavior
@@ -36,8 +36,11 @@
 
 - **v1.51 / 2 Client Scripts v1.38:** preserve HS_Code and Country_of_origin end-to-end between widget, native Sales Orders subform and reopening. Verify both fields after transfer; retain Product catalog metadata when Zoho omits line fields. Saved SO COQL/read/update also includes HS/COO. OAuth popup iframe destroys sessionStorage in some CRM contexts: a 14-minute token is now also cached in origin-scoped localStorage to reduce repeated login within its validity. This does **not** extend the server session or eliminate reauthorization after expiry; backend refresh-token support would be required for persistent access.
 
+- **v1.52 / Client Scripts v1.39**: strip leading brand from Offer Product Name across apostrophes (KIEHL\'S / Kiehls / Kiehl’s), accents and punctuation while retaining official CRM Product Name. UPC 3614274101584 Helena Rubinstein Replasty Age Recovery Night Cream 100ml has vendor-corroborated France COO fallback, written only when Product COO is empty with readback verification. Optional HS/COO research expires in 45s. Closing AI widget with X silently ignores the normal widget_closed event in the two existing Client Scripts. Genuine errors still show alerts. No additional Client Scripts.
+
 ### History retained
 
+- [v1.51 source](versions/widget-v1.51/) and [v1.51 ZIP](releases/AI_Order_Builder_Widget_v1.51.zip) are retained.
 - [v1.50 source](versions/widget-v1.50/) and [v1.50 ZIP](releases/AI_Order_Builder_Widget_v1.50.zip) are retained.
 - [v1.49 source](versions/widget-v1.49/) and [v1.49 ZIP](releases/AI_Order_Builder_Widget_v1.49.zip) are retained.
 - [v1.48 source](versions/widget-v1.48/) and [v1.48 release ZIP](releases/AI_Order_Builder_Widget_v1.48.zip) are retained.

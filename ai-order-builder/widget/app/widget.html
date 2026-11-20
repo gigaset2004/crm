@@ -244,7 +244,7 @@
       </div>
     </div>
     <div class="diagnostic-footer"><button id="downloadLogBtn" class="btn">Download processing log (.txt)</button></div>
-  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.51</strong></footer>
+  </main><footer class="build-footer"><span>AI Order Builder · Sales Order Products</span><strong>Version 1.52</strong></footer>
   <div class="overlay" id="quickProductOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="quickProductTitle"><div class="dialog-card"><h2 id="quickProductTitle">Create product</h2><p>Use the official product name from the manufacturer website (any country). The original Excel title stays in Offer Product Name.</p><div class="quick-fields"><label class="wide">Name<input id="quickName" maxlength="255"></label><label>UPC<input id="quickUPC" inputmode="numeric" maxlength="14"></label><label>Brand (CRM)<span class="brand-picker"><select id="quickBrand" aria-label="Select existing CRM brand"><option value="">Choose a CRM brand</option></select><button id="quickBrandNew" class="btn" type="button">+ New brand</button></span></label><label>HS code<input id="quickHS" maxlength="20"></label><label>Country of origin<input id="quickCOO" maxlength="100"></label></div><label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:#344054"><input id="quickOfficialConfirmed" type="checkbox" style="width:16px;height:16px;flex:none"> I verified the name on the manufacturer’s official website (not the offer).</label><p class="message" id="quickMessage" role="status"></p><div class="quick-actions"><button id="quickCancel" class="btn">Cancel</button><button id="quickSave" class="btn primary">Create product</button></div></div></div>
   <div class="overlay" id="tradeOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="tradeTitle">
     <div class="dialog-card">
@@ -317,24 +317,39 @@
     function num(v){var s=clean(v).replace(/[^0-9,.-]/g,"");if(/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s))s=s.replace(/,/g,"");else s=s.replace(/,/g,".");var n=Number(s);return Number.isFinite(n)?n:0;}
     function norm(v){return clean(v).toLowerCase().replace(/[^\p{L}\p{N}]+/gu,"");}
     function brandKey(name){return clean(name).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^\p{L}\p{N}]/gu,"");}
-    function canonicalBrand(name){var source=clean(name);if(/^(gucci|gucci beauty|gucci make\s*up|gucci cosmetics)$/i.test(source))return"Gucci";if(/^nars(?:[\s-]+(?:cosmetics|beauty|makeup|make up))?$/i.test(source))return"Nars";return brandKey(source)==="kerastase"?"Kerastase":source;}
+    function canonicalBrand(name){var source=clean(name);if(/^(gucci|gucci beauty|gucci make\s*up|gucci cosmetics)$/i.test(source))return"Gucci";if(/^nars(?:[\s-]+(?:cosmetics|beauty|makeup|make up))?$/i.test(source))return"Nars";if(brandKey(source)==="kiehls")return"Kiehl's";return brandKey(source)==="kerastase"?"Kerastase":source;}
     function publicBrandName(it){var facts=it.publicCandidates||[],name=clean(facts[0]&&facts[0].brand);return name&&facts.every(function(f){return brandKey(f.brand)===brandKey(name);})?name:"";}
     function brandHint(item,p){var selected=managerBrandRecords.find(function(b){return item&&String(item.selectedBrandId||"")===String(b.id);});return canonicalBrand(clean(selected&&selected.name)||(item&&item.sourceFile?clean(item.requestedBrand):"")||clean(p&&p.Brand&&p.Brand.name)||clean(p&&p.Brand_text)||clean(item&&item.requestedBrand)||(/\bgucci\b/i.test(clean(item&&item.requestedName)+" "+clean(p&&p.Product_Name))?"Gucci":""));}
     function requestContext(parsed,input){var singleGucciFile=/^File: /.test(input.trim())&&(input.match(/^File: /gm)||[]).length===1&&/^Gucci make\s*up\s*$/im.test(input);parsed.forEach(function(it){if(/\bgucci\b/i.test(it.requestedName||"")||singleGucciFile)it.requestedBrand="Gucci";});return parsed;}
-    function tidyName(name,brand){var s=clean(name).replace(/\s*[—–]\s*/g," ").replace(/[“”]/g,'"');var aliases=canonicalBrand(brand)==="Gucci"?["Gucci Beauty","Gucci Make Up","Gucci"]:[clean(brand)];aliases.filter(Boolean).some(function(b){if(brandKey(s.slice(0,b.length))===brandKey(b)&&/^[\s:|,-]/.test(s.slice(b.length))){s=clean(s.slice(b.length).replace(/^[\s:|,-]+/,""));return true;}return false;});return s;}
-    // v1.47: Remove only a leading brand from the offer name, preserving the CRM Product Name.
+    function tidyName(name,brand){var s=clean(name).replace(/\s*[—–]\s*/g," ").replace(/[“”]/g,'"');return offerNameWithoutBrand(s,brand);}
+    // v1.52: Brand names are compared by normalized letters, not literal
+    // character length. KIEHL'S, Kiehl’s, Kiehls and Kiehl s are the same
+    // brand. Never strip a prefix from a longer word (e.g. Narsoline).
     function offerNameWithoutBrand(value,brand){
       var original=clean(value),normalizedBrand=canonicalBrand(brand);
       if(!original||!normalizedBrand)return original;
       var aliases=[clean(brand),normalizedBrand],key=brandKey(normalizedBrand);
       if(key==="nars")aliases=aliases.concat(["Nars Cosmetics","Nars Beauty","Nars Makeup","Nars Make Up","Nars"]);
       if(key==="gucci")aliases=aliases.concat(["Gucci Beauty","Gucci Make Up","Gucci Makeup","Gucci Cosmetics","Gucci"]);
-      aliases=aliases.filter(Boolean).sort(function(a,b){return b.length-a.length;});
+      // Include name variants with curly/straight/missing apostrophes.
+      if(key==="kiehls")aliases=aliases.concat(["Kiehl's","Kiehl’s","Kiehls","Kiehl s"]);
+      aliases=aliases.filter(Boolean).sort(function(a,b){return brandKey(b).length-brandKey(a).length;});
       for(var i=0;i<aliases.length;i++){
-        var alias=aliases[i],prefix=original.slice(0,alias.length),tail=original.slice(alias.length);
-        if(brandKey(prefix)!==brandKey(alias)||!/^[\s:|,.\-–—]+/.test(tail))continue;
-        var stripped=clean(tail.replace(/^[\s:|,.\-–—]+/,""));
-        if(stripped)return stripped;
+        var target=brandKey(aliases[i]),cursor=0;
+        if(!target)continue;
+        for(var ch of original){
+          cursor+=ch.length;
+          var prefixKey=brandKey(original.slice(0,cursor));
+          if(prefixKey===target){
+            var tail=original.slice(cursor);
+            // A visible boundary is mandatory. "Kiehlsmask" is not stripped.
+            if(!/^[\s:|,.\-–—/]+/u.test(tail))break;
+            var stripped=clean(tail.replace(/^[\s:|,.\-–—/]+/u,""));
+            if(stripped)return stripped;
+            break;
+          }
+          if(!target.startsWith(prefixKey))break;
+        }
       }
       return original;
     }
@@ -558,7 +573,31 @@
       if(/^cle\s+de\s+peau(?:\s+beaute)?\b/i.test(name))it.requestedBrand="Clé de Peau Beauté";
       else if(/^kiehl(?:'|’)?s\b/i.test(name))it.requestedBrand="Kiehl's";
     }
-    function researchProducts(products){return fetch(AI_SERVICE_URL+"/v1/research",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+aiSession},body:JSON.stringify({products:products})}).then(function(r){return r.json().then(function(data){if(!r.ok){if(r.status===401){clearAISession();}var e=new Error(readableError(data.error||data.message||"Product lookup failed. Resume processing to try again."));e.retryAfter=data.retry_after||0;throw e;}return data.items;});});}
+    function researchProducts(products,options){
+      // Optional background HS/COO enrichment must not block the SO for
+      // several minutes if the AI provider hangs. Main product creation
+      // research remains unchanged (no deadline).
+      var timeoutMs=options&&Number(options.timeoutMs)||0;
+      var controller=timeoutMs>0&&typeof AbortController!=="undefined"?new AbortController():null;
+      var timer=controller?setTimeout(function(){controller.abort();},timeoutMs):null;
+      var params={method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+aiSession},
+        body:JSON.stringify({products:products})};
+      if(controller)params.signal=controller.signal;
+      return fetch(AI_SERVICE_URL+"/v1/research",params).then(function(r){
+        return r.json().then(function(data){
+          if(!r.ok){
+            if(r.status===401)clearAISession();
+            var error=new Error(readableError(data.error||data.message||"Product lookup failed. Resume processing to try again."));
+            error.retryAfter=data.retry_after||0;throw error;
+          }
+          return data.items;
+        });
+      }).catch(function(error){
+        if(controller&&controller.signal.aborted)
+          throw new Error("Optional HS / COO research timed out. Existing data is preserved; edit missing fields with the pencil.");
+        throw error;
+      }).finally(function(){if(timer)clearTimeout(timer);});
+    }
     // Second independent manufacturer-first search with original UPC unchanged.
     function researchOfficialRetry(inputs){
       return researchProducts(inputs.map(function(it,i){
@@ -675,7 +714,7 @@
       }
     }
     function officialName(fact){return window.OrderPipeline&&window.OrderPipeline.officialNameSource&&window.OrderPipeline.officialNameSource(fact,fact.brand)?tidyName(fact.product_name,fact.brand):"";}
-    async function enrichExisting(value,notify){var enricher=new window.ProductEnricher({read:readProduct,research:researchProducts,findBrand:findBrand,repairIdentity:repairBrand,officialName:officialName,brandHint:brandHint,shouldPause:function(){return !!(pipeline&&pipeline.running&&pipeline.paused);},update:updateProduct});return enricher.run(value,notify);}
+    async function enrichExisting(value,notify){var enricher=new window.ProductEnricher({read:readProduct,research:function(batch){return researchProducts(batch,{timeoutMs:45000});},findBrand:findBrand,repairIdentity:repairBrand,officialName:officialName,brandHint:brandHint,shouldPause:function(){return !!(pipeline&&pipeline.running&&pipeline.paused);},update:updateProduct});return enricher.run(value,notify);}
     function chooseBrandRecord(id){return managerBrandRecords.find(function(b){return String(b.id)===String(id||"");})||null;}
     function chooseBrandByName(name){return managerBrandRecords.find(function(b){return brandKey(b.name)===brandKey(canonicalBrand(name));})||null;}
     function brandDropdownOptions(selected){var value=String(selected||"");return '<option value="">Choose a CRM brand</option>'+managerBrandRecords.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(b){return '<option value="'+esc(b.id)+'" '+(value===String(b.id)?'selected':'')+'>'+esc(b.name)+'</option>';}).join("");}
