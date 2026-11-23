@@ -1,6 +1,6 @@
 # Accounting Payment Reminders — Zoho CRM + Front
 
-Current versions: November 19, 2026.
+Current version: November 23, 2026.
 
 ## How it works
 
@@ -16,10 +16,10 @@ Payment reminders stop once the invoice is paid, the order is canceled, or five 
 
 ## Functions
 
-- `functions/Accounting_Payment_Reminders_Daily_v1.3.1.deluge` — invoice checks, five email templates, PDF attachment, dispatch log, Front reply and private comment.
+- `functions/Accounting_Payment_Reminders_Daily_v1.3.2.deluge` — **current production send-enabled version**, invoice checks, five email templates, PDF attachment, dispatch log, Front reply and private comment. The v1.3.1 TEST MODE copy is retained as an archive.
 - `functions/AccountingReminder_FrontAfterSend_v1.1.1.deluge` — Snooze and final Sales handoff.
 - `functions/FrontSalesOrderTags_v2.3.deluge` — existing Front tag/assignment sync and protection against sending a final-reminder conversation back to Accounting.
 
 ## Activation
 
-The main function is currently in TEST MODE (`sendEnabled = false`). Production automatic sending and the 8:00 AM Zoho Schedule have not yet been enabled. The scheduling arrangement must be configured before launch.
+**Sending is enabled in the current main function** (`sendEnabled = true`). **The daily Zoho CRM Schedule is not confirmed/created:** the connected Zoho CRM plugin lacks the OAuth scope for creating or reading schedules (`OAUTH_SCOPE_MISMATCH`). An administrator must configure or verify **Setup > Automation > Schedules**, linking **Accounting Payment Reminders Daily** at **08:00 AM America/New_York**, Monday–Friday. Until a schedule is confirmed, do not claim the full automation is live. If another schedule already references this function, it may run with sending enabled.
