@@ -1,6 +1,6 @@
 # Accounting Payment Reminders — Zoho CRM + Front
 
-Current version: November 23, 2026.
+Current version: v1.3.3, November 23, 2026.
 
 ## How it works
 
@@ -12,11 +12,11 @@ After reminders 1–4, the Front conversation is snoozed in the Accounting inbox
 
 After the fifth reminder, the conversation moves to the Sales inbox, is assigned to the Sales Order Owner, and stays Open. It is not snoozed again. The final email asks the customer to contact their Sales Manager about payment and next steps. Sales decides what to do. The system does not add an ON HOLD tag or automatically put the order on hold.
 
-Payment reminders stop once the invoice is paid, the order is canceled, or five reminders have been sent. The existing Overdue tag is maintained where applicable.
+Payment reminders stop once the invoice is paid, the order is canceled, or five reminders have been sent. **No reminders are sent when Accounting Request Status is Pending or Not showing, or when Sales Order Accounting Status is Pending Payment or Not showing.** The existing Overdue tag is maintained where applicable.
 
 ## Functions
 
-- `functions/Accounting_Payment_Reminders_Daily_v1.3.2.deluge` — **current production send-enabled version**, invoice checks, five email templates, PDF attachment, dispatch log, Front reply and private comment. The v1.3.1 TEST MODE copy is retained as an archive.
+- `functions/Accounting_Payment_Reminders_Daily_v1.3.3.deluge` — **current production send-enabled version**, invoice checks, five email templates, PDF attachment, dispatch log, Front reply and private comment. The v1.3.1 TEST MODE and v1.3.2 prior production copies are retained as archives.
 - `functions/AccountingReminder_FrontAfterSend_v1.1.1.deluge` — Snooze and final Sales handoff.
 - `functions/FrontSalesOrderTags_v2.3.deluge` — existing Front tag/assignment sync and protection against sending a final-reminder conversation back to Accounting.
 
