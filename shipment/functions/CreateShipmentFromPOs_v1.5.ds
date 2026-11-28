@@ -1,0 +1,485 @@
+string button.CreateShipmentFromPOs(String poIds)
+{
+info "[CreateShipmentFromPOs] START selected=" + ifnull(poIds,"");
+rawIds = ifnull(poIds,"").toString().trim();
+if(rawIds == "")
+{
+	return "Select at least one Purchase Order.";
+}
+selectedIds = rawIds.toList("|||");
+uniqueIds = List();
+for each  rawId in selectedIds
+{
+	poId = ifnull(rawId,"").toString().trim();
+	if(poId != "" && !uniqueIds.contains(poId))
+	{
+		uniqueIds.add(poId);
+	}
+}
+if(uniqueIds.isEmpty())
+{
+	return "No Purchase Order IDs received.";
+}
+if(uniqueIds.size() > 50)
+{
+	return "Select a maximum of 50 Purchase Orders at a time.";
+}
+validIds = List();
+poDetails = Map();
+skipped = List();
+firstSubject = "";
+for each  poId in uniqueIds
+{
+	po = zoho.crm.getRecordById("Purchase_Orders",poId.toLong());
+	if(po == null || po.isEmpty() || po.get("id") == null)
+	{
+		skipped.add(poId + " (not found)");
+		continue;
+	}
+	poStatus = ifnull(po.get("Status"),"").toString();
+	if(poStatus == "Cancelled" || poStatus == "Canceled")
+	{
+		skipped.add(ifnull(po.get("Subject"),poId).toString() + " (canceled)");
+		continue;
+	}
+	if(firstSubject == "")
+	{
+		firstSubject = ifnull(po.get("Subject"),poId).toString();
+	}
+	validIds.add(poId);
+	poDetails.put(poId,po);
+}
+if(validIds.isEmpty())
+{
+	return "Shipment not created. No valid Purchase Orders selected. " + skipped.toString(", ");
+}
+nameBase = "Shipment " + zoho.currenttime.toString("yyMMdd-HHmm");
+if(firstSubject != "")
+{
+	nameBase = nameBase + " - " + firstSubject;
+}
+if(nameBase.length() > 120)
+{
+	nameBase = nameBase.left(120);
+}
+// Product sync v1.4: load Purchase Items reliably and build Shipped Products BEFORE creating Shipment.
+// Both names are preserved: Product lookup holds the official CRM name,
+// Offer_Product_Name is the original supplier offer description.
+productRows = List();
+productWarnings = List();
+for each  productPoId in validIds
+{
+	productPO = poDetails.get(productPoId);
+	if(productPO == null)
+	{
+		return "Shipment not created: cannot load Purchase Order " + productPoId + ".";
+	}
+	// v1.4: The legacy Deluge getRecordById task may omit Purchase_Items.
+	// Read the PO subform directly with CRM V8 COQL if needed.
+	poItems = productPO.get("Purchase_Items");
+	if(poItems == null || poItems.isEmpty())
+	{
+		coqlRequest = Map();
+		coqlRequest.put("select_query","select id, Parent_Id, Product_Name, Quantity, UPC, Brand, Offer_Product_Name from Purchase_Items where Parent_Id = '" + productPoId + "' limit 0, 200");
+		try 
+		{
+			coqlResponse = invokeurl
+			[
+				url :"https://www.zohoapis.com/crm/v8/coql"
+				type :POST
+				parameters:coqlRequest.toString()
+				headers:{"Content-Type":"application/json"}
+				connection:"zoho_crm_connection"
+			];
+			if(coqlResponse != null)
+			{
+				poItems = coqlResponse.get("data");
+			}
+			if(poItems == null || poItems.isEmpty())
+			{
+				info "[CreateShipmentFromPOs v1.4] COQL returned no PO items. PO=" + productPoId + " Response=" + coqlResponse;
+				return "Shipment not created: Purchase Items could not be retrieved for PO " + ifnull(productPO.get("Subject"),productPoId).toString() + ". Check execution logs; the PO has not been changed.";
+			}
+			info "[CreateShipmentFromPOs v1.4] COQL read " + poItems.size().toString() + " PO item(s) from " + productPoId;
+		}
+		catch (coqlError)
+		{
+			info "[CreateShipmentFromPOs v1.4] ERROR COQL PO=" + productPoId + " " + coqlError;
+			return "Shipment not created: cannot read Purchase Items from PO " + ifnull(productPO.get("Subject"),productPoId).toString() + " using CRM COQL. " + coqlError;
+		}
+	}
+	for each  poItem in poItems
+	{
+		itemLookup = poItem.get("Product_Name");
+		if(itemLookup == null || itemLookup.get("id") == null)
+		{
+			return "Shipment not created: PO " + ifnull(productPO.get("Subject"),productPoId).toString() + " has a line without a CRM product.";
+		}
+		planQuantity = ifnull(poItem.get("Quantity"),0);
+		if(planQuantity < 0)
+		{
+			return "Shipment not created: PO " + ifnull(productPO.get("Subject"),productPoId).toString() + " has a negative quantity.";
+		}
+		shipProduct = Map();
+		shipProduct.put("Product",{"id":itemLookup.get("id").toString()});
+		shipProduct.put("Purchase_Order",{"id":productPoId});
+		shipProduct.put("Plan_Qty",planQuantity.toLong());
+		offerName = ifnull(poItem.get("Offer_Product_Name"),"").toString().trim();
+		if(offerName != "")
+		{
+			shipProduct.put("Offer_Product_Name",offerName);
+		}
+		itemUPC = ifnull(poItem.get("UPC"),"").toString().trim();
+		if(itemUPC != "")
+		{
+			shipProduct.put("UPC",itemUPC);
+		}
+		itemBrand = ifnull(poItem.get("Brand"),"").toString().trim();
+		if(itemBrand != "")
+		{
+			shipProduct.put("Brand",itemBrand);
+		}
+		productRows.add(shipProduct);
+	}
+}
+if(productRows.isEmpty())
+{
+	return "Shipment not created: selected Purchase Orders contain no valid products.";
+}
+if(productRows.size() > 100)
+{
+	return "Shipment not created: " + productRows.size() + " product lines exceed the 100-row Shipped Products limit. Split into multiple Shipments.";
+}
+// Pickup sync v1.5: one linked PO per editable Pickup Locations row.
+// Copy supplier invoice to Pickup Reference. Respect explicit PO Pickup Location.
+pickupRows = List();
+for each  pickupPoId in validIds
+{
+	pickupPO = poDetails.get(pickupPoId);
+	if(pickupPO != null)
+	{
+		pickupRow = Map();
+		pickupRow.put("Purchase_Order",{"id":pickupPoId});
+		pickupVendorLookup = pickupPO.get("Vendor_Name");
+		pickupVendor = null;
+		if(pickupVendorLookup != null && pickupVendorLookup.get("id") != null)
+		{
+			pickupVendorId = pickupVendorLookup.get("id").toString();
+			pickupRow.put("Supplier",{"id":pickupVendorId});
+			pickupVendor = zoho.crm.getRecordById("Vendors",pickupVendorId.toLong());
+		}
+		pickupRef = ifnull(pickupPO.get("Supplier_invoice"),"").toString().trim();
+		if(pickupRef != "")
+		{
+			pickupRow.put("Pickup_Reference",pickupRef);
+		}
+		pickupChoice = ifnull(pickupPO.get("Pickup_Location"),"").toString().trim();
+		pickupAddress = "";
+		if(pickupChoice == "Other Location")
+		{
+			pickupAddress = ifnull(pickupPO.get("Other_Pickup_Location"),"").toString().trim();
+		}
+		else if(pickupChoice == "Supplier Warehouse" && pickupVendor != null && pickupVendor.get("id") != null)
+		{
+			sameWarehouse = ifnull(pickupVendor.get("Warehouse_Address_is_the_Same_as_business_address"),"").toString().toLowerCase() == "yes";
+			if(sameWarehouse)
+			{
+				addressStreet = ifnull(pickupVendor.get("Street"),"").toString().trim();
+				addressCity = ifnull(pickupVendor.get("City"),"").toString().trim();
+				addressState = ifnull(pickupVendor.get("State"),"").toString().trim();
+				addressZip = ifnull(pickupVendor.get("Zip_Code"),"").toString().trim();
+				addressCountry = ifnull(pickupVendor.get("Country"),"").toString().trim();
+			}
+			else
+			{
+				addressStreet = ifnull(pickupVendor.get("Warehouse_Street"),"").toString().trim();
+				addressCity = ifnull(pickupVendor.get("Warehouse_City"),"").toString().trim();
+				addressState = ifnull(pickupVendor.get("Warehouse_State"),"").toString().trim();
+				addressZip = ifnull(pickupVendor.get("Warehouse_Zip"),"").toString().trim();
+				addressCountry = ifnull(pickupVendor.get("Warehouse_Country"),"").toString().trim();
+			}
+			addressParts = List();
+			if(addressStreet != "")
+			{
+				addressParts.add(addressStreet);
+			}
+			if(addressCity != "")
+			{
+				addressParts.add(addressCity);
+			}
+			if(addressState != "")
+			{
+				addressParts.add(addressState);
+			}
+			if(addressZip != "")
+			{
+				addressParts.add(addressZip);
+			}
+			if(addressCountry != "")
+			{
+				addressParts.add(addressCountry);
+			}
+			if(!addressParts.isEmpty())
+			{
+				pickupAddress = addressParts.toString(", ");
+			}
+			else
+			{
+				pickupAddress = ifnull(pickupVendor.get("Logistics_Address_Combined"),"").toString().trim();
+			}
+			vendorPhone = ifnull(pickupVendor.get("Warehouse_Phone"),"").toString().trim();
+			if(vendorPhone != "")
+			{
+				pickupRow.put("Pickup_Phone",vendorPhone);
+			}
+			vendorHours = ifnull(pickupVendor.get("Hours_of_operation"),"").toString().trim();
+			if(vendorHours != "")
+			{
+				pickupRow.put("Pickup_Hours",vendorHours);
+			}
+			vendorNotes = ifnull(pickupVendor.get("Warehouse_Pickup_Notes"),"").toString().trim();
+			if(vendorNotes == "")
+			{
+				vendorNotes = ifnull(pickupVendor.get("Comments"),"").toString().trim();
+			}
+			if(vendorNotes != "")
+			{
+				pickupRow.put("Pickup_Notes",vendorNotes);
+			}
+		}
+		if(pickupAddress != "")
+		{
+			pickupRow.put("Pickup_Address",pickupAddress);
+		}
+		pickupRows.add(pickupRow);
+	}
+}
+if(pickupRows.size() > 100)
+{
+	return "Shipment not created: more than 100 Pickup Locations. Split into multiple Shipments.";
+}
+shipMap = Map();
+shipMap.put("Name",nameBase);
+shipMap.put("Shipment_Status","New");
+shipMap.put("Shipped_Products",productRows);
+shipMap.put("Pickup_Locations",pickupRows);
+shipMap.put("POs_IDs",validIds.toString("|"));
+noTriggers = Map();
+noTriggers.put("trigger",List());
+shipResp = zoho.crm.createRecord("Shipments",shipMap,noTriggers);
+if(shipResp == null || shipResp.get("id") == null)
+{
+	info "[CreateShipmentFromPOs] ERROR creating shipment: " + shipResp;
+	return "Shipment could not be created. Check execution logs.";
+}
+shipId = shipResp.get("id").toString();
+info "[CreateShipmentFromPOs] Created Shipment " + shipId;
+// v1.5: Verify Pickup Locations independently from Shipped Products.
+pickupSaved = 0;
+pickupVerification = false;
+try 
+{
+	pickupVerifyResponse = invokeurl
+	[
+		url :"https://www.zohoapis.com/crm/v8/Shipments/" + shipId
+		type :GET
+		connection:"zoho_crm_connection"
+	];
+	pickupVerifyData = ifnull(pickupVerifyResponse.get("data"),List());
+	if(!pickupVerifyData.isEmpty())
+	{
+		pickupVerification = true;
+		actualPickups = pickupVerifyData.get(0).get("Pickup_Locations");
+		if(actualPickups != null)
+		{
+			pickupSaved = actualPickups.size();
+		}
+	}
+}
+catch (pickupVerifyError)
+{
+	info "[CreateShipmentFromPOs v1.5] Pickup verify failed: " + pickupVerifyError;
+}
+if(pickupVerification && pickupSaved == 0 && !pickupRows.isEmpty())
+{
+	pickupFallback = Map();
+	pickupFallback.put("Pickup_Locations",pickupRows);
+	pickupFallbackResp = zoho.crm.updateRecord("Shipments",shipId.toLong(),pickupFallback,noTriggers);
+	info "[CreateShipmentFromPOs v1.5] Pickup fallback result=" + pickupFallbackResp;
+	if(pickupFallbackResp != null && ifnull(pickupFallbackResp.get("code"),"").toString() == "SUCCESS")
+	{
+		afterPickupFallback = zoho.crm.getRecordById("Shipments",shipId.toLong());
+		if(afterPickupFallback != null && afterPickupFallback.get("Pickup_Locations") != null)
+		{
+			pickupSaved = afterPickupFallback.get("Pickup_Locations").size();
+		}
+	}
+}
+if(pickupVerification && pickupSaved != pickupRows.size())
+{
+	info "[CreateShipmentFromPOs v1.5] WARN pickup count expected=" + pickupRows.size() + " got=" + pickupSaved + " Shipment=" + shipId;
+}
+else
+{
+	info "[CreateShipmentFromPOs v1.5] Pickup creation submitted for " + pickupRows.size() + " PO(s).";
+}
+// v1.4: Verify Shipment subform through the CRM V8 API (not legacy Deluge).
+// Only retry saving items when V8 confirmed they are missing, avoiding duplicates.
+productWarnings = List();
+syncedProducts = 0;
+verificationSucceeded = false;
+try 
+{
+	verifyResponse = invokeurl
+	[
+		url :"https://www.zohoapis.com/crm/v8/Shipments/" + shipId
+		type :GET
+		connection:"zoho_crm_connection"
+	];
+	verifyData = ifnull(verifyResponse.get("data"),List());
+	if(!verifyData.isEmpty())
+	{
+		verificationSucceeded = true;
+		createdLines = verifyData.get(0).get("Shipped_Products");
+		if(createdLines != null)
+		{
+			syncedProducts = createdLines.size();
+		}
+	}
+}
+catch (verifyError)
+{
+	info "[CreateShipmentFromPOs v1.4] V8 verification error Shipment=" + shipId + " " + verifyError;
+	productWarnings.add("V8 product verification failed: " + verifyError);
+}
+if(verificationSucceeded && syncedProducts == 0)
+{
+	info "[CreateShipmentFromPOs v1.4] V8 reports empty Shipped Products, trying updateRecord once. Shipment=" + shipId;
+	fallbackMap = Map();
+	fallbackMap.put("Shipped_Products",productRows);
+	fallbackResp = zoho.crm.updateRecord("Shipments",shipId.toLong(),fallbackMap,noTriggers);
+	if(fallbackResp == null || ifnull(fallbackResp.get("code"),"").toString() != "SUCCESS")
+	{
+		productWarnings.add("Product update failed: " + fallbackResp);
+		info "[CreateShipmentFromPOs v1.4] ERROR fallback product update: " + fallbackResp;
+	}
+	try 
+	{
+		verifyFallbackResponse = invokeurl
+		[
+			url :"https://www.zohoapis.com/crm/v8/Shipments/" + shipId
+			type :GET
+			connection:"zoho_crm_connection"
+		];
+		fallbackData = ifnull(verifyFallbackResponse.get("data"),List());
+		if(!fallbackData.isEmpty())
+		{
+			fallbackLines = fallbackData.get(0).get("Shipped_Products");
+			if(fallbackLines != null)
+			{
+				syncedProducts = fallbackLines.size();
+			}
+		}
+	}
+	catch (fallbackError)
+	{
+		info "[CreateShipmentFromPOs v1.4] ERROR verifying fallback: " + fallbackError;
+		productWarnings.add("Could not verify fallback product update.");
+	}
+}
+if(verificationSucceeded && syncedProducts != productRows.size())
+{
+	productWarnings.add("Expected " + productRows.size() + " product lines, CRM contains " + syncedProducts + ". Check Shipped Products.");
+	info "[CreateShipmentFromPOs v1.4] PRODUCT COUNT MISMATCH Shipment=" + shipId + " expected=" + productRows.size() + " actual=" + syncedProducts;
+}
+else if(verificationSucceeded)
+{
+	info "[CreateShipmentFromPOs v1.4] VERIFIED " + syncedProducts + " product lines, Shipment=" + shipId;
+}
+else
+{
+	productWarnings.add("Shipment created but product count could not be verified. Do not retry without checking the Shipment.");
+}
+linkedIds = List();
+linkFailures = List();
+poUpdateFailures = List();
+for each  poId in validIds
+{
+	linkMap = Map();
+	linkMap.put("Shipment",{"id":shipId});
+	linkMap.put("Purchase_Order",{"id":poId});
+	linkResp = zoho.crm.createRecord("Shipment_PO_Links",linkMap,noTriggers);
+	if(linkResp != null && linkResp.get("id") != null)
+	{
+		linkedIds.add(poId);
+		po = poDetails.get(poId);
+		currentShipIds = ifnull(po.get("Shipments_IDs"),"").toString().replaceAll(",","|");
+		shipIdsList = List();
+		if(currentShipIds != "")
+		{
+			for each  existingId in currentShipIds.toList("|")
+			{
+				existingId = ifnull(existingId,"").toString().trim();
+				if(existingId != "" && !shipIdsList.contains(existingId))
+				{
+					shipIdsList.add(existingId);
+				}
+			}
+		}
+		if(!shipIdsList.contains(shipId))
+		{
+			shipIdsList.add(shipId);
+			poUpdateMap = Map();
+			poUpdateMap.put("Shipments_IDs",shipIdsList.toString("|"));
+			poResp = zoho.crm.updateRecord("Purchase_Orders",poId.toLong(),poUpdateMap,noTriggers);
+			poVerified = zoho.crm.getRecordById("Purchase_Orders",poId.toLong());
+			actualShipIds = ifnull(poVerified.get("Shipments_IDs"),"").toString();
+			if(!actualShipIds.toList("|").contains(shipId))
+			{
+				info "[CreateShipmentFromPOs] WARN PO technical field not verified: " + poId + " " + poResp;
+				poUpdateFailures.add(poId);
+			}
+		}
+	}
+	else
+	{
+		info "[CreateShipmentFromPOs] ERROR link PO " + poId + ": " + linkResp;
+		linkFailures.add(poId);
+	}
+}
+// Keep legacy POs_IDs aligned with successfully linked records.
+if(linkedIds.size() != validIds.size())
+{
+	syncMap = Map();
+	syncMap.put("POs_IDs",linkedIds.toString("|"));
+	syncResp = zoho.crm.updateRecord("Shipments",shipId.toLong(),syncMap,noTriggers);
+	if(syncResp == null || ifnull(syncResp.get("code"),"") != "SUCCESS")
+	{
+		info "[CreateShipmentFromPOs] WARN syncing POs_IDs: " + syncResp;
+	}
+}
+// Product sync v1.3 completed and verified immediately after Shipment creation.
+productStatusNotice = " Product lines saved: " + syncedProducts.toString() + " of " + productRows.size().toString() + ".";
+if(!productWarnings.isEmpty())
+{
+	info "[CreateShipmentFromPOs v1.3] PRODUCT SYNC WARNINGS: " + productWarnings;
+	productStatusNotice = productStatusNotice + " Product issues: " + productWarnings.toString(" | ");
+}
+url = "https://crm.zoho.com/crm/minmaxdeals/tab/CustomModule11/" + shipId;
+result = "Shipment created: " + nameBase + ". Linked " + linkedIds.size().toString() + " of " + uniqueIds.size().toString() + " Purchase Orders." + productStatusNotice + " " + url;
+if(!skipped.isEmpty())
+{
+	result = result + ". Skipped: " + skipped.toString(", ");
+}
+if(!linkFailures.isEmpty())
+{
+	result = result + ". Failed links: " + linkFailures.toString(", ");
+}
+if(!poUpdateFailures.isEmpty())
+{
+	result = result + ". Technical ID sync needs review for PO: " + poUpdateFailures.toString(", ");
+}
+info "[CreateShipmentFromPOs] DONE " + result;
+openUrl(url,"same window");
+return result;
+}
